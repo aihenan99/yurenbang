@@ -1,0 +1,39 @@
+{
+ "env": {
+  "inFrame": true,
+  "crossOrigin": true,
+  "secure": true,
+  "hasMediaDevices": true,
+  "camera": "granted",
+  "microphone": "granted",
+  "live": true
+ },
+ "idleWarn": {
+  "warn": true,
+  "text": "⚠️ 当前是在「预览框」里打开，预览框不允许使用摄像头。请用下面的按钮在新窗口打开，就能正常拍摄。\n    🔗 在新窗口打开"
+ },
+ "help": {
+  "shown": true,
+  "title": "当前是在「预览框」里打开，预览框不允许使用摄像头",
+  "why": "本应用被嵌在另一个页面的方框里，出于安全，浏览器不会把摄像头交给预览框。",
+  "buttons": [
+   "🔗 在新窗口打开",
+   "🔄 重试",
+   "📋 复制自检信息",
+   "📷 用系统相机拍摄",
+   "🖼️ 从相册选视频",
+   "↩︎ 返回"
+  ]
+ },
+ "voiceHelp": {
+  "title": "当前是在「预览框」里打开，预览框不允许使用麦克风",
+  "buttons": [
+   "🔗 在新窗口打开",
+   "🔄 重试",
+   "📋 复制自检信息",
+   "🎵 选已有的录音文件",
+   "↩︎ 返回"
+  ]
+ },
+ "pageErrors": []
+}

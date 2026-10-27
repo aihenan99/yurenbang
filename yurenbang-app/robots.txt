@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+# 允许包括百度(Baiduspider)、必应(bingbot)、谷歌(Googlebot)、搜狗(Sogou)、神马(YisouSpider)在内的搜索引擎抓取全部内容
+Sitemap: https://yurenbang.app.workbuddy.host/sitemap.xml

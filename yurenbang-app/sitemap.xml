@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 育人帮 · 站点地图（由 temp/gen_seo_anli.py 生成，新增案例后重新运行即可） -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://yurenbang.app.workbuddy.host/</loc><lastmod>2026-10-22</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>
+  <url><loc>https://yurenbang.app.workbuddy.host/anli/</loc><lastmod>2026-10-22</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://yurenbang.app.workbuddy.host/share</loc><lastmod>2026-10-22</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>
+  <url><loc>https://yurenbang.app.workbuddy.host/anli/haizi-xie-zuoye-tuola</loc><lastmod>2026-10-22</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://yurenbang.app.workbuddy.host/anli/haizi-chenmi-shouji</loc><lastmod>2026-10-22</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://yurenbang.app.workbuddy.host/anli/qingchunqi-buyuan-goutong</loc><lastmod>2026-10-22</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://yurenbang.app.workbuddy.host/anli/erhai-zhengchao</loc><lastmod>2026-10-22</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://yurenbang.app.workbuddy.host/anli/gedai-yangyu-chongtu</loc><lastmod>2026-10-22</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://yurenbang.app.workbuddy.host/anli/kaoshi-kaoza-qingxu</loc><lastmod>2026-10-22</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://yurenbang.app.workbuddy.host/anli/haizi-bei-guli</loc><lastmod>2026-10-22</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://yurenbang.app.workbuddy.host/anli/haizi-sahuang</loc><lastmod>2026-10-22</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://yurenbang.app.workbuddy.host/anli/zaoshang-moceng-shangxue</loc><lastmod>2026-10-22</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://yurenbang.app.workbuddy.host/anli/xie-zuowen-mei-hua-shuo</loc><lastmod>2026-10-22</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>
+</urlset>

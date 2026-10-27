@@ -1,0 +1,67 @@
+/* ============================================================
+   casedit.css — 案例广场「图文」编辑器 v2（2026-10-27）
+   Word 式白纸面 + 大字号，老年可用；配色沿用 app 现有变量。
+   ============================================================ */
+
+/* hidden 保险：任何给面板设 display 的规则都不能压掉它 */
+#cePanel[hidden]{display:none!important;}
+
+/* 工具条：大触点（≥44px），按下不丢光标（mousedown 阻止默认） */
+.ce-bar{
+  display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;
+}
+.ce-bar button,.ce-bar label.ce-img-btn{
+  font:inherit;font-size:16px;color:var(--ink,#1f2329);
+  background:var(--bg,#f5f6f8);border:1.5px solid var(--rule,#d8dde3);
+  border-radius:12px;padding:10px 15px;min-height:44px;line-height:1;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;
+  display:inline-flex;align-items:center;justify-content:center;
+}
+.ce-bar button:active,.ce-bar label.ce-img-btn:active{
+  background:#e8ebef;border-color:#b8c0c8;
+}
+.ce-bar button:focus-visible,.ce-bar label.ce-img-btn:focus-visible{
+  outline:2px solid #7aa7d9;outline-offset:2px;
+}
+.ce-bar .ce-b{font-weight:700;min-width:44px;font-size:17px;}
+.ce-bar label.ce-img-btn{gap:6px;}
+
+/* 白纸面：像一页 Word */
+.ce-paper{
+  background:#fff;border:1.5px solid var(--rule,#d8dde3);border-radius:14px;
+  min-height:220px;max-height:52vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:14px 16px;font-size:17.5px;line-height:1.8;color:var(--ink,#1f2329);
+  outline:none;word-break:break-word;overflow-wrap:break-word;
+}
+.ce-paper:empty::before,.ce-paper.ce-empty::before{
+  content:attr(data-ph);color:#a6adb5;pointer-events:none;display:block;
+}
+.ce-paper:focus{border-color:#7aa7d9;box-shadow:0 0 0 3px rgba(122,167,217,.14);}
+.ce-paper h3{font-size:20px;font-weight:700;margin:14px 0 6px;line-height:1.5;}
+.ce-paper p{margin:0 0 8px;}
+.ce-paper ul,.ce-paper ol{margin:0 0 8px;padding-left:22px;}
+.ce-paper li{margin:2px 0;}
+.ce-paper img{max-width:100%;display:block;margin:8px auto;border-radius:10px;}
+.ce-paper b,.ce-paper strong{font-weight:700;}
+
+/* 提示行：兼作字数/图片计数 */
+.ce-tip{font-size:13px;color:#8a929b;margin-top:8px;line-height:1.6;}
+.ce-tip.ce-warn{color:#c2410c;font-weight:600;}
+
+/* ---------- 查看端：图文案例正文块 ---------- */
+.yrb-doc-body{
+  background:#fff;border:1.5px solid var(--rule,#d8dde3);border-radius:14px;
+  padding:14px 16px;font-size:17.5px;line-height:1.85;color:var(--ink,#1f2329);
+  word-break:break-word;overflow-wrap:break-word;
+  max-height:52vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+}
+.yrb-doc-body h3{font-size:19.5px;font-weight:700;margin:14px 0 6px;line-height:1.5;}
+.yrb-doc-body p{margin:0 0 9px;}
+.yrb-doc-body ul,.yrb-doc-body ol{margin:0 0 9px;padding-left:22px;}
+.yrb-doc-body li{margin:2px 0;}
+.yrb-doc-body img{max-width:100%;display:block;margin:10px auto;border-radius:12px;background:var(--bg2,#eef1f4);}
+.yrb-doc-body b,.yrb-doc-body strong{font-weight:700;}
+.yrb-doc-lock{
+  margin:10px 0;padding:10px 12px;border-radius:12px;
+  background:var(--bg,#f5f6f8);color:#8a929b;font-size:14px;text-align:center;
+}

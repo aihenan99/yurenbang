@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<!-- 构建号：部署时由 temp/sync_deploy.py 写入真实值（与 assets/bundle.js 内的
+     window.YRB_BUILD 必须一致，不一致说明命中新旧混载，升级层会自动纠正） -->
+<meta name="yrb-build" content="dev">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>育人帮 · 家长互助社区｜免费育儿求助与互助平台</title>
+<meta name="description" content="育人帮是免费的家长互助社区：孩子写作业拖拉、沉迷手机、青春期不愿沟通，发一条求助，很多家长愿意伸手帮你。支持文字、图片、微视频、语音，含长辈模式与未成年人保护公约。">
+<meta name="keywords" content="育人帮,家长互助,育儿求助,家长社区,家庭教育,科学育儿,作业拖拉,孩子沉迷手机,青春期沟通,亲子关系,未成年人保护">
+<link rel="canonical" href="https://yurenbang.app.workbuddy.host/yurenbang-app.html">
+<meta name="applicable-device" content="mobile">
+<!-- 分享卡片（微信 / QQ / 浏览器） -->
+<meta property="og:title" content="育人帮 · 家长互助社区">
+<meta property="og:description" content="关心下一代，呵护成长。有困惑发一条求助，很多家长愿意伸手帮你。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="育人帮">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:url" content="https://yurenbang.app.workbuddy.host/">
+<meta property="og:image" content="https://yurenbang.app.workbuddy.host/assets/icon-512.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="育人帮 · 家长互助社区">
+<meta name="twitter:description" content="关心下一代，呵护成长。有困惑发一条求助，很多家长愿意伸手帮你。">
+<meta name="twitter:image" content="https://yurenbang.app.workbuddy.host/assets/icon-512.png">
+<!-- 结构化数据：帮助搜索引擎识别站点名称与类型 -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+ {"@type":"WebSite","name":"育人帮","alternateName":["育人帮家长互助社区"],"url":"https://yurenbang.app.workbuddy.host/","inLanguage":"zh-CN","description":"面向家长与关心下一代的爱心人士的互助社区。"},
+ {"@type":"SoftwareApplication","name":"育人帮","applicationCategory":"SocialNetworkingApplication","operatingSystem":"Web（手机浏览器 / 微信内置浏览器）","url":"https://yurenbang.app.workbuddy.host/","inLanguage":"zh-CN","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"}},
+ {"@type":"FAQPage","inLanguage":"zh-CN","mainEntity":[
+  {"@type":"Question","name":"育人帮是什么？需要收费吗？","acceptedAnswer":{"@type":"Answer","text":"育人帮是一个免费的家长互助社区。孩子写作业拖拉、沉迷手机、青春期不愿沟通，都可以发一条求助，会有其他家长来帮忙回应。浏览和求助都不收费。"}},
+  {"@type":"Question","name":"在育人帮可以发什么？","acceptedAnswer":{"@type":"Answer","text":"可以发文字求助，也可以上传图片、微视频、语音，把情况说得更清楚，得到的建议也更贴合。"}},
+  {"@type":"Question","name":"需要用手机号注册吗？","acceptedAnswer":{"@type":"Answer","text":"浏览求助和帮忙内容不需要注册。发布求助或回应帮忙时，需要用手机号验证码登录，这样每条内容都有真实家长负责，也能在出现不当内容时追溯处理。"}},
+  {"@type":"Question","name":"家里老人不太会用手机怎么办？","acceptedAnswer":{"@type":"Answer","text":"育人帮内置长辈模式：字更大、按钮更大、可一键朗读内容（语音播报），还支持语音转文字发求助，尽量让不熟悉手机的长辈也能用。"}},
+  {"@type":"Question","name":"孩子的隐私如何保护？","acceptedAnswer":{"@type":"Answer","text":"社区实行未成年人保护公约：不发孩子的姓名、学校、班级、住址等可识别信息，照片尽量避免正面清晰照；云端素材需登录后查看，避免被无账号的人随意抓取转发。"}}
+ ]}
+]}
+</script>
+<!-- PWA：可"添加到主屏幕"，像 APP 一样全屏使用 -->
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#F0543C">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="育人帮">
+<link rel="icon" href="/assets/icon-192.png">
+<script>
+/* Service Worker：网络优先，离线兜底（sw.js 注册失败不影响应用） */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("/sw.js").catch(function () {});
+  });
+}
+</script>
+<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/refine23.css">
+<link rel="stylesheet" href="assets/access.css">
+<link rel="stylesheet" href="assets/capture.css">
+<link rel="stylesheet" href="assets/cloud.css">
+<link rel="stylesheet" href="assets/reward.css">
+<link rel="stylesheet" href="assets/jiaojiao.css">
+<link rel="stylesheet" href="assets/admin.css">
+<link rel="stylesheet" href="assets/license.css">
+<link rel="stylesheet" href="assets/profile.css">
+<link rel="stylesheet" href="assets/food.css">
+<link rel="stylesheet" href="assets/adminguard.css">
+<!-- PPT 在线翻页浏览层：点开 PPT 案例自动展开逐页浏览 -->
+<link rel="stylesheet" href="assets/pptview.css">
+<!-- 访问门槛层：浏览免费 · 发布与帮忙需登录 -->
+<link rel="stylesheet" href="assets/gate.css">
+<!-- 玫瑰馈赠层：点赞/收藏/帮忙后满屏大玫瑰，并送达发布者 -->
+<link rel="stylesheet" href="assets/rose.css">
+<!-- 内容保护层：禁止复制/下载/打印/另存（管理员豁免），只留「转发链接」一条路 -->
+<link rel="stylesheet" href="assets/protect.css">
+<link rel="stylesheet" href="assets/mediafull.css">
+<link rel="stylesheet" href="assets/casedit.css">
+</head>
+<body>
+<!-- 搜索引擎可读正文：应用本身由 JS 渲染，爬虫抓不到内容。
+     普通用户完全看不到这段（<noscript> 只在禁用 JS 的爬虫视角生效），
+     正常浏览体验不受任何影响。 -->
+<noscript>
+<h1>育人帮 · 家长互助社区</h1>
+<p>育人帮是一个免费的家长互助社区。孩子写作业拖拉、沉迷手机、青春期不愿沟通，发一条求助，很多家长愿意伸手帮你。手机浏览器直接打开即可浏览，发布求助与回应帮忙需用手机号验证码登录。</p>
+
+<h2>🌱 育人帮是什么</h2>
+<p>育人帮面向家长与关心下一代的爱心人士。这里不做说教式的育儿课堂，而是一个"有人问、有人答"的互助社区：谁家孩子遇到的具体难题，往往同城、同龄的家长最有经验。</p>
+<ul>
+  <li>免费使用，浏览求助与帮忙内容无需注册</li>
+  <li>支持文字、图片、微视频、语音发求助，说清楚情况更容易得到有用的建议</li>
+  <li>发布求助或回应帮忙需手机号验证码登录，每条内容都有真实家长负责，便于违规追溯</li>
+  <li>内置长辈模式：大字、大按钮、一键朗读、语音转文字</li>
+  <li>未成年人保护公约：不公开孩子的姓名、学校、班级、住址等可识别信息</li>
+</ul>
+
+<h2>👨‍👩‍👧 家长们在育人帮问得最多的事</h2>
+<ul>
+  <li>孩子写作业拖拉、注意力不集中，怎么安排时间和陪伴方式</li>
+  <li>孩子沉迷手机与游戏，如何约定规则而不是硬碰硬</li>
+  <li>青春期不愿沟通、早恋、情绪波动，家长该怎么开口</li>
+  <li>隔代养育观念冲突、二孩家庭教育如何平衡</li>
+  <li>孩子在学校遇到的人际关系与情绪问题，家长可以做什么</li>
+</ul>
+
+<h2>❓ 常见问题</h2>
+<h3>育人帮收费吗？</h3>
+<p>不收费。浏览与求助都免费，也不需要购买会员。</p>
+<h3>必须注册才能用吗？</h3>
+<p>浏览不需要。发布求助、回应帮忙、上传照片视频语音时需要手机号验证码登录。</p>
+<h3>家里老人不会用智能手机，能用吗？</h3>
+<p>可以。长辈模式提供更大的字号与按钮、内容一键朗读、语音转文字发求助。</p>
+<h3>怎么保护孩子隐私？</h3>
+<p>请勿发布孩子的姓名、学校、班级、住址等可识别信息，照片避免正面清晰照；云端素材需登录后查看，降低被随意抓取转发的风险。</p>
+<h3>遇到不当内容怎么办？</h3>
+<p>每条内容都可举报，管理员会在后台核查处理（下架或删除）。</p>
+
+<h2>📚 家庭教育案例库</h2>
+<p>家长真实经历的完整记录，每篇都写了当时怎么错的、后来怎么改、改了多久见效，按主题与年龄段分类。</p>
+<ul>
+  <li><a href="anli/haizi-xie-zuoye-tuola">孩子写作业拖拉，从两个半小时到 50 分钟：五步调整</a></li>
+  <li><a href="anli/haizi-chenmi-shouji">孩子沉迷手机短视频，一说就翻脸：从抢手机到「定停车位」</a></li>
+  <li><a href="anli/qingchunqi-buyuan-goutong">青春期孩子回家就关门、问什么都「嗯」：把谈话改成并肩做事</a></li>
+  <li><a href="anli/kaoshi-kaoza-qingxu">孩子考砸了回家就哭：第一句话说什么，决定还能不能谈</a></li>
+  <li><a href="anli/erhai-zhengchao">二宝出生后，大宝尿裤子、打弟弟：不是在退步</a></li>
+  <li><a href="anli/gedai-yangyu-chongtu">奶奶追着喂饭、穿三件衣服：隔代养育我只争三条底线</a></li>
+  <li><a href="anli/haizi-bei-guli">孩子说「没人跟我玩」、不想上学：先分清三件事</a></li>
+  <li><a href="anli/haizi-sahuang">一年级孩子撒谎：我怕的不是谎，是他不敢说实话</a></li>
+  <li><a href="anli/zaoshang-moceng-shangxue">一年级早晨像打仗：把流程画成一张卡</a></li>
+  <li><a href="anli/xie-zuowen-mei-hua-shuo">三年级写作文憋两小时：先让他说，再让他写</a></li>
+</ul>
+<p><a href="anli/">进入家庭教育案例库（全部案例）→</a></p>
+</noscript>
+<div id="phone">
+
+  <!-- ======== 启动屏 ======== -->
+  <div id="splash" class="layer">
+    <svg class="s-sun" viewBox="0 0 200 200" fill="none">
+      <g stroke="#F4A469" stroke-width="3" stroke-linecap="round" opacity=".8">
+        <line x1="100" y1="8" x2="100" y2="30"/><line x1="100" y1="170" x2="100" y2="192"/>
+        <line x1="8" y1="100" x2="30" y2="100"/><line x1="170" y1="100" x2="192" y2="100"/>
+        <line x1="34" y1="34" x2="49" y2="49"/><line x1="151" y1="151" x2="166" y2="166"/>
+        <line x1="166" y1="34" x2="151" y2="49"/><line x1="49" y1="151" x2="34" y2="166"/>
+      </g>
+      <circle cx="100" cy="100" r="34" fill="#FFC46B" opacity=".5"/>
+    </svg>
+    <div class="s-word">育人帮</div>
+    <div class="s-logo">
+      <svg viewBox="0 0 120 110" fill="none">
+        <path class="s-heart-path" d="M60 100 C 16 68 8 34 32 22 C 47 15 60 26 60 36 C 60 26 73 15 88 22 C 112 34 104 68 60 100 Z" stroke="#F4694B" stroke-width="4.5" fill="none" stroke-linecap="round"/>
+        <path class="s-heart-fill" d="M60 100 C 16 68 8 34 32 22 C 47 15 60 26 60 36 C 60 26 73 15 88 22 C 112 34 104 68 60 100 Z" fill="#F4694B" opacity=".85"/>
+        <g class="s-sprout">
+          <path d="M60 40 C 60 28 60 20 60 8" stroke="#2FA393" stroke-width="4" stroke-linecap="round"/>
+          <ellipse class="s-leaf1" cx="50" cy="20" rx="10" ry="5" fill="#57C7B5" transform="rotate(-32 50 20)"/>
+          <ellipse class="s-leaf2" cx="70" cy="13" rx="9" ry="4.5" fill="#2FA393" transform="rotate(28 70 13)"/>
+        </g>
+      </svg>
+    </div>
+    <div class="s-title">关怀成长</div>
+    <div class="s-sub">育人帮 · 让每一份求助都被温柔以待</div>
+    <div class="s-hint">— 点击任意处进入 —</div>
+  </div>
+  <!-- 启动屏自救：万一主程序没加载成功（弱网/坏缓存），点按后自动换新地址强制刷新，
+       而不是永远停在启动屏。60 秒内最多自救一次，反复失败则提示检查网络。 -->
+  <script>
+  (function(){
+    var splash=document.getElementById("splash");
+    if(!splash)return;
+    splash.addEventListener("click",function(){
+      setTimeout(function(){
+        if(splash.classList.contains("hidden"))return;   /* 已正常进入，无需自救 */
+        try{
+          var last=+sessionStorage.getItem("yrbSplashRescue")||0;
+          if(Date.now()-last<60000){
+            var h=document.querySelector(".s-hint");
+            if(h)h.textContent="网络不太稳定，请确认网络后退出重新打开";
+            return;
+          }
+          sessionStorage.setItem("yrbSplashRescue",String(Date.now()));
+        }catch(e){}
+        var u=location.pathname+"?yrbheal="+Date.now();
+        location.replace(u);
+      },1200);
+    },{capture:true});
+  })();
+  </script>
+
+  <!-- ======== 主应用 ======== -->
+  <div id="app" class="layer hidden">
+    <header id="topbar">
+      <div class="dt" id="dtTxt">—</div>
+      <div class="tb-acts">
+        <button class="icon-btn" id="btnSet" aria-label="设置">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2 5.5 5.5"/></svg>
+        </button>
+        <button class="icon-btn" id="btnMenu" aria-label="功能栏目">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2.1" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- 设置下拉面板 -->
+    <div id="dropdown"></div>
+
+    <!-- 功能栏目抽屉 -->
+    <div class="mask" id="drMask"></div>
+    <aside id="drawer">
+      <div class="dr-title">功能栏目</div>
+      <div class="dr-sub">全部功能入口 · 架构可持续扩展</div>
+      <div class="dr-body" id="drBody"></div>
+      <div class="dr-foot">🚧 <b>预留升级架构</b> · 新功能模块插槽持续升级中</div>
+    </aside>
+
+    <!-- 页面 -->
+    <main id="pages">
+      <section class="page active" id="page-home">
+        <div id="funcrow"></div>
+        <div id="feed"></div>
+      </section>
+      <section class="page" id="page-cases">
+        <div class="pg-head"><h1>案例广场</h1><span class="pg-sub">图文 · 图片 · PPT · 微视频 ≤30s</span></div>
+        <div class="case-tabs" id="caseTabs">
+          <button class="ct on" data-f="all">全部</button><button class="ct" data-f="img">图片</button><button class="ct" data-f="ppt">PPT</button><button class="ct" data-f="video">微视频</button>
+        </div>
+        <div class="case-grid" id="caseGrid"></div>
+        <!-- 静态内容入口：案例库长文（可被搜索引擎直接抓取，同时给家长一个"慢慢读"的去处） -->
+        <a class="case-lib" href="anli/">
+          <span class="cl-ico">📚</span>
+          <span class="cl-tx"><b>家庭教育案例库</b><i>10 个真实家庭的做法 · 长文细读</i></span>
+          <span class="cl-ar">›</span>
+        </a>
+        <button id="caseFab" aria-label="上传案例">＋</button>
+      </section>
+      <section class="page" id="page-growth">
+        <div class="pg-head"><h1>成长录</h1><span class="pg-sub">记录每一步成长</span></div>
+        <div class="tl" id="tlList"></div>
+      </section>
+      <section class="page" id="page-msgs">
+        <div class="pg-head"><h1>消息</h1><span class="pg-sub">帮忙 · 点赞 · 礼物</span></div>
+        <div id="msgList"></div>
+      </section>
+      <section class="page" id="page-me">
+        <div class="me-head">
+          <div class="me-ava" id="meAva"></div>
+          <div>
+            <div class="me-n">阳阳爸爸 <span id="meFlag">🇨🇳</span></div>
+            <div class="me-id"><span>育人帮号：yrb_8888</span><span class="chip">已实名</span></div>
+          </div>
+        </div>
+        <div class="me-stats" id="meStats"></div>
+        <div class="me-menu" id="meMenu"></div>
+        <div class="dash">🚧 <b>预留升级架构</b> · 我的页面新模块插槽（公益认证 / 成长报告 / 家庭圈…）</div>
+      </section>
+    </main>
+
+    <!-- 底部导航 -->
+    <nav id="tabbar">
+      <button class="tb-item active" data-p="home">
+        <svg viewBox="0 0 24 24"><path d="M3.5 10.5 12 4l8.5 6.5V20h-6v-5.5h-5V20h-6z"/></svg>
+        <span data-i18n="home">首页</span>
+      </button>
+      <button id="fab" aria-label="发布">
+        <span class="fab-c"><svg viewBox="0 0 24 24" fill="none"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+      </button>
+      <button class="tb-item" data-p="msgs">
+        <svg viewBox="0 0 24 24"><path d="M4 6.5h16v10.5H10L5.5 21v-4H4z"/><line x1="8.5" y1="10.5" x2="15.5" y2="10.5"/><line x1="8.5" y1="13.5" x2="13" y2="13.5"/></svg>
+        <span data-i18n="msgs">消息</span>
+        <i id="msgBadge" class="zero">0</i>
+      </button>
+      <button class="tb-item" data-p="me">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c0-3.6 3.3-6 7.5-6s7.5 2.4 7.5 6"/></svg>
+        <span data-i18n="me">我的</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ======== 发布求助面板 ======== -->
+  <div class="sheet" id="publishSheet">
+    <div class="sh-handle"></div>
+    <div class="sh-head"><div class="sh-title">发布求助</div><button class="sh-x" data-close="publishSheet">✕</button></div>
+    <div class="sh-body">
+      <textarea id="pubText" placeholder="说说孩子遇到什么问题、需要大家怎么帮忙…（求助内容将帮助更多人）"></textarea>
+      <div class="pub-label">选择媒体 <span class="pub-note">图片 / 微视频≤30s / 语音</span></div>
+      <div class="seg" id="pubTypes">
+        <button class="seg-btn on" data-t="img"><span class="si">🖼️</span>图片</button>
+        <button class="seg-btn" data-t="video"><span class="si">🎬</span>微视频 30s</button>
+        <button class="seg-btn" data-t="voice"><span class="si">🎤</span>语音</button>
+      </div>
+      <div id="pubPrev" style="margin-top:10px"></div>
+    </div>
+    <div class="sh-foot"><button class="btn-a big" id="pubGo">发布求助</button></div>
+  </div>
+
+  <!-- ======== 帮忙评论面板 ======== -->
+  <div class="sheet" id="commentSheet">
+    <div class="sh-handle"></div>
+    <div class="sh-head"><div class="sh-title" id="cmTitle">帮忙 · 大家来帮你</div><button class="sh-x" data-close="commentSheet">✕</button></div>
+    <div class="sh-body"><div id="cmList"></div></div>
+    <!-- 帮忙方式：文字标签清晰区分「说话变文字」与「录语音/录视频」 -->
+    <div class="cm-tools" id="cmTools">
+      <button class="cm-tool labeled" id="cmVoice" title="现场录一段语音帮忙"><span class="ic">🎙️</span>录语音帮忙</button>
+      <button class="cm-tool labeled" id="cmVideo" title="现场拍一段微视频帮忙（≤30 秒）"><span class="ic">📹</span>录视频帮忙</button>
+    </div>
+    <div class="cm-cap" id="cmCap"></div>
+    <div class="cm-bar">
+      <input id="cmInput" placeholder="发个「帮忙」，传递温暖…">
+      <button class="btn-a" id="cmSend" style="padding:10px 18px">发送</button>
+    </div>
+  </div>
+
+  <!-- ======== 功能拓展：添加功能 ======== -->
+  <div class="sheet" id="funcAddSheet">
+    <div class="sh-handle"></div>
+    <div class="sh-head"><div class="sh-title">添加首页功能</div><button class="sh-x" data-close="funcAddSheet">✕</button></div>
+    <div class="sh-body">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">勾选后加入首页第一排功能拓展区，可随时调整</div>
+      <div class="fa-grid" id="faGrid"></div>
+    </div>
+    <div class="sh-foot"><button class="btn-a big" id="faGo">加入首页</button></div>
+  </div>
+
+  <!-- ======== 上传案例面板 ======== -->
+  <div class="sheet" id="caseUpSheet">
+    <div class="sh-handle"></div>
+    <div class="sh-head"><div class="sh-title">上传案例</div><button class="sh-x" data-close="caseUpSheet">✕</button></div>
+    <div class="sh-body">
+      <input id="cuTitle" placeholder="给案例起个标题…" style="width:100%;border:1.5px solid var(--rule);border-radius:14px;padding:12px;background:var(--bg);outline:none;margin-bottom:12px">
+      <div class="pub-label">案例类型 <span class="pub-note">图片 / 图文 / PPT / 微视频≤30s</span></div>
+      <div class="seg" id="cuTypes">
+        <button class="seg-btn on" data-t="img"><span class="si">🖼️</span>图片</button>
+        <button class="seg-btn" data-t="ppt"><span class="si">📊</span>PPT</button>
+        <button class="seg-btn" data-t="video"><span class="si">🎬</span>微视频 30s</button>
+      </div>
+      <div class="pub-label" style="margin-top:12px">案例内容 <span class="pub-note" id="cuNote">选几张图片（最多 9 张）</span></div>
+      <div class="cu-grid" id="cuGrid"></div>
+      <input type="file" id="cuFile" hidden accept="image/*" multiple>
+    </div>
+    <div class="sh-foot"><button class="btn-a big" id="cuGo">发布到案例广场</button></div>
+  </div>
+
+  <!-- ======== 二级页面 ======== -->
+  <div id="subpage">
+    <header class="sp-head"><button class="sp-back" id="spBack">‹</button><b class="sp-title" id="spTitle">设置</b></header>
+    <div class="sp-body" id="spBody"></div>
+  </div>
+
+  <!-- ======== 通用弹窗 ======== -->
+  <div id="modal"><div class="md-card" id="mdCard"></div></div>
+
+  <!-- ======== 案例查看器 ======== -->
+  <div id="viewer"><div class="vw-card">
+    <div class="vw-head"><b class="vw-title" id="vwTitle"></b><button class="vw-x" id="vwX">✕</button></div>
+    <div class="vw-body" id="vwBody"></div>
+  </div></div>
+
+  <!-- ======== 横幅提示 / 烟火 / 礼物 / Toast ======== -->
+  <div id="banner"><div class="bn-ic" id="bnIc">🤝</div><div style="flex:1;min-width:0"><div class="bn-t" id="bnT"></div><div class="bn-s" id="bnS"></div></div></div>
+  <div id="fx"><canvas id="fxCv"></canvas></div>
+  <div id="gift"><div id="giftHearts"></div><div class="gift-inner"><div class="rose" id="roseBox"></div><div class="g-title" id="gTitle"></div><div class="g-sub" id="gSub"></div><div class="g-small">赠人玫瑰 · 手留余香</div></div></div>
+  <div id="toast"></div>
+
+</div>
+<script src="assets/app.js"></script>
+<script src="assets/capture.js"></script>
+<script src="assets/refine23.js"></script>
+<script src="assets/access.js"></script>
+<!-- 云服务 SDK 由 cloud.js 以 CDN 形式动态加载（主源失败自动切换备用源）；拉取失败时云功能自动降级为离线演示 -->
+<script src="assets/cloud.js"></script>
+<!-- 回报增强层：滚动自动播放 · 帮忙积分 · 职级晋升 · 玫瑰鲜花 + 掌声 -->
+<script src="assets/reward.js"></script>
+<!-- 家教服务层：顶部栏目「家教」入口 + 家教需求登记（需登录后提交，云端入库） -->
+<script src="assets/jiaojiao.js"></script>
+<!-- PPT 在线翻页浏览层：案例里的 .pptx 自动展开为逐页浏览（引擎按需懒加载） -->
+<script src="assets/pptview.js"></script>
+<!-- 运营控制台：分享层（二维码/链接）+ 社区管理后台（数据总览/内容下架恢复删除） -->
+<script src="assets/admin.js"></script>
+<script src="assets/adminguard.js"></script>
+<!-- 访问门槛层：浏览免费 · 发布求助与帮忙回应需先登录（纯事件委托，不改动上层结构） -->
+<script src="assets/gate.js"></script>
+<!-- 证照公示层：设置 →「资质证照」列表查看（后台可上传更换）+ 用户协议完整正文 -->
+<script src="assets/license.js"></script>
+<!-- 个人资料层：点「我的」昵称即可编辑（昵称/孩子年龄段/城市/介绍） -->
+<script src="assets/profile.js"></script>
+<!-- 美食答谢层：给帮忙的人送硬菜动画（9 道菜），收礼人打开满屏回放 -->
+<script src="assets/food.js"></script>
+<!-- 登录账号层：我的 →「账号与安全」设置登录用户名/密码（免验证码登录），
+     密码校验走云端函数 yb_account_login（bcrypt + 5 次锁 5 分钟） -->
+<script src="assets/account.js"></script>
+<!-- 首页栏目配置层：后台「🧩 首页栏目」可增删首页功能按钮（存 yb_settings.home_chips） -->
+<script src="assets/chips.js"></script>
+<!-- 玫瑰馈赠层：帮忙后/点赞/收藏 都送大大的玫瑰给发布者（本地动画 + yb_gifts 云端送达） -->
+<script src="assets/rose.js"></script>
+<!-- 内容保护层：右键/复制/拖拽/打印/开发者工具全拦，图片禁长按保存；管理员与分享面板豁免 -->
+<script src="assets/protect.js"></script>
+<!-- 媒体全屏与语音播读层：视频全屏 / 案例图片放大 / 详情与案例 🔊 朗读（PPT 全屏在 pptview 层） -->
+<script src="assets/mediafull.js"></script>
+<!-- 案例封面层：PPT 第一页离屏渲染为封面（localStorage 缓存），视频停在第一帧 -->
+<script src="assets/cover.js"></script>
+<script src="assets/casedit.js"></script>
+<!-- 错误监控守护层：全局错误捕获 → 云端限频上报 → 后台体检可见（2026-10-25） -->
+<script src="assets/guard.js"></script>
+<!-- 免疫系统：功能级探针 + 分级补载 + 运行时自愈 + 透明降级（必须最后加载，才能看到全部层） -->
+<script src="assets/health.js"></script>
+<!-- 平稳升级：构建号一致性闸门 + 新版本温和提示（不强制刷新、不打断输入） -->
+<script src="assets/upgrade.js"></script>
+<!-- 最终兜底：若连免疫系统本身都没加载成功（整包请求失败），由这段内联脚本补载它。
+     2026-10-23：原内联自愈逻辑已收拢进 health.js，这里只负责"把免疫系统拉起来"。 -->
+<script>
+window.addEventListener("load", function () {
+  setTimeout(function () {
+    if (window.YRB_HEALTH) { window.YRB_HEALTH.sweep("内联兜底"); return; }
+    var s = document.createElement("script");
+    s.src = "assets/health.js?heal=" + Date.now();
+    s.async = false;
+    s.onload = function () {
+      setTimeout(function () { if (window.YRB_HEALTH) { window.YRB_HEALTH.sweep("内联兜底"); } }, 200);
+    };
+    /* 免疫系统也拉不起来：退回最小硬兜底，至少把用户能感知的入口补回来 */
+    s.onerror = function () {
+      ["assets/app.js", "assets/cloud.js", "assets/jiaojiao.js", "assets/food.js", "assets/chips.js", "assets/rose.js", "assets/protect.js", "assets/mediafull.js", "assets/cover.js"].forEach(function (f) {
+        var x = document.createElement("script");
+        x.src = f + "?heal=" + Date.now(); x.async = false;
+        document.head.appendChild(x);
+      });
+      console.warn("[自愈] 免疫系统加载失败，已补载关键层");
+    };
+    document.head.appendChild(s);
+  }, 1500);
+});
+</script>
+</body>
+</html>

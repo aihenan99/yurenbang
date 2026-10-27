@@ -1,0 +1,22 @@
+const { chromium } = require("E:/育人帮/temp/pw/node_modules/playwright-core");
+(async()=>{
+  const b=await chromium.launch({executablePath:"C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"});
+  const p=await b.newPage({viewport:{width:412,height:900}});
+  p.on("pageerror",e=>console.log("[err]",e.message));
+  await p.goto("http://127.0.0.1:8794/?t="+Date.now(),{waitUntil:"load"});
+  await p.waitForTimeout(1800);
+  console.log("step0", JSON.stringify(await p.evaluate(()=>({splash:!document.getElementById("splash")||getComputedStyle(document.getElementById("splash")).display, mm:!!document.getElementById("mmShare")}))));
+  await p.evaluate(()=>{try{enterApp()}catch(e){}});
+  await p.waitForTimeout(500);
+  console.log("after enterApp", JSON.stringify(await p.evaluate(()=>({mm:!!document.getElementById("mmShare"), tab:!!document.querySelector("#page-me")}))));
+  await p.evaluate(()=>{try{switchTab("me")}catch(e){}});
+  await p.waitForTimeout(800);
+  console.log("after switchTab", JSON.stringify(await p.evaluate(()=>({mm:!!document.getElementById("mmShare"), mmVisible: document.getElementById("mmShare")?document.getElementById("mmShare").offsetParent!==null:null}))));
+  const clicked=await p.evaluate(()=>{const e=document.getElementById("mmShare"); if(!e) return false; e.click(); return true;});
+  await p.waitForTimeout(700);
+  console.log("shareLayer open:", await p.evaluate(()=>!!document.querySelector("#shareLayer.open")));
+  const c2=await p.evaluate(()=>{const e=document.getElementById("slShare"); if(!e) return {has:false}; e.click(); return {has:true, guide: !!document.querySelector("#shGuide.open")};});
+  await p.waitForTimeout(700);
+  console.log("after slShare", JSON.stringify(c2), "guide now:", await p.evaluate(()=>!!document.querySelector("#shGuide.open")));
+  await b.close();
+})();

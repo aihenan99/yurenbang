@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>育人帮 · 家长互助社区｜免费育儿求助与互助平台</title>
+<meta name="description" content="育人帮是免费的家长互助社区：孩子写作业拖拉、沉迷手机、青春期不愿沟通，发一条求助，很多家长愿意伸手帮你。支持文字、图片、微视频、语音，扫码即用，可安装到手机桌面。">
+<meta name="keywords" content="育人帮,家长互助,育儿求助,家长社区,家庭教育,科学育儿,作业拖拉,孩子沉迷手机,青春期沟通,亲子关系,未成年人保护">
+<link rel="canonical" href="https://yurenbang.app.workbuddy.host/share.html">
+<meta property="og:title" content="育人帮 · 家长互助社区">
+<meta property="og:description" content="关心下一代，呵护成长。有困惑发一条，很多家长愿意伸手帮你。扫码即用，可安装到手机桌面。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="育人帮">
+<meta property="og:url" content="https://yurenbang.app.workbuddy.host/share.html">
+<meta property="og:image" content="https://yurenbang.app.workbuddy.host/assets/icon-512.png">
+<style>
+:root{--ink:#3B2E26;--muted:#8C8078;--bg:#FFF9F3;--bg2:#FFFFFF;--accent:#F0543C;--gradA:linear-gradient(135deg,#FF8A5C,#F0543C);--gradT:linear-gradient(135deg,#34C7A2,#1FA47F)}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+button{font-family:inherit;border:none;cursor:pointer}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;background:linear-gradient(180deg,#FFE9DB 0%,#FFF9F3 30%);color:var(--ink);min-height:100vh;display:flex;justify-content:center}
+.wrap{width:100%;max-width:520px;padding:0 20px calc(40px + env(safe-area-inset-bottom))}
+.hero{text-align:center;padding:34px 0 6px}
+.hero .ic{width:76px;height:76px;border-radius:22px;box-shadow:0 12px 30px rgba(240,84,60,.3)}
+.hero h1{font-size:24px;font-weight:900;letter-spacing:.03em;margin-top:14px}
+.hero p{font-size:13px;color:var(--muted);margin-top:6px}
+.card{background:var(--bg2);border-radius:24px;box-shadow:0 14px 44px rgba(70,45,30,.1);padding:24px 22px;margin-top:18px;text-align:center}
+.qr{width:min(62vw,240px);border-radius:20px;box-shadow:0 10px 30px rgba(70,45,30,.14)}
+.scan{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.8}
+.url{display:flex;align-items:center;gap:8px;background:#FFF3EB;border-radius:14px;padding:11px 12px;margin:16px 0 14px;text-align:left}
+.url span{flex:1;font-size:13px;font-weight:800;word-break:break-all;color:var(--ink)}
+.btn{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;border-radius:999px;padding:14px;font-size:15px;font-weight:800;background:var(--gradA);color:#fff;box-shadow:0 8px 24px rgba(240,84,60,.3)}
+.btn+.btn{margin-top:11px}
+.btn.ghost{background:#fff;color:var(--ink);box-shadow:0 3px 14px rgba(70,45,30,.1);border:1.5px solid #FFE1D2}
+.btn.teal{background:var(--gradT);box-shadow:0 8px 24px rgba(31,164,127,.26)}
+.tips{background:var(--bg2);border-radius:20px;padding:18px 20px;margin-top:14px;text-align:left;box-shadow:0 6px 22px rgba(70,45,30,.06)}
+.tips .t{font-size:14px;font-weight:900;margin-bottom:8px}
+.tips p{font-size:12.5px;color:#6B5F56;line-height:2}
+.tips b{color:var(--ink)}
+.badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:16px}
+.badge{font-size:11px;font-weight:800;color:#B4691F;background:#FFF1DC;border-radius:99px;padding:5px 12px}
+footer{text-align:center;font-size:11px;color:var(--muted);margin-top:26px;line-height:1.9}
+/* 分享引导弹层（微信内置浏览器无 navigator.share 时的图文引导） */
+.shg{position:fixed;inset:0;z-index:99;display:none}
+.shg.open{display:block}
+.shg .mask{position:absolute;inset:0;background:rgba(30,20,14,.45)}
+.shg .card{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:22px 22px 0 0;padding:10px 20px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -10px 40px rgba(70,45,30,.18);animation:up .22s ease-out;max-width:520px;margin:0 auto}
+@keyframes up{from{transform:translateY(40px);opacity:.5}to{transform:none;opacity:1}}
+.shg .bar{width:42px;height:4px;border-radius:99px;background:#EADFD6;margin:0 auto 12px}
+.shg .t{font-size:16px;font-weight:900;text-align:center;margin-bottom:12px}
+.shg .steps{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+.shg .step{display:flex;align-items:center;gap:9px;font-size:13.5px;color:#5C4F46;line-height:1.6}
+.shg .step i{flex:none;width:20px;height:20px;border-radius:50%;background:var(--gradA);color:#fff;font-size:12px;font-weight:900;font-style:normal;display:flex;align-items:center;justify-content:center}
+.shg .note{font-size:12px;color:var(--muted);line-height:1.7;margin:2px 0 12px}
+.shg .qr{display:block;width:150px;height:150px;margin:0 auto 6px;border-radius:14px;border:1px solid #F0E4DA;object-fit:contain}
+.shg .scan{font-size:11.5px;color:var(--muted);text-align:center;margin-bottom:8px}
+.shg .u{font-size:12px;font-weight:800;background:#FFF4EC;border-radius:12px;padding:9px 12px;text-align:center;word-break:break-all;margin-bottom:12px}
+.shg .acts{display:flex;gap:10px}
+.shg .acts .btn{flex:1;margin:0;padding:13px 8px;font-size:14.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <img class="ic" src="assets/icon-512.png" alt="育人帮">
+    <h1>🌱 育人帮 · 家长互助社区</h1>
+    <p>关心下一代，呵护成长 —— 有困惑，发一条，很多家长愿意伸手帮你</p>
+    <div class="badges">
+      <span class="badge">🛡 未成年人保护公约</span><span class="badge">🤖 AI 自动分类</span><span class="badge">👵 长辈模式</span><span class="badge">🎬 真实拍摄求助</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <img class="qr" src="assets/qr-share.png?v=2" alt="育人帮二维码">
+    <div class="scan">📱 用手机相机 / 微信「扫一扫」识别上方二维码<br>长按二维码可保存到相册，转发到家长群</div>
+    <div class="url"><span id="u">https://yurenbang.app.workbuddy.host/</span><button class="btn ghost" id="c" style="width:auto;padding:9px 16px;font-size:13px">复制</button></div>
+    <button class="btn" id="go">🚀 立即进入育人帮</button>
+    <button class="btn" id="ins" style="display:none;background:var(--gradT);box-shadow:0 8px 24px rgba(31,164,127,.26)">📲 安装到手机桌面（像 APP 一样全屏）</button>
+    <button class="btn teal" id="sh">📤 分享给家长群 / 好友</button>
+  </div>
+
+  <div class="tips">
+    <div class="t">📲 像 APP 一样安装到手机桌面（无需应用商店）</div>
+    <p>
+      <b>安卓</b>（Chrome / Edge / 华为浏览器等）：扫码打开后 → 浏览器菜单 →「添加到主屏幕 / 安装应用」，桌面出现橙色“育”字图标，点开全屏运行。<br>
+      <b>iPhone</b>：用 Safari 扫码打开 → 底部分享按钮 →「添加到主屏幕」。<br>
+      安装后即有独立图标与全屏体验，和普通 APP 一致；分享的链接不装也能直接用。
+    </p>
+  </div>
+
+  <div class="tips">
+    <div class="t">🌱 育人帮是什么</div>
+    <p>育人帮是一个免费的家长互助社区，面向家长、监护人以及关心下一代的爱心人士。养育孩子的路上难免遇到想不通的事——孩子写作业拖拉、沉迷手机、青春期不愿沟通、在幼儿园被欺负、亲子关系紧张……在这里发一条求助，很多有经验的家长愿意伸手帮你；你也可以把带娃经验分享给别的家长。求助支持文字、图片、微视频（≤30 秒）和语音，说不清就打个语音；社区还提供每日科学育儿贴士、长辈模式（字体按钮放大、语音朗读）与未成年人保护提示。</p>
+  </div>
+
+  <div class="tips">
+    <div class="t">👨‍👩‍👧 家长们在育人帮问得最多的事</div>
+    <p>孩子写作业拖拉怎么办 · 孩子沉迷手机怎么管 · 青春期不愿和父母说话 · 在幼儿园被欺负不敢讲 · 二胎家庭如何平衡 · 单亲家长怎么陪孩子 · 孩子不愿上学怎么沟通 · 怎么和老师有效配合。这些真实的困惑，在这里都能找到愿意搭把手的家长。</p>
+  </div>
+
+  <div class="tips">
+    <div class="t">❓ 常见问题</div>
+    <p><b>要下载安装吗？</b>不用。用手机浏览器或微信扫码即可打开，也可以「添加到主屏幕」，桌面出现图标后像 APP 一样全屏使用。<br>
+      <b>收费吗？</b>完全免费，不卖课、不带货、不做营销外呼。<br>
+      <b>怎么保护孩子的隐私？</b>请隐去真实姓名、学校、班级与门牌号；平台对涉及未成年人的内容加强审核，并给出官方求助渠道（110 / 120 / 12355）。<br>
+      <b>社区互助能替代专业帮助吗？</b>不能。遇到医疗、心理、法律等专业问题，请及时联系专业机构；紧急情况先拨 110 / 120。</p>
+  </div>
+
+  <footer>育人帮 · 家长互助社区<br>社区互助不能代替专业救助 · 紧急情况请拨 110 / 120，青少年服务热线 12355</footer>
+</div>
+
+<!-- 结构化数据：站点名称 + 常见问答，帮助搜索引擎理解与收录 -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+ {"@type":"WebSite","name":"育人帮","alternateName":["育人帮家长互助社区"],"url":"https://yurenbang.app.workbuddy.host/","inLanguage":"zh-CN"},
+ {"@type":"SoftwareApplication","name":"育人帮","applicationCategory":"SocialNetworkingApplication","operatingSystem":"Web（手机浏览器 / 微信内置浏览器）","url":"https://yurenbang.app.workbuddy.host/","inLanguage":"zh-CN","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"}},
+ {"@type":"FAQPage","mainEntity":[
+   {"@type":"Question","name":"育人帮需要下载安装吗？","acceptedAnswer":{"@type":"Answer","text":"不需要。用手机浏览器或微信扫码即可打开使用，也可以“添加到主屏幕”，桌面出现图标后像 APP 一样全屏使用。"}},
+   {"@type":"Question","name":"育人帮收费吗？","acceptedAnswer":{"@type":"Answer","text":"完全免费，不卖课、不带货、不做营销外呼。"}},
+   {"@type":"Question","name":"育人帮怎么保护孩子隐私？","acceptedAnswer":{"@type":"Answer","text":"发布时请隐去孩子真实姓名、学校、班级与门牌号；平台对涉及未成年人的内容加强审核，并提供官方求助渠道 110 / 120 / 12355。"}}
+ ]}
+]}
+</script>
+<script>
+const URL_ = "https://yurenbang.app.workbuddy.host/";
+document.getElementById("u").textContent = URL_;
+document.getElementById("c").onclick = async () => {
+  try { await navigator.clipboard.writeText(URL_); tip("网址已复制 ✅"); }
+  catch (e) {
+    const ta = document.createElement("textarea"); ta.value = URL_; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); ta.remove(); tip("网址已复制 ✅");
+  }
+};
+document.getElementById("go").onclick = () => location.href = URL_;
+document.getElementById("sh").onclick = () => {
+  /* 微信内置浏览器 / 老 WebView 没有 navigator.share → 图文引导，不再只弹一句「不支持」 */
+  const data = { title: "育人帮 · 家长互助社区", text: "关心下一代，呵护成长 →", url: URL_ };
+  let launched = false;
+  if (typeof navigator.share === "function") {
+    try {
+      if (typeof navigator.canShare !== "function" || navigator.canShare(data)) {
+        navigator.share(data).then(() => {}).catch(err => {
+          if (!err || err.name !== "AbortError") shareGuide();
+        });
+        launched = true;
+      }
+    } catch (e) { launched = false; }
+  }
+  if (!launched) shareGuide();
+};
+function isWeChat() { return /MicroMessenger/i.test(navigator.userAgent || ""); }
+function shareGuide() {
+  let el = document.getElementById("shg");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "shg"; el.className = "shg";
+    document.body.appendChild(el);
+  }
+  const wx = isWeChat();
+  el.innerHTML = `
+    <div class="mask" data-shg="close"></div>
+    <div class="card">
+      <div class="bar"></div>
+      <div class="t">📤 分享给家长群 / 好友</div>
+      ${wx
+        ? `<div class="steps">
+             <div class="step"><i>1</i>点屏幕<b>右上角「···」</b></div>
+             <div class="step"><i>2</i>选<b>「发送给朋友」</b>或「分享到朋友圈」</div>
+           </div>
+           <div class="note">当前是微信内置浏览器，系统不允许网页直接弹出分享面板，用右上角菜单发送即可。</div>`
+        : `<div class="steps">
+             <div class="step"><i>1</i>网址<b>已自动复制</b></div>
+             <div class="step"><i>2</i>打开微信 / QQ，<b>粘贴</b>发送给家长群</div>
+           </div>
+           <div class="note">当前浏览器不支持一键分享，复制粘贴同样快；也可以把下面的二维码当图片转发。</div>`}
+      <img class="qr" src="assets/qr-share.png?v=2" alt="育人帮二维码">
+      <div class="scan">长按二维码 →「保存图片」，可直接发到家长群</div>
+      <div class="u">${URL_}</div>
+      <div class="acts">
+        <button class="btn" data-shg="copy">📋 复制网址</button>
+        <button class="btn ghost" data-shg="close">关闭</button>
+      </div>
+    </div>`;
+  el.classList.add("open");
+  if (!wx) copyUrlThenTip();
+}
+function copyUrlThenTip() {
+  const done = () => tip("网址已复制，打开微信粘贴发送 ✅");
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(URL_).then(done).catch(() => fallbackCopy(done));
+  } else fallbackCopy(done);
+}
+function fallbackCopy(done) {
+  try {
+    const ta = document.createElement("textarea"); ta.value = URL_; document.body.appendChild(ta);
+    ta.select(); document.execCommand("copy"); ta.remove(); done();
+  } catch (e) { tip("请长按上方网址手动复制"); }
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-shg]"); if (!b) return;
+  const a = b.dataset.shg;
+  if (a === "close") { const el = document.getElementById("shg"); if (el) el.classList.remove("open"); return; }
+  if (a === "copy") { copyUrlThenTip(); return; }
+});
+function tip(m) {
+  const b = document.createElement("div");
+  b.textContent = m;
+  b.style.cssText = "position:fixed;left:50%;bottom:9%;transform:translateX(-50%);background:rgba(35,25,20,.88);color:#fff;font-size:13px;border-radius:99px;padding:10px 20px;z-index:99";
+  document.body.appendChild(b); setTimeout(() => b.remove(), 2200);
+}
+/* PWA 一键安装：支持的浏览器出现「安装到手机桌面」按钮，直接生成桌面图标 */
+let installEvt = null;
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault(); installEvt = e;
+  document.getElementById("ins").style.display = "flex";
+});
+window.addEventListener("appinstalled", () => { installEvt = null; document.getElementById("ins").style.display = "none"; });
+document.getElementById("ins").onclick = () => {
+  if (installEvt && typeof installEvt.prompt === "function") {
+    const evt = installEvt; installEvt = null;
+    document.getElementById("ins").style.display = "none";
+    try { evt.prompt(); Promise.resolve(evt.userChoice).then(ch => tip(ch && ch.outcome === "accepted" ? "已开始安装，桌面出现「育」字图标 🎉" : "已取消安装")).catch(() => {}); }
+    catch (e) { shareGuide(); }
+  } else shareGuide();
+};
+</script>
+</body>
+</html>

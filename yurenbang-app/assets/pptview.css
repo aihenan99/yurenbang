@@ -1,0 +1,60 @@
+/* PPT 在线翻页浏览层（2026-10-22）：点开 PPT 案例自动展开逐页浏览
+   依赖 assets/vendor/pptx-preview.umd.js（懒加载，仅打开 PPT 时加载）；
+   渲染失败自动降级为「打开文件」卡片，不影响查看器其他类型。 */
+
+/* 隐藏库自带的圆形翻页按钮与页码，用本层的大按钮代替 */
+.pptx-preview-wrapper-next,.pptx-preview-wrapper-pagination{display:none!important}
+.pptx-preview-wrapper{border-radius:14px!important}
+
+.vp-wrap{width:100%}
+.vp-scroll{width:100%;overflow:hidden;border-radius:14px;background:#221F26;position:relative}
+.vp-scroll.zoom{overflow:auto;-webkit-overflow-scrolling:touch}
+.vp-fit{width:100%;display:flex;justify-content:center;transform-origin:0 0}
+.vp-scroll.zoom .vp-fit{zoom:1.9;justify-content:flex-start}
+
+.vp-load{display:flex;flex-direction:column;align-items:center;gap:12px;padding:64px 16px;color:var(--muted);font-size:13px;background:var(--bg2);border-radius:14px}
+.vp-spin{width:26px;height:26px;border-radius:50%;border:3px solid var(--rule);border-top-color:var(--accent);animation:vpspin 1s linear infinite}
+@keyframes vpspin{to{transform:rotate(360deg)}}
+
+.vp-prog{height:4px;background:var(--rule);border-radius:999px;overflow:hidden;margin:10px 2px 0;transition:opacity .2s}
+.vp-prog i{display:block;height:100%;width:0;background:var(--gradA);border-radius:999px}
+.vp-prog.off{opacity:0}
+
+.vp-nav{display:flex;align-items:center;gap:10px;padding:8px 2px 2px}
+.vp-btn{flex:1;background:var(--bg2);border:1.5px solid var(--rule);border-radius:999px;padding:11px 0;font-size:14.5px;font-weight:700;color:var(--ink);display:flex;align-items:center;justify-content:center;gap:4px;transition:.15s}
+.vp-btn:active{transform:scale(.95);background:var(--rule)}
+.vp-btn.dis{opacity:.4;pointer-events:none}
+.vp-num{min-width:86px;text-align:center;font-size:12.5px;color:var(--muted);font-weight:600;white-space:nowrap}
+.vp-tools{display:flex;align-items:center;justify-content:center;gap:14px;padding:6px 0 4px;flex-wrap:wrap}
+.vp-tool{font-size:12.5px;color:var(--accent2);font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:4px;background:none;border:none;padding:2px 0}
+.vp-tool:active{opacity:.6}
+.vp-fail{display:flex;flex-direction:column;align-items:center;gap:9px;padding:30px 16px;text-align:center;background:var(--bg2);border-radius:14px}
+.vp-fail b{font-size:40px;line-height:1}
+.vp-fail>span{font-size:14px;font-weight:800;color:var(--ink);word-break:break-all}
+.vp-fail i{font-size:11.5px;color:var(--muted);font-style:normal}
+.vp-fail .btn-a{margin-top:4px;min-width:150px}
+
+/* ---------- 全屏阅读层（2026-10-23）：替换原「放大镜」---------- */
+#vpFull{position:fixed;inset:0;z-index:200;background:#0d0b12;display:flex;flex-direction:column;
+  -webkit-user-select:none;user-select:none}
+.vf-head{display:flex;align-items:center;gap:12px;
+  padding:calc(10px + env(safe-area-inset-top)) 16px 8px;color:#fff}
+.vf-name{flex:1;font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85}
+.vf-x{flex:none;width:42px;height:42px;border:0;border-radius:50%;background:rgba(255,255,255,.16);
+  color:#fff;font-size:18px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.vf-x:active{transform:scale(.92);background:rgba(255,255,255,.3)}
+.vf-body{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;min-height:0}
+.vf-body .vf-fit{display:block}
+.vf-load{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:10px;
+  color:#cfc6d8;font-size:14px;font-weight:600}
+.vf-foot{display:flex;align-items:center;justify-content:space-around;gap:10px;
+  padding:10px 14px calc(12px + env(safe-area-inset-bottom))}
+.vf-btn{border:0;border-radius:99px;background:rgba(255,255,255,.16);color:#fff;
+  font-size:15px;font-weight:800;padding:13px 20px;letter-spacing:.5px}
+.vf-btn:active{transform:scale(.95);background:rgba(255,255,255,.3)}
+.vf-num{color:#fff;font-size:13px;opacity:.8;min-width:96px;text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+.vf-tip{position:absolute;left:50%;bottom:calc(74px + env(safe-area-inset-bottom));transform:translateX(-50%);
+  background:rgba(255,255,255,.14);color:#fff;font-size:12px;font-weight:700;border-radius:99px;
+  padding:7px 14px;white-space:nowrap;pointer-events:none;animation:vftip 4s ease 1.2s both}
+@keyframes vftip{0%,72%{opacity:1}100%{opacity:0}}
+@media (orientation:landscape){.vf-tip{display:none}}

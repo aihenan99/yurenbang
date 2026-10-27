@@ -1,0 +1,129 @@
+/* 育人帮 · 美食答谢（food.js 配套） */
+
+/* ---------- 答谢面板 ---------- */
+#fdMask{position:fixed;inset:0;background:rgba(18,16,24,.44);backdrop-filter:blur(2px);z-index:62;opacity:0;pointer-events:none;transition:.2s}
+#fdMask.open{opacity:1;pointer-events:auto}
+#fdSheet{position:fixed;left:0;right:0;bottom:0;z-index:63;max-height:80vh;display:flex;flex-direction:column;
+  background:var(--bg);border-radius:22px 22px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.18);
+  transform:translateY(104%);transition:transform .26s cubic-bezier(.22,.9,.28,1);overflow:hidden}
+#fdSheet.open{transform:translateY(0)}
+#fdSheet .fd-bar{display:flex;align-items:center;justify-content:space-between;padding:15px 18px 8px}
+#fdSheet .fd-bar b{font-size:16px}
+#fdSheet .fd-bar button{width:32px;height:32px;border-radius:50%;background:var(--bg2);color:var(--muted);font-size:15px}
+#fdSheet .fd-sub{padding:0 18px 10px;font-size:12.5px;color:var(--muted)}
+.fd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:4px 14px calc(18px + env(safe-area-inset-bottom));overflow:auto;-webkit-overflow-scrolling:touch}
+.fd-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px 9px;border-radius:16px;
+  background:var(--bg2);border:1.5px solid var(--rule);transition:.15s}
+.fd-card:active{transform:scale(.96)}
+.fd-card img{width:100%;aspect-ratio:1/1;object-fit:contain;background:#fff;border-radius:14px;
+  box-shadow:0 4px 12px rgba(0,0,0,.10);padding:3px;box-sizing:border-box}
+.fd-card b{font-size:12.5px;color:var(--text)}
+.fd-card i{font-style:normal;font-size:10.5px;color:var(--accent)}
+.fd-card.fd-rose .fd-e{font-size:44px;line-height:1.28;filter:drop-shadow(0 6px 12px rgba(244,105,75,.35))}
+.fd-card.fd-rose i{color:var(--muted)}
+
+/* ---------- 嘉年华式大礼动画 ---------- */
+/* z-index 86：必须盖过帮忙评论面板 #commentSheet(67)、后台 #adLayer(72)、地区页 #region(80)，
+   否则从评论面板里送「答谢大餐」时礼物会被面板挡住只露光芒（2026-10-18 用户反馈） */
+#fdFx{position:fixed;inset:0;z-index:86;pointer-events:none;overflow:hidden;
+  background:radial-gradient(ellipse at 50% 48%, rgba(255,168,72,.26), rgba(10,7,4,.84) 72%);
+  opacity:1;transition:opacity .5s}
+#fdFx.bye{opacity:0}
+#fdFx .fd-cap{position:absolute;top:10%;left:0;right:0;text-align:center;animation:fdCap .6s ease both;z-index:4}
+#fdFx .fd-cap1{display:block;font-size:14.5px;color:rgba(255,244,224,.92);letter-spacing:1px}
+#fdFx .fd-cap2{display:inline-block;margin-top:8px;font-size:30px;font-weight:900;color:#fff;
+  background:linear-gradient(135deg,#ff8a3d,#ff4d6d);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 4px 14px rgba(255,90,60,.45))}
+@keyframes fdCap{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+/* 放射金光 */
+#fdFx .fd-rays{position:absolute;border-radius:50%;pointer-events:none;z-index:0;
+  background:repeating-conic-gradient(from 0deg, rgba(255,198,112,.20) 0deg 2.2deg, rgba(255,198,112,0) 2.2deg 8deg);
+  -webkit-mask:radial-gradient(circle, rgba(0,0,0,.95) 5%, rgba(0,0,0,.5) 30%, transparent 62%);
+  mask:radial-gradient(circle, rgba(0,0,0,.95) 5%, rgba(0,0,0,.5) 30%, transparent 62%);
+  animation:fdSpin 20s linear infinite}
+@keyframes fdSpin{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+/* 中央光晕 */
+#fdFx .fd-halo{position:absolute;border-radius:50%;pointer-events:none;filter:blur(10px);z-index:1;
+  background:radial-gradient(circle, rgba(255,214,150,.62), rgba(255,150,60,.20) 46%, transparent 70%);
+  animation:fdBreath 2.9s ease-in-out infinite}
+@keyframes fdBreath{0%,100%{transform:translate(-50%,-50%) scale(.9);opacity:.72}50%{transform:translate(-50%,-50%) scale(1.08);opacity:1}}
+/* 礼物本体容器 */
+#fdFx .fd-hero{position:absolute;transform:translate(-50%,-50%);will-change:transform;z-index:2}
+#fdFx .fd-gift{display:block;width:100%;height:auto;background:#fff;border-radius:20%;padding:10px;box-sizing:border-box;
+  box-shadow:0 26px 60px rgba(0,0,0,.45);filter:drop-shadow(0 0 34px rgba(255,180,90,.6))}
+/* 星星粒子 */
+#fdFx .fd-sparks{position:absolute;inset:0;pointer-events:none;z-index:3}
+#fdFx .fd-spark{position:absolute;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,#fff 20%,rgba(255,214,140,.95) 45%,rgba(255,170,60,0) 74%);
+  box-shadow:0 0 14px rgba(255,200,120,.9)}
+/* 光波 */
+#fdFx .fd-wave{position:absolute;border-radius:50%;pointer-events:none;z-index:1;
+  border:2.5px solid rgba(255,206,140,.75);box-shadow:0 0 26px rgba(255,190,110,.55) inset, 0 0 26px rgba(255,190,110,.45)}
+/* 热气 */
+#fdFx .fd-steam{position:absolute;width:26px;height:26px;border-radius:50%;
+  background:radial-gradient(circle, rgba(255,255,255,.5), rgba(255,255,255,0) 70%);pointer-events:none;z-index:3}
+#fdFx .fd-steam.fd-steam-big{width:44px;height:44px;
+  background:radial-gradient(circle, rgba(255,255,255,.55), rgba(255,255,255,0) 70%)}
+
+/* ---------- 收件箱 ---------- */
+#fdInMask{position:fixed;inset:0;background:rgba(18,16,24,.44);backdrop-filter:blur(2px);z-index:62;opacity:0;pointer-events:none;transition:.2s}
+#fdInMask.open{opacity:1;pointer-events:auto}
+#fdInSheet{position:fixed;left:0;right:0;bottom:0;z-index:63;max-height:76vh;display:flex;flex-direction:column;
+  background:var(--bg);border-radius:22px 22px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.18);
+  transform:translateY(104%);transition:transform .26s cubic-bezier(.22,.9,.28,1);overflow:hidden}
+#fdInSheet.open{transform:translateY(0)}
+#fdInSheet .fd-bar{display:flex;align-items:center;justify-content:space-between;padding:15px 18px 8px}
+#fdInSheet .fd-bar b{font-size:16px}
+#fdInSheet .fd-bar button{width:32px;height:32px;border-radius:50%;background:var(--bg2);color:var(--muted);font-size:15px}
+#fdInSheet .fd-sub{padding:0 18px 10px;font-size:12.5px;color:var(--muted)}
+#fdInList{overflow:auto;-webkit-overflow-scrolling:touch;padding:0 14px calc(18px + env(safe-area-inset-bottom))}
+.fd-in-item{display:flex;align-items:center;gap:12px;padding:11px 10px;border-radius:14px;background:var(--bg2);margin-bottom:8px;position:relative;
+  width:100%;border:0;font:inherit;color:inherit;text-align:left;cursor:pointer;transition:.15s}
+.fd-in-item:active{transform:scale(.985)}
+.fd-in-item.new{border:1.5px solid rgba(244,105,75,.5);background:rgba(244,105,75,.06)}
+.fd-in-item img,.fd-in-item .fd-e{width:52px;height:52px;object-fit:contain;flex:none;font-size:38px;text-align:center;line-height:52px;
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,.14))}
+.fd-in-item .fd-in-m{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}
+.fd-in-item .fd-in-m b{font-size:13.5px;color:var(--text);line-height:1.5}
+.fd-in-item .fd-in-m span{font-size:11.5px;color:var(--muted)}
+.fd-in-item .fd-dot{position:absolute;right:14px;top:14px;width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px rgba(244,105,75,.18)}
+.fd-in-item .fd-again{margin-left:auto;flex:none;font-size:11.5px;font-weight:700;color:var(--accent);
+  padding:5px 9px;border-radius:10px;background:rgba(244,105,75,.1);white-space:nowrap}
+.fd-empty{padding:26px 10px;text-align:center;color:var(--muted);font-size:13px;line-height:1.9}
+.fd-try{margin-top:14px;padding:10px 18px;border-radius:22px;background:var(--gradA);color:#fff;font-size:13.5px;font-weight:700;
+  box-shadow:0 8px 20px rgba(244,105,75,.28)}
+
+/* ---------- 我的钱包（玫瑰 + 收到的礼物） ---------- */
+#fdWlMask{position:fixed;inset:0;background:rgba(18,16,24,.44);backdrop-filter:blur(2px);z-index:62;opacity:0;pointer-events:none;transition:.2s}
+#fdWlMask.open{opacity:1;pointer-events:auto}
+#fdWlSheet{position:fixed;left:0;right:0;bottom:0;z-index:63;max-height:82vh;display:flex;flex-direction:column;
+  background:var(--bg);border-radius:22px 22px 0 0;box-shadow:0 -12px 40px rgba(0,0,0,.18);
+  transform:translateY(104%);transition:transform .26s cubic-bezier(.22,.9,.28,1);overflow:hidden}
+#fdWlSheet.open{transform:translateY(0)}
+#fdWlSheet .fd-bar{display:flex;align-items:center;justify-content:space-between;padding:15px 18px 8px}
+#fdWlSheet .fd-bar b{font-size:16px}
+#fdWlSheet .fd-bar button{width:32px;height:32px;border-radius:50%;background:var(--bg2);color:var(--muted);font-size:15px}
+#fdWlSheet .fd-sub{padding:0 18px 10px;font-size:12.5px;color:var(--muted)}
+.fd-wl-stats{display:flex;gap:10px;padding:0 14px 14px}
+.fd-wl-stat{flex:1;display:flex;flex-direction:column;align-items:center;gap:1px;padding:12px 8px 10px;border-radius:16px;overflow:hidden}
+.fd-wl-rose{background:linear-gradient(150deg,rgba(244,105,75,.16),rgba(255,190,150,.1));border:1px solid rgba(244,105,75,.24)}
+.fd-wl-gift{background:linear-gradient(150deg,rgba(255,176,74,.18),rgba(255,224,170,.1));border:1px solid rgba(255,176,74,.28)}
+.fd-wl-stat .fd-wl-ic{font-size:22px;line-height:1.2}
+.fd-wl-stat b{font-size:24px;line-height:1.15;color:var(--text)}
+.fd-wl-stat i{font-style:normal;font-size:11.5px;color:var(--muted)}
+.fd-wl-h{padding:0 18px 9px;font-size:13px;font-weight:700;color:var(--text)}
+.fd-wl-h span{font-weight:400;font-size:11.5px;color:var(--muted);margin-left:4px}
+#fdWlList{overflow:auto;-webkit-overflow-scrolling:touch;padding:0 14px calc(18px + env(safe-area-inset-bottom))}
+
+/* ---------- 长辈模式 ---------- */
+#phone[data-elder="1"] .fd-card b{font-size:14px}
+#phone[data-elder="1"] #fdSheet .fd-bar b{font-size:19px}
+#phone[data-elder="1"] #fdInSheet .fd-bar b{font-size:19px}
+#phone[data-elder="1"] #fdWlSheet .fd-bar b{font-size:19px}
+#phone[data-elder="1"] .fd-wl-h{font-size:15px}
+#phone[data-elder="1"] .fd-wl-stat b{font-size:28px}
+#phone[data-elder="1"] .fd-wl-stat i{font-size:13px}
+#phone[data-elder="1"] .fd-in-item .fd-in-m b{font-size:15.5px}
+#phone[data-elder="1"] .fd-in-item .fd-again{font-size:13px}
+#phone[data-elder="1"] #fdFx .fd-cap2{font-size:36px}
+#phone[data-elder="1"] #fdFx .fd-cap1{font-size:17px}

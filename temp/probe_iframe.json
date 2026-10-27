@@ -1,0 +1,20 @@
+{
+ "topLevel": {
+  "secure": true,
+  "top": true,
+  "hasMD": true,
+  "ok": true
+ },
+ "inIframe": {
+  "secure": true,
+  "top": false,
+  "hasMD": true,
+  "ok": true,
+  "policy": {
+   "camera": true,
+   "mic": true
+  }
+ },
+ "tabCount": 0,
+ "btnErr": "open button not found"
+}

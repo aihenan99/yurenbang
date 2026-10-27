@@ -1,0 +1,27 @@
+{
+ "timeoutGuard": {
+  "ok": true,
+  "ms": 1202,
+  "message": "测试超时（网络较慢），请检查网络后重试"
+ },
+ "timeoutPass": "done",
+ "closable": {
+  "before": {
+   "open": true,
+   "hasX": true,
+   "note": true,
+   "sub": "准备中"
+  },
+  "closedAfterClick": true
+ },
+ "watchdog": {
+  "title": "网络较慢，正在继续上传…",
+  "sub": "请稍候，内容不会丢（已等待 21 秒）",
+  "stillOpen": true
+ },
+ "afterHide": {
+  "open": false,
+  "title": "网络较慢，正在继续上传…"
+ },
+ "pageErrors": []
+}

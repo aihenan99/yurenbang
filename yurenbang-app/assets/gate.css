@@ -1,0 +1,88 @@
+/* ============================================================
+   育人帮 · 访问门槛层样式（gate.css）
+   规则：求助内容免费浏览（首页 / 卡片 / 详情正文）
+        查看帮忙留言、发布求助、帮忙回应都需先登录 / 注册
+   只做展示，不改动 app.css / refine23.css / cloud.css
+   ============================================================ */
+
+/* 帮忙面板顶部提示条：未登录时出现，登录后自动收起 */
+.cm-gate {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 14px 0;
+  padding: 10px 12px;
+  background: #FFF6F1;
+  border: 1px solid #F6DCCF;
+  border-radius: 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #8C5B45;
+}
+.cm-gate.show { display: flex; }
+.cm-gate .cm-gate-t { flex: 1; min-width: 0; }
+.cm-gate .cm-gate-b {
+  flex: none;
+  padding: 8px 13px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 800;
+  background: var(--gradA);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(244, 105, 75, .22);
+}
+.cm-gate .cm-gate-b:active { transform: translateY(1px); }
+
+/* 未登录时给输入区一点视觉暗示；不禁止输入，避免已经打的字丢失 */
+.cm-bar.gate-on #cmInput { background: #FBF2EC; }
+
+/* ============================================================
+   帮忙留言：未登录只露条数、内容锁住
+   注意：锁面板是 #cmList / #r23CmList 的**兄弟节点**（不在容器内部），
+        所以下面用「容器 class 隐藏自己的子节点」+「锁面板自身显示」两条规则。
+   ============================================================ */
+#cmList.cm-locked > *,
+#r23CmList.cm-locked > * { display: none; }
+
+.cm-lock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 2px 12px;
+  padding: 24px 18px 26px;
+  text-align: center;
+  background: #FFFBF7;
+  border: 1px dashed #F0D9C9;
+  border-radius: 14px;
+}
+.cm-lock .cm-lock-ic { font-size: 24px; line-height: 1; }
+.cm-lock .cm-lock-t {
+  margin: 2px 0 0;
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--ink);
+}
+.cm-lock .cm-lock-s { margin: 0; font-size: 12.5px; color: var(--muted); }
+.cm-lock .cm-lock-b {
+  margin-top: 10px;
+  padding: 10px 26px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+  background: var(--gradA);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(244, 105, 75, .22);
+}
+.cm-lock .cm-lock-b:active { transform: translateY(1px); }
+
+/* 详情页里的锁面板贴卡片内边距，别顶到边 */
+.r23-dcard .cm-lock { margin: 10px 0 2px; padding: 22px 14px 24px; }
+
+/* 长辈模式：字和按钮都要更大、更好按 */
+#phone[data-elder="1"] .cm-lock { padding: 26px 16px 28px; }
+#phone[data-elder="1"] .cm-lock .cm-lock-ic { font-size: 28px; }
+#phone[data-elder="1"] .cm-lock .cm-lock-t { font-size: 17px; }
+#phone[data-elder="1"] .cm-lock .cm-lock-s { font-size: 14px; }
+#phone[data-elder="1"] .cm-lock .cm-lock-b { font-size: 16.5px; padding: 13px 30px; }
+

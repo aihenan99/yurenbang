@@ -1,0 +1,45 @@
+# ============================================================
+# 育人帮 · 版本控制忽略规则
+# 原则：只提交「人写的东西」和「重建不了的东西」。
+#       凡是可以由脚本重新生成的，一律不进仓库。
+# ============================================================
+
+# ---------- 依赖与虚拟环境（可重装，体积大）----------
+.venv/
+node_modules/
+**/node_modules/
+__pycache__/
+*.py[cod]
+
+# ---------- 工具缓存（随时可删）----------
+.cache/
+.wrangler/
+.trae-html-share-packages/
+temp/.cache/
+temp/pw/
+temp/pk/
+temp/edgeprofile/
+
+# ---------- 与项目无关的大体积素材 ----------
+剪辑软件/
+
+# ---------- 部署产物 ----------
+# deploy-cn 由 temp/sync_deploy.py 从 yurenbang-app 生成，属产物，不入库。
+# 例外：下面两个文件是「人工维护、无法再生成」的源文件，必须进版本库。
+deploy-cn/*
+!deploy-cn/_worker.js
+!deploy-cn/error.html
+deploy-cn.zip
+
+# ---------- 测试临时产物 ----------
+# temp/ 下的 .py/.js/.sql/.md 是工程资产（脚本、迁移、测试），要入库；
+# 这些截图是历次验证留下的临时图，可随时重跑生成。
+temp/*.png
+temp/shots/
+*.log
+
+# ---------- 系统垃圾 ----------
+nul
+Thumbs.db
+.DS_Store
+desktop.ini

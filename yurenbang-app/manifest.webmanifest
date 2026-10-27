@@ -1,0 +1,17 @@
+{
+  "name": "育人帮 · 家长互助社区",
+  "short_name": "育人帮",
+  "description": "关心下一代，呵护成长——家长互助社区，有困惑发一条，很多家长愿意伸手帮你。",
+  "lang": "zh-CN",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFF7F1",
+  "theme_color": "#F0543C",
+  "icons": [
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

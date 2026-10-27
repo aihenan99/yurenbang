@@ -1,0 +1,48 @@
+/* 育人帮 · 管理后台二次验证层（管理密码）
+   视觉沿用 app.css 的主题变量，与后台层保持同一语言 */
+
+#agLayer{
+  position:absolute;inset:0;z-index:74;display:none;   /* 高于分享层/后台层(72)，低于 toast(75) */
+  align-items:center;justify-content:center;padding:22px;
+  background:rgba(50,46,41,.46);backdrop-filter:blur(3px);
+}
+#agLayer.open{display:flex;animation:agFade .18s ease}
+@keyframes agFade{from{opacity:0}to{opacity:1}}
+
+.ag-box{
+  width:100%;max-width:340px;background:var(--bg2);border-radius:22px;
+  padding:24px 20px 18px;box-shadow:0 18px 46px rgba(50,46,41,.28);
+  animation:agUp .2s cubic-bezier(.2,.8,.3,1);
+}
+@keyframes agUp{from{transform:translateY(14px);opacity:.6}to{transform:none;opacity:1}}
+
+.ag-ic{font-size:34px;text-align:center;line-height:1.2}
+.ag-t{font-size:var(--fs-lg);font-weight:800;text-align:center;margin-top:6px}
+.ag-d{font-size:12.5px;color:var(--muted);line-height:1.8;text-align:center;margin-top:6px}
+
+.ag-field{margin-top:14px}
+.ag-field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;font-weight:600}
+.ag-field input{
+  width:100%;border:1px solid var(--rule);background:var(--bg);
+  border-radius:14px;padding:13px 14px;font-size:16px;letter-spacing:.5px;
+}
+.ag-field input:focus{outline:none;border-color:var(--accent);background:#fff}
+
+.ag-err{font-size:12.5px;color:#D9342B;line-height:1.7;margin-top:10px;min-height:18px;text-align:center}
+
+.ag-acts{display:flex;gap:10px;margin-top:6px}
+.ag-acts button{flex:1;border-radius:99px;padding:13px 0;font-size:14.5px;font-weight:800}
+.ag-ok{background:var(--gradA);color:#fff;box-shadow:var(--shadow)}
+.ag-ok[disabled]{opacity:.55;box-shadow:none}
+.ag-cancel{background:var(--bg);color:var(--muted);border:1px solid var(--rule)}
+
+.ag-tip{
+  font-size:11.5px;color:var(--muted);line-height:1.8;text-align:left;
+  background:var(--bg);border-radius:12px;padding:10px 12px;margin-top:14px
+}
+.ag-tip b{color:var(--ink)}
+.ag-strength{margin-top:7px;display:flex;gap:5px}
+.ag-strength i{flex:1;height:4px;border-radius:2px;background:var(--rule)}
+.ag-strength i.on1{background:#EFA23B}
+.ag-strength i.on2{background:var(--gold)}
+.ag-strength i.on3{background:var(--accent2)}

@@ -1,0 +1,52 @@
+/* 育人帮 · 玫瑰馈赠层样式（rose.css）  2026-10-23
+   与 app.css 的 #gift 层配合：只负责"满屏大玫瑰"的漂浮与收场。
+   玫瑰走 transform/opacity 动画，不触发重排（低端安卓也顺）。 */
+
+.yr-roses {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.yr-roses .yr-r {
+  position: absolute;
+  bottom: -140px;
+  line-height: 1;
+  will-change: transform, opacity;
+  animation-name: yrRoseUp;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  filter: drop-shadow(0 10px 20px rgba(60, 10, 30, .35));
+}
+
+@keyframes yrRoseUp {
+  0% {
+    transform: translateY(0) rotate(-16deg) scale(.55);
+    opacity: 0;
+  }
+  9% {
+    opacity: 1;
+  }
+  55% {
+    transform: translateY(-62vh) rotate(10deg) scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-125vh) rotate(28deg) scale(1.3);
+    opacity: 0;
+  }
+}
+
+/* 长辈模式：不要动画过猛，玫瑰少飘一点但更大更清晰 */
+body.senior .yr-roses .yr-r {
+  filter: drop-shadow(0 6px 12px rgba(60, 10, 30, .3));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yr-roses .yr-r {
+    animation-duration: 1.6s !important;
+    animation-delay: 0s !important;
+  }
+}

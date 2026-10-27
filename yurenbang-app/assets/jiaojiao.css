@@ -1,0 +1,92 @@
+/* =========================================================
+   育人帮 · 家教服务层样式（jiaojiao.css）
+   仿「家教需求登记」参考设计：浅蓝底 · 白圆角卡 · 胶囊选项 ·
+   紫蓝渐变提交钮 · 绿色扫码咨询卡。只做展示，不改动既有结构。
+   ========================================================= */
+
+/* 顶部栏目入口 chip：金色渐变突出 */
+.f-chip.jj-chip{background:linear-gradient(135deg,#6D7BFF,#9B6BFF);color:#fff;border-color:transparent;box-shadow:0 4px 12px rgba(109,123,255,.32);font-weight:800}
+
+/* ---------- 页面骨架 ---------- */
+#page-jiaojiao{background:#EEF2FB;padding-bottom:34px}
+.jj-wrap{padding:2px 14px 0}
+.jj-tip{background:#FFF8DC;border:1.5px solid #F2E3A0;color:#8A6D1F;font-size:12.5px;font-weight:600;line-height:1.6;border-radius:14px;padding:11px 13px;margin:8px 0 14px}
+.jj-card{background:#fff;border-radius:20px;padding:15px 15px 17px;margin-bottom:14px;box-shadow:0 6px 20px rgba(93,106,180,.08)}
+
+/* 区块标题（渐变图标 + 大标题 + 副题） */
+.jj-sec{display:flex;align-items:center;gap:11px;background:linear-gradient(135deg,#F3F4FE,#EEF7FF);border-radius:14px;padding:11px 12px;margin-bottom:13px}
+.jj-sec-ic{width:42px;height:42px;flex:none;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:21px;background:linear-gradient(135deg,#6D7BFF,#9B6BFF);box-shadow:0 4px 12px rgba(109,123,255,.35)}
+.jj-sec b{display:block;font-size:16.5px;color:#23283D;line-height:1.25}
+.jj-sec span{display:block;font-size:11.5px;color:#8B90A6;margin-top:2px}
+
+/* 字段标签：粗体 + 红* + 蓝色小签 */
+.jj-lb{display:flex;align-items:center;gap:8px;margin:13px 2px 8px}
+.jj-lb:first-child{margin-top:0}
+.jj-lb b{font-size:14.5px;color:#23283D}
+.jj-lb .req{color:#E5484D;font-style:normal;font-weight:800}
+.jj-chip-tag{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:700;color:#4F63F0;background:#EDF0FF;border-radius:99px;padding:3px 9px}
+
+/* 输入框 */
+.jj-input{display:flex;align-items:center;gap:9px;background:#F5F6FA;border:1.5px solid transparent;border-radius:14px;padding:12px 13px;transition:border-color .2s}
+.jj-input:focus-within{border-color:#6D7BFF;background:#fff}
+.jj-input.mt{margin-top:10px}
+.jj-input .jj-pre{font-size:15px;flex:none}
+.jj-input input{flex:1;min-width:0;border:none;outline:none;background:transparent;font-size:13.5px;color:#23283D}
+.jj-input input::placeholder{color:#B0B4C8}
+.jj-input.shake{animation:jjShake .5s;border-color:#E5484D}
+@keyframes jjShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}60%{transform:translateX(5px)}}
+
+/* 选项胶囊 */
+.jj-box{background:#F7F8FD;border-radius:14px;padding:13px 12px}
+.jj-grp{display:flex;flex-wrap:wrap;gap:9px}
+.jj-grp.gap{border-top:1px solid #E7EAF5;margin-top:12px;padding-top:12px}
+.jj-opt{border:1.5px solid #E3E6F2;background:#fff;color:#3A405A;font-size:13px;font-weight:600;border-radius:99px;padding:8px 15px;line-height:1.2;transition:all .15s}
+.jj-opt:active{transform:scale(.96)}
+.jj-opt.on{border-color:#6D7BFF;background:#EEF0FF;color:#4F63F0;font-weight:800;box-shadow:0 3px 10px rgba(109,123,255,.22)}
+
+/* 提交按钮 + 联系提示 */
+#jjSubmit{display:block;width:100%;border:none;color:#fff;font-size:16.5px;font-weight:800;letter-spacing:1px;background:linear-gradient(135deg,#6D7BFF,#9B6BFF);border-radius:99px;padding:14px 0;margin:18px 0 0;box-shadow:0 10px 24px rgba(109,123,255,.38);cursor:pointer}
+#jjSubmit:active{transform:scale(.98)}
+.jj-hint{display:flex;align-items:center;gap:12px;margin:15px 0 16px;color:#9AA0B5;font-size:12px;white-space:nowrap}
+.jj-hint i{flex:1;height:1px;background:#DFE3F0}
+
+/* 扫码咨询绿卡 */
+.jj-wx{background:linear-gradient(160deg,#22C568,#0B9A4E);border-radius:20px;padding:15px 16px 16px;box-shadow:0 12px 28px rgba(18,166,90,.32)}
+.jj-wx-t{display:flex;align-items:center;gap:7px;color:#fff;font-size:17px;font-weight:800;margin-bottom:12px}
+.jj-wx-body{display:flex;align-items:center;gap:13px}
+.jj-qr{width:96px;height:96px;flex:none;background:#fff;border-radius:12px;padding:6px}
+.jj-tags{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.jj-tags span{font-size:11px;font-weight:700;color:#E8FFF2;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:3.5px 10px}
+.jj-tags span.hot{color:#7A4C00;background:#FFD34D;border-color:#FFD34D}
+.jj-tags span.brand{color:#0B7A45;background:#fff;border-color:#fff;font-weight:800}
+
+.jj-privacy{font-size:10.5px;color:#9AA0B5;text-align:center;line-height:1.7;margin-top:13px}
+
+/* 提交成功面板 */
+.jj-done{padding:8px 14px}
+.jj-done-card{background:#fff;border-radius:22px;padding:26px 20px;text-align:center;box-shadow:0 10px 30px rgba(93,106,180,.14)}
+.jj-done-ic{font-size:46px}
+.jj-done-t{font-size:20px;font-weight:800;color:#23283D;margin-top:8px}
+.jj-done-s{font-size:13px;color:#7B8098;line-height:1.8;margin-top:7px}
+.jj-done-s b{color:#0B9A4E}
+.jj-done-sum{font-size:11.5px;color:#9AA0B5;background:#F5F6FA;border-radius:12px;padding:10px 12px;margin:14px 0 16px;line-height:1.8;word-break:break-all}
+#jjAgain{display:block;width:100%;border:none;color:#fff;font-size:15px;font-weight:800;background:linear-gradient(135deg,#6D7BFF,#9B6BFF);border-radius:99px;padding:12px 0;cursor:pointer}
+#jjBack{display:block;width:100%;border:1.5px solid #DDE1EF;background:#fff;color:#5A6079;font-size:14px;font-weight:700;border-radius:99px;padding:11px 0;margin-top:9px;cursor:pointer}
+
+/* ---------- 长辈模式放大 ---------- */
+#phone[data-elder="1"] .jj-tip{font-size:15px}
+#phone[data-elder="1"] .jj-lb b{font-size:17px}
+#phone[data-elder="1"] .jj-chip-tag{font-size:12.5px}
+#phone[data-elder="1"] .jj-input input{font-size:16px}
+#phone[data-elder="1"] .jj-input input::placeholder{font-size:14.5px}
+#phone[data-elder="1"] .jj-opt{font-size:15.5px;padding:10px 17px}
+#phone[data-elder="1"] .jj-sec b{font-size:19px}
+#phone[data-elder="1"] .jj-sec span{font-size:13.5px}
+#phone[data-elder="1"] #jjSubmit{font-size:19px;padding:16px 0}
+#phone[data-elder="1"] .jj-hint{font-size:14px}
+#phone[data-elder="1"] .jj-done-t{font-size:23px}
+#phone[data-elder="1"] .jj-done-s{font-size:15.5px}
+
+@media (prefers-reduced-motion: reduce){
+  .jj-input.shake{animation:none}
+}

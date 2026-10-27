@@ -1,0 +1,67 @@
+/* mediafull.css — 媒体全屏与语音播读层（2026-10-24） */
+
+/* 1) 朗读按钮：详情头部 / 案例头部通用胶囊 */
+.mf-tts {
+  border: 1.5px solid var(--rule);
+  background: var(--bg);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: .15s;
+  white-space: nowrap;
+}
+.mf-tts.on {
+  border-color: var(--rose);
+  color: var(--rose);
+  background: rgba(231, 93, 124, .08);
+}
+.r23-dhead .mf-tts { margin-left: 8px; }
+.vw-head .mf-tts { margin-right: 8px; flex: none; }
+
+/* 2) 视频全屏按钮：挂在视频容器右下角 */
+.mf-vhost { position: relative !important; }
+.mf-vbtn {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 5;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(20, 14, 10, .62);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.mf-vbtn svg { width: 18px; height: 18px; display: block; }
+/* 详情页假视频容器有播放遮罩（.vply z-index:2），按钮在其上仍可点 */
+.r23-dvideo .mf-vbtn { z-index: 6; }
+/* 全屏中的视频铺满屏幕 */
+video:fullscreen, video:-webkit-full-screen { width: 100%; height: 100%; object-fit: contain; background: #000; }
+
+/* 3) 大图查看器：更接近全屏（原 padding 22px / max-height 78%） */
+#r23Viewer { padding: 12px; }
+#r23Viewer .big { max-height: 92%; max-width: 100%; }
+#r23Viewer .big img { max-height: 82vh; width: auto; max-width: 100%; margin: 0 auto; display: block; border-radius: 10px; }
+
+/* 4) 案例图片墙：可点（保护层只锁正文长按，点击放大是浏览行为） */
+.vw-imgs { display: grid; gap: 10px; }
+.vw-imgs img {
+  width: 100%;
+  border-radius: 14px;
+  display: block;
+  cursor: zoom-in;
+}
+html.yrb-guard .vw-imgs img { pointer-events: auto; -webkit-touch-callout: none; }
+
+/* 信息流卡片视频：一点即全屏（抖音式） */
+#feed .m-realvideo video { cursor: pointer; display: block; width: 100%; background: #000; }
+#feed .m-realvideo .v-play { pointer-events: none; }   /* 点击穿透到视频本身，处理器统一接管 */

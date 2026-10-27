@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>育人帮 · 额度恢复当天恢复清单</title>
+<style>
+  @page { size: A4; margin: 12mm 14mm; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    font-family: "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+    color: #1f2329; background: #fff;
+    font-size: 10.5pt; line-height: 1.5;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .sheet { max-width: 182mm; margin: 0 auto; padding: 6mm 0; position: relative; }
+
+  /* ---- 屏幕上的工具条 ---- */
+  .toolbar {
+    position: sticky; top: 0; z-index: 9;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 4mm; margin-bottom: 4mm; padding: 2.5mm 3.5mm;
+    background: #eef1f4; border-radius: 2mm; font-size: 9.5pt; color: #3b444d;
+  }
+  .toolbar .prog { font-weight: 700; }
+  .toolbar button {
+    font: inherit; font-size: 9.5pt; cursor: pointer;
+    padding: 1.4mm 3mm; border: 1px solid #9aa4ae; border-radius: 1.6mm;
+    background: #fff; color: #1f2329;
+  }
+  .toolbar button:hover { background: #f5f7f9; border-color: #1f2329; }
+
+  header { border-bottom: 2.5px solid #1f2329; padding-bottom: 4mm; margin-bottom: 4mm; }
+  h1 { font-size: 17pt; margin: 0 0 2mm; letter-spacing: .5px; }
+  .sub { font-size: 9pt; color: #5c6670; }
+  .meta { display: flex; gap: 8mm; margin-top: 3mm; font-size: 9.5pt; flex-wrap: wrap; }
+  .meta label { display: flex; align-items: center; gap: 1.5mm; }
+
+  .fill {
+    font: inherit; font-size: 9.5pt; color: #1f2329;
+    border: none; border-bottom: 1px solid #b8c0c8; background: transparent;
+    padding: 0 1mm .4mm; outline: none;
+  }
+  .fill:focus { border-bottom-color: #1f2329; background: #f7f9fb; }
+  .w-date { width: 40mm; }
+  .w-short { width: 30mm; }
+  .w-num { width: 16mm; text-align: center; }
+
+  .step { display: flex; gap: 3.5mm; padding: 2.6mm 0; border-bottom: 1px dashed #d8dde3; }
+  .step:last-of-type { border-bottom: none; }
+  .step.done .t { color: #6b747d; }
+
+  /* ---- 可勾选方框 ---- */
+  .box { flex: 0 0 auto; margin-top: .6mm; cursor: pointer; position: relative; }
+  .box input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .box .mk {
+    display: block; width: 5.4mm; height: 5.4mm;
+    border: 1.4px solid #1f2329; border-radius: 1mm;
+    line-height: 5mm; text-align: center;
+    font-size: 9.5pt; font-weight: 700; color: #fff;
+    background: #fff; transition: background .12s;
+  }
+  .box .mk::before { content: ""; }
+  .box input:checked + .mk { background: #1f2329; }
+  .box input:checked + .mk::before { content: "✓"; }
+  .box:focus-within .mk { outline: 2px solid #7aa7d9; outline-offset: 1px; }
+
+  .body { flex: 1; }
+  .t { font-weight: 700; font-size: 11pt; }
+  .t .n {
+    display: inline-block; min-width: 5.6mm; height: 5.6mm; line-height: 5.6mm;
+    text-align: center; background: #1f2329; color: #fff; border-radius: 50%;
+    font-size: 8.5pt; margin-right: 2mm; vertical-align: 1px;
+  }
+  .d { color: #3b444d; margin-top: .6mm; }
+  .hint { color: #6b747d; font-size: 9pt; margin-top: .8mm; }
+
+  .tables {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1.4mm 3mm; margin-top: 2mm; font-size: 9pt;
+  }
+  .tables .box { margin: 0; }
+  .tables .box .mk { width: 3.8mm; height: 3.8mm; line-height: 3.4mm; font-size: 7.5pt; border-width: 1.1px; border-radius: .8mm; }
+  .tables label { display: flex; align-items: center; gap: 1.6mm; cursor: pointer; }
+  .tables code { font-family: Consolas, "Courier New", monospace; font-size: 8.8pt; }
+
+  .warn { margin-top: 5mm; border: 1.6px solid #1f2329; border-radius: 2mm; padding: 3.5mm 4mm; }
+  .warn h2 { font-size: 11pt; margin: 0 0 2mm; }
+  .warn ol { margin: 0; padding-left: 5mm; }
+  .warn li { margin-bottom: 1.2mm; }
+  .warn b { background: #f0f2f4; padding: 0 .8mm; }
+  .warn label { display: flex; gap: 2.5mm; align-items: flex-start; cursor: pointer; }
+  .warn .box { margin-top: .9mm; }
+
+  footer {
+    margin-top: 4mm; padding-top: 2.5mm; border-top: 1px solid #d8dde3;
+    font-size: 8.6pt; color: #6b747d; display: flex; justify-content: space-between; gap: 6mm;
+  }
+
+  @media screen {
+    body { background: #f5f6f8; }
+    .sheet { background: #fff; box-shadow: 0 1px 6px rgba(0,0,0,.08); padding: 12mm; margin: 8mm auto 12mm; }
+  }
+  @media print {
+    .toolbar { display: none !important; }
+    .sheet { padding: 0; max-width: none; box-shadow: none; }
+    .fill { border-bottom-color: #1f2329; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <div class="toolbar">
+    <span class="prog" id="prog">已完成 0 / 17</span>
+    <span>
+      <button type="button" id="btnPrint">打印 / 存 PDF</button>
+      <button type="button" id="btnReset">全部清空</button>
+    </span>
+  </div>
+
+  <header>
+    <h1>育人帮 · 额度恢复当天恢复清单</h1>
+    <div class="sub">目标：30 分钟内把数据拿到手 · 全程只读为主，不新建任何测试内容 · 勾选状态自动保存在本机浏览器</div>
+    <div class="meta">
+      <label>恢复日期：<input class="fill w-date" id="f-date" type="text" placeholder="2026-11-__"></label>
+      <label>操作人：<input class="fill w-short" id="f-ops" type="text" placeholder=""></label>
+    </div>
+  </header>
+
+  <div class="step">
+    <label class="box"><input type="checkbox" id="c1"><span class="mk"></span></label>
+    <div class="body">
+      <div class="t"><span class="n">1</span>先确认真的恢复了</div>
+      <div class="d">打开「应用 → 云服务」，看 <code>billingStatus</code> 是否为 <b>normal</b>；再打开网站首页，信息流能出现真实帖子即可。</div>
+      <div class="hint">若仍显示 isolated / 503，停下，不要往下做。</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <label class="box"><input type="checkbox" id="c2"><span class="mk"></span></label>
+    <div class="body">
+      <div class="t"><span class="n">2</span>导出 8 张表（只导出，不改任何数据）</div>
+      <div class="d">云服务 →「数据」页，逐表点导出，保存为 CSV 或 JSON：</div>
+      <div class="tables">
+        <label><span class="box"><input type="checkbox" class="tb" id="t-posts"><span class="mk"></span></span><code>yb_posts</code></label>
+        <label><span class="box"><input type="checkbox" class="tb" id="t-comments"><span class="mk"></span></span><code>yb_comments</code></label>
+        <label><span class="box"><input type="checkbox" class="tb" id="t-cases"><span class="mk"></span></span><code>yb_cases</code></label>
+        <label><span class="box"><input type="checkbox" class="tb" id="t-profiles"><span class="mk"></span></span><code>yb_profiles</code></label>
+        <label><span class="box"><input type="checkbox" class="tb" id="t-gifts"><span class="mk"></span></span><code>yb_gifts</code></label>
+        <label><span class="box"><input type="checkbox" class="tb" id="t-settings"><span class="mk"></span></span><code>yb_settings</code></label>
+        <label><span class="box"><input type="checkbox" class="tb" id="t-tutor"><span class="mk"></span></span><code>yb_tutor_req</code></label>
+        <label><span class="box"><input type="checkbox" class="tb" id="t-accounts"><span class="mk"></span></span><code>yb_accounts</code></label>
+      </div>
+      <div class="hint">导出完在文件名前加日期前缀，例如 <code>20261101_yb_posts.csv</code>，避免版本混淆。</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <label class="box"><input type="checkbox" id="c3"><span class="mk"></span></label>
+    <div class="body">
+      <div class="t"><span class="n">3</span>核行数（防止导出“成功”但内容为空）</div>
+      <div class="d">每张表记录行数。重点看 <code>posts</code> / <code>comments</code> / <code>cases</code> 是否大于 0。</div>
+      <div class="d" style="margin-top:1.5mm;display:flex;gap:4mm;flex-wrap:wrap;font-size:9.5pt">
+        <label>posts <input class="fill w-num" id="n-posts" type="text"></label>
+        <label>comments <input class="fill w-num" id="n-comments" type="text"></label>
+        <label>cases <input class="fill w-num" id="n-cases" type="text"></label>
+        <label>profiles <input class="fill w-num" id="n-profiles" type="text"></label>
+        <label>gifts <input class="fill w-num" id="n-gifts" type="text"></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <label class="box"><input type="checkbox" id="c4"><span class="mk"></span></label>
+    <div class="body">
+      <div class="t"><span class="n">4</span>存两处，一处不在本机</div>
+      <div class="d">本地：<code>E:\育人帮\备份\2026-11-01\</code>　另一处：网盘或移动硬盘。</div>
+      <div class="hint">只存一处等于没存：硬盘坏、电脑丢、误删，都会一次归零。</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <label class="box"><input type="checkbox" id="c5"><span class="mk"></span></label>
+    <div class="body">
+      <div class="t"><span class="n">5</span>记录消耗曲线的起点</div>
+      <div class="d" style="display:flex;gap:4mm;flex-wrap:wrap">
+        <label>日期 <input class="fill w-short" id="n-cdate" type="text" placeholder="2026-11-__"></label>
+        <label>剩余资源点 <input class="fill w-short" id="n-credit" type="text" placeholder=""></label>
+      </div>
+      <div class="hint">之后每天同一时间记一次，连续 7 天。这条曲线决定要不要迁移、先迁哪一块。</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <label class="box"><input type="checkbox" id="c6"><span class="mk"></span></label>
+    <div class="body">
+      <div class="t"><span class="n">6</span>跑一遍线上自检（只看，不发帖）</div>
+      <div class="d">首页信息流、案例广场、留言展开、管理后台登录页 —— 四项各看一次，确认没有“维护中”横幅残留。</div>
+      <div class="hint"><label>当前构建号 <input class="fill w-short" id="n-build" type="text" placeholder="build.json"></label></div>
+    </div>
+  </div>
+
+  <div class="warn">
+    <h2>当天不要做这三件事</h2>
+    <ol>
+      <li><label><span class="box"><input type="checkbox" id="w1"><span class="mk"></span></span><span><b>不发测试帖、测试留言试功能</b> —— 每条都在消耗刚恢复的额度，而且会污染真实数据。</span></label></li>
+      <li><label><span class="box"><input type="checkbox" id="w2"><span class="mk"></span></span><span><b>不反复刷新首页或批量点开案例</b> —— 图片/视频一次全量下载，额度掉得比你想的快。</span></label></li>
+      <li><label><span class="box"><input type="checkbox" id="w3"><span class="mk"></span></span><span><b>不在导出完成前改代码、发版</b> —— 出问题时你将分不清是数据的事还是代码的事。</span></label></li>
+    </ol>
+  </div>
+
+  <footer>
+    <span>提醒：云服务暂停后数据仅保留 15 天，逾期永久删除。</span>
+    <span>下一道防线：11 月 1 日 09:30 自动复查已就绪。</span>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  var KEY = "yrb_restore_checklist_v1";
+  var store = {};
+  try { store = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { store = {}; }
+
+  var inputs = Array.prototype.slice.call(document.querySelectorAll("input"));
+
+  function save(){
+    var data = {};
+    inputs.forEach(function(el){
+      if (!el.id) return;
+      if (el.type === "checkbox") { if (el.checked) data[el.id] = 1; }
+      else if (el.value) data[el.id] = el.value;
+    });
+    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
+  }
+
+  function restore(){
+    inputs.forEach(function(el){
+      if (!el.id) return;
+      var v = store[el.id];
+      if (el.type === "checkbox") el.checked = !!v;
+      else if (v) el.value = v;
+    });
+  }
+
+  function updateProgress(){
+    var cbs = inputs.filter(function(el){ return el.type === "checkbox"; });
+    var done = cbs.filter(function(el){ return el.checked; }).length;
+    document.getElementById("prog").textContent = "已完成 " + done + " / " + cbs.length;
+    cbs.forEach(function(el){
+      var step = el.closest(".step");
+      if (step) step.classList.toggle("done", el.checked);
+    });
+  }
+
+  inputs.forEach(function(el){
+    el.addEventListener("change", function(){ save(); updateProgress(); });
+    el.addEventListener("input", save);
+  });
+
+  document.getElementById("btnReset").addEventListener("click", function(){
+    if (!confirm("确定清空所有勾选和填写内容？")) return;
+    inputs.forEach(function(el){
+      if (el.type === "checkbox") el.checked = false; else el.value = "";
+    });
+    save(); updateProgress();
+  });
+
+  document.getElementById("btnPrint").addEventListener("click", function(){ window.print(); });
+
+  restore();
+  updateProgress();
+})();
+</script>
+</body>
+</html>

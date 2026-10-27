@@ -1,0 +1,60 @@
+{
+ "denied_idle": {
+  "warn": false,
+  "big": true,
+  "syscam": true
+ },
+ "denied": {
+  "title": "摄像头的权限被拒绝了",
+  "why": "上一次可能点了「拒绝」，或者系统的隐私开关关闭了摄像头权限。",
+  "steps": [
+   "苹果手机：设置 → Safari 浏览器 → 相机 / 麦克风 → 选「询问」或「允许」，再刷新页面",
+   "安卓手机：点网址左边的小锁 🔒 → 权限 → 相机、麦克风改成「允许」",
+   "电脑：点网址左边的小锁 🔒 → 摄像头 / 麦克风 → 允许；还不行就进 Windows「设置 → 隐私和安全性 → 相机 / 麦克风」，把开关都打开",
+   "改好后刷新页面，再点一次「重试」"
+  ],
+  "buttons": [
+   "🔄 重试",
+   "🔗 在新窗口打开",
+   "📋 复制自检信息",
+   "📷 用系统相机拍摄",
+   "🖼️ 从相册选视频",
+   "↩︎ 返回"
+  ],
+  "warnShown": false
+ },
+ "denied_errs": [],
+ "denied_afterClose": {
+  "help": false,
+  "big": true
+ },
+ "voice_idle": {
+  "warn": false,
+  "audioPick": true
+ },
+ "voiceDenied": {
+  "title": "麦克风的权限被拒绝了",
+  "why": "上一次可能点了「拒绝」，或者系统的隐私开关关闭了麦克风权限。",
+  "steps": [
+   "苹果手机：设置 → Safari 浏览器 → 相机 / 麦克风 → 选「询问」或「允许」，再刷新页面",
+   "安卓手机：点网址左边的小锁 🔒 → 权限 → 相机、麦克风改成「允许」",
+   "电脑：点网址左边的小锁 🔒 → 摄像头 / 麦克风 → 允许；还不行就进 Windows「设置 → 隐私和安全性 → 相机 / 麦克风」，把开关都打开",
+   "改好后刷新页面，再点一次「重试」"
+  ],
+  "buttons": [
+   "🔄 重试",
+   "🔗 在新窗口打开",
+   "📋 复制自检信息",
+   "🎵 选已有的录音文件",
+   "↩︎ 返回"
+  ],
+  "warnShown": false
+ },
+ "liveReachable": true,
+ "frameDiag": {
+  "cross": true,
+  "ok": false,
+  "err": "NotAllowedError: Permission denied"
+ },
+ "frameHelp": null
+}

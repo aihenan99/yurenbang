@@ -1,0 +1,137 @@
+/* 育人帮 · 静态内容页样式（案例库 / 案例详情）
+   独立于 app.css：这些页面要能被搜索引擎直接读到内容，不依赖任何 JS。
+   字号按长辈可读标准放大（正文 17px / 行高 1.95）。 */
+
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#FAF5EF;--card:#FFFFFF;--ink:#322E29;--muted:#8A837C;--rule:#EBE1D6;
+  --accent:#F4694B;--accent2:#2FA393;--gold:#E9A23B;--rose:#E75D7C;
+  --gradA:linear-gradient(135deg,#FF9A76,#F4694B);
+  --gradT:linear-gradient(135deg,#57C7B5,#2FA393);
+}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",sans-serif;
+  color:var(--ink);font-size:17px;line-height:1.95;
+  background:
+    radial-gradient(900px 460px at 12% -8%,#FFEDE0 0%,transparent 62%),
+    radial-gradient(760px 420px at 96% 4%,#DFF3EE 0%,transparent 60%),
+    var(--bg);
+  padding-bottom:48px;
+}
+a{color:var(--accent2);text-decoration:none}
+a:hover{text-decoration:underline}
+img{max-width:100%;height:auto}
+
+/* ---------- 顶栏 ---------- */
+.site-head{
+  position:sticky;top:0;z-index:20;background:rgba(250,245,239,.92);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--rule);
+}
+.site-head .in{
+  max-width:760px;margin:0 auto;padding:12px 18px;
+  display:flex;align-items:center;gap:12px;
+}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800;font-size:19px;color:var(--ink)}
+.brand .dot{width:26px;height:26px;border-radius:9px;background:var(--gradT);display:grid;place-items:center;color:#fff;font-size:14px}
+.site-head nav{margin-left:auto;display:flex;gap:16px;font-size:14.5px;font-weight:700;color:var(--muted)}
+.site-head nav a{color:var(--muted)}
+.site-head nav a.on{color:var(--accent)}
+
+/* ---------- 布局 ---------- */
+.wrap{max-width:760px;margin:0 auto;padding:0 18px}
+.crumb{font-size:13.5px;color:var(--muted);padding:16px 0 4px}
+.crumb a{color:var(--muted)}
+.crumb span{color:var(--ink)}
+
+/* ---------- 案例库首页 ---------- */
+.hero{padding:14px 0 6px}
+.hero h1{font-size:30px;line-height:1.35;letter-spacing:-.4px}
+.hero .lead{font-size:16.5px;color:#5C554E;margin-top:12px}
+.hero .stat{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+.hero .stat b{
+  background:#fff;border:1px solid var(--rule);border-radius:999px;
+  padding:6px 14px;font-size:13.5px;color:var(--muted);font-weight:700;
+}
+.hero .stat b i{font-style:normal;color:var(--accent);font-size:15px}
+
+.sect-h{display:flex;align-items:baseline;gap:10px;margin:34px 0 14px}
+.sect-h h2{font-size:20px}
+.sect-h em{font-style:normal;font-size:13.5px;color:var(--muted);font-weight:600}
+
+.cards{display:grid;gap:14px}
+.card{
+  background:var(--card);border:1px solid var(--rule);border-radius:18px;
+  padding:18px 18px 16px;box-shadow:0 6px 20px rgba(90,60,40,.06);
+  transition:.16s;
+}
+.card:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(90,60,40,.10)}
+.card .tags{display:flex;gap:8px;flex-wrap:wrap;font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:8px}
+.card .tags b{color:var(--accent2)}
+.card h3{font-size:18.5px;line-height:1.55;margin-bottom:8px}
+.card h3 a{color:var(--ink)}
+.card p{font-size:15px;color:#5C554E;line-height:1.85}
+.card .more{display:inline-block;margin-top:10px;font-size:14px;font-weight:800;color:var(--accent)}
+
+/* ---------- 文章 ---------- */
+article.post{padding-top:6px}
+article.post h1{font-size:29px;line-height:1.45;letter-spacing:-.3px;margin:6px 0 12px}
+.post-meta{font-size:13.5px;color:var(--muted);display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+.post-meta b{background:#F4EFE8;border-radius:999px;padding:3px 11px;color:#6B6259;font-weight:700}
+.lead-box{
+  background:#FFF8F1;border:1px solid #F6E2CF;border-left:5px solid var(--accent);
+  border-radius:14px;padding:14px 16px;font-size:16px;color:#5C554E;margin-bottom:24px;
+}
+.body h2{font-size:22px;margin:34px 0 12px;padding-left:12px;border-left:5px solid var(--accent2);line-height:1.4}
+.body h3{font-size:18.5px;margin:24px 0 8px;color:#2A2622}
+.body p{margin:14px 0}
+.body ul,.body ol{margin:14px 0 14px 22px}
+.body li{margin:8px 0}
+.body strong{color:#C0492F;font-weight:800}
+.body blockquote{
+  background:#F3F7F5;border:1px solid #DCEBE5;border-radius:14px;
+  padding:14px 16px;margin:22px 0;font-size:15px;color:#4E5C57;line-height:1.9;
+}
+
+/* CTA */
+.cta{
+  margin:34px 0 10px;background:linear-gradient(135deg,#FFF3EA,#FFEDE4);
+  border:1px solid #F8DCC8;border-radius:20px;padding:20px;
+}
+.cta b{display:block;font-size:18px;margin-bottom:6px}
+.cta p{font-size:15px;color:#6B5F55}
+.btn{
+  display:inline-block;margin-top:14px;background:var(--gradT);color:#fff;
+  font-weight:800;font-size:16px;padding:12px 24px;border-radius:999px;
+  box-shadow:0 10px 22px rgba(47,163,147,.28);
+}
+.btn:hover{text-decoration:none;filter:brightness(1.04)}
+
+/* 相关案例 */
+.rel{margin-top:38px;border-top:1px dashed var(--rule);padding-top:22px}
+.rel h2{font-size:18px;margin-bottom:12px}
+.rel ul{list-style:none}
+.rel li{padding:9px 0;border-bottom:1px solid #F4EDE5;font-size:15px}
+.rel li span{color:var(--muted);font-size:13px;margin-right:8px}
+
+/* 使用说明 / FAQ */
+.note{margin:30px 0;background:#FBF7F2;border:1px solid var(--rule);border-radius:16px;padding:18px}
+.note h2{font-size:18px;margin-bottom:10px}
+.note p,.note li{font-size:15px;color:#5C554E;line-height:1.9}
+.note ul,.note ol{margin-left:20px;margin-top:8px}
+
+/* 页脚 */
+.site-foot{
+  max-width:760px;margin:44px auto 0;padding:22px 18px 0;
+  border-top:1px solid var(--rule);font-size:13.5px;color:var(--muted);
+  display:flex;flex-wrap:wrap;gap:10px 18px;
+}
+.site-foot a{color:var(--muted)}
+
+@media (max-width:480px){
+  body{font-size:16.5px}
+  .hero h1{font-size:26px}
+  article.post h1{font-size:24px}
+  .body h2{font-size:20px}
+  .site-head nav{gap:12px;font-size:13.5px}
+}

@@ -1,0 +1,88 @@
+/* =========================================================
+   育人帮 · 真实拍摄层样式（cap- 前缀，容器隔离）
+   ========================================================= */
+
+/* 图片：真实缩略图九宫格 */
+.cap-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.cap-cell{position:relative;aspect-ratio:1;border-radius:13px;overflow:hidden;border:2px solid var(--accent);background:#000}
+.cap-cell img{width:100%;height:100%;object-fit:cover;display:block}
+.cap-rm{position:absolute;right:5px;top:5px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.58);color:#fff;font-size:12px;display:flex;align-items:center;justify-content:center;z-index:2}
+.cap-n{position:absolute;left:5px;top:5px;background:rgba(0,0,0,.5);color:#fff;font-size:10px;border-radius:99px;padding:1px 6px}
+.cap-add{aspect-ratio:1;border:2px dashed var(--muted);border-radius:13px;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--muted);cursor:pointer;text-align:center;transition:.15s}
+.cap-add:active{transform:scale(.95);border-color:var(--accent2);color:var(--accent2)}
+.cap-add .pl{font-size:24px;line-height:1}
+.cap-add .ps{font-size:11.5px;font-weight:600}
+.cap-hint{font-size:11.5px;color:var(--muted);margin:9px 2px 0;line-height:1.65}
+.cap-hint b{color:var(--accent)}
+
+/* 视频录制 */
+.cap-rec{border-radius:16px;background:#1E1A20;padding:18px 16px}
+.cap-stage{position:relative;height:190px;border-radius:13px;overflow:hidden;background:linear-gradient(135deg,#3A3340,#26212D);display:flex;align-items:center;justify-content:center}
+.cap-rec.idle .cap-stage{background:linear-gradient(135deg,#FFE9D9,#FFD6C4);flex-direction:column;gap:8px}
+.cap-ph{font-size:40px;line-height:1}
+.cap-tip{color:#8A6347;font-size:13px;text-align:center;padding:0 18px}
+.cap-preview{width:100%;height:100%;object-fit:cover;background:#000;display:block}
+.cap-recflag{position:absolute;right:10px;top:9px;display:flex;align-items:center;gap:5px;background:rgba(0,0,0,.5);color:#fff;font-size:11px;border-radius:99px;padding:3px 9px;z-index:2}
+.cap-recflag i{width:8px;height:8px;border-radius:50%;background:#FF4D4D;animation:r23pulse 1s infinite}
+.cap-clock{position:absolute;left:10px;top:9px;background:rgba(0,0,0,.5);color:#fff;font-size:12px;border-radius:99px;padding:3px 10px;font-variant-numeric:tabular-nums;z-index:2}
+.cap-rec.done .cap-clock{top:auto;bottom:9px}
+.cap-big{margin:14px auto 0;display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;width:100%;border-radius:999px;background:var(--gradA);color:#fff;font-weight:800;font-size:16px;box-shadow:0 8px 20px rgba(244,105,75,.4);transition:.15s}
+.cap-big:active{transform:scale(.97)}
+.cap-big.stop{background:linear-gradient(135deg,#FF6B6B,#E23A3A)}
+.cap-alt{display:block;margin-top:12px;font-size:12.5px;color:rgba(255,255,255,.75);text-decoration:underline;text-align:center;cursor:pointer}
+.cap-row{display:flex;gap:10px;margin-top:14px}
+.cap-row .btn-g,.cap-row .btn-a{flex:1;padding:13px 10px;font-size:15px}
+
+/* 语音录制 */
+.cap-voice{border:1.5px solid var(--rule);border-radius:16px;background:linear-gradient(135deg,rgba(87,199,181,.1),rgba(47,163,147,.06));padding:18px 16px;text-align:center}
+.cap-vmic{width:72px;height:72px;border-radius:50%;background:var(--gradT);color:#fff;font-size:28px;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 8px 22px rgba(47,163,147,.4);transition:.15s}
+.cap-vmic:active{transform:scale(.93)}
+.cap-vmic.on{background:linear-gradient(135deg,#FF7A6B,#E8443A);animation:r23pulse 1.2s infinite}
+.cap-bars{display:flex;align-items:center;justify-content:center;gap:3px;height:52px;margin:12px 0 8px}
+.cap-bars i{width:3.5px;border-radius:99px;background:var(--accent2);height:20%;opacity:.55}
+.cap-bars.live i{animation:r23eq .7s ease-in-out infinite alternate}
+.cap-vrow{display:flex;align-items:center;gap:10px;justify-content:center}
+.cap-vrow audio{width:100%;max-width:270px}
+.cap-vicon{font-size:22px}
+.cap-voice .cap-clock{position:static;display:inline-block;background:none;color:var(--accent2);font-size:14px;font-weight:800;margin-top:2px}
+
+/* 长辈模式：拍摄控件同步放大 */
+#phone[data-elder="1"] .cap-add .pl{font-size:28px}
+#phone[data-elder="1"] .cap-add .ps{font-size:13px}
+#phone[data-elder="1"] .cap-hint{font-size:13px}
+#phone[data-elder="1"] .cap-big{font-size:18px;min-height:58px}
+#phone[data-elder="1"] .cap-vmic{width:84px;height:84px;font-size:32px}
+#phone[data-elder="1"] .cap-rm{width:28px;height:28px;font-size:15px}
+#phone[data-elder="1"] .cap-row .btn-g,#phone[data-elder="1"] .cap-row .btn-a{font-size:17px;padding:15px 10px}
+
+/* ---------- 不支持时的提前提示 ---------- */
+.cap-warn{margin:12px 0 0;background:#FFF4E0;border:1.5px solid #F2C98A;color:#7A4A12;border-radius:12px;padding:10px 12px;font-size:12px;line-height:1.65;text-align:left}
+#phone[data-elder="1"] .cap-warn{font-size:14px}
+
+/* ---------- 备用入口（系统相机 / 相册 / 已有录音） ---------- */
+.cap-alt{display:flex;align-items:center;justify-content:center;gap:6px;margin:12px 0 0;padding:11px 12px;border-radius:12px;border:1.5px solid var(--rule);background:var(--bg2);color:var(--ink);font-size:13px;font-weight:600;text-decoration:none;cursor:pointer}
+.cap-alt:active{transform:scale(.98);border-color:var(--accent2);color:var(--accent2)}
+.cap-alt-row{display:flex;gap:8px}
+.cap-alt-row .cap-alt{flex:1;font-size:12.5px;padding:11px 8px}
+
+/* ---------- 「为什么用不了」说明卡 ---------- */
+.cap-help{background:#FFFBF7;border:2px solid var(--accent);border-radius:18px;padding:18px 16px;box-shadow:0 12px 30px rgba(244,105,75,.14)}
+.cap-help-ic{font-size:30px;line-height:1;text-align:center}
+.cap-help-t{font-size:16.5px;font-weight:800;color:#B23A22;text-align:center;margin:8px 0 0;line-height:1.5}
+.cap-help-w{font-size:13px;color:#5C534B;line-height:1.7;margin:10px 0 0}
+.cap-help-s{margin:10px 0 0;padding-left:20px;color:var(--ink);font-size:13px;line-height:1.8}
+.cap-help-s li{margin-bottom:5px}
+.cap-help-act{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}
+.cap-help-btn{display:flex;align-items:center;justify-content:center;gap:6px;flex:1;min-width:118px;min-height:48px;padding:12px 14px;border-radius:12px;font-size:14.5px;font-weight:700;cursor:pointer;text-align:center;border:1.5px solid transparent}
+.cap-help-btn.primary{background:var(--gradA);color:#fff;box-shadow:0 8px 18px rgba(244,105,75,.32)}
+.cap-help-btn.fallback{background:var(--bg2);border-color:var(--accent2);color:#1F7C70}
+.cap-help-btn.ghost{background:var(--bg2);border-color:var(--rule);color:var(--muted)}
+.cap-help-btn:active{transform:scale(.98)}
+.cap-help-alt{margin:16px 0 0;font-size:13px;font-weight:700;color:var(--ink);border-top:1px dashed var(--rule);padding-top:12px}
+.cap-help-note{display:none}
+#phone[data-elder="1"] .cap-help-t{font-size:19px}
+#phone[data-elder="1"] .cap-help-w,#phone[data-elder="1"] .cap-help-s,#phone[data-elder="1"] .cap-help-alt{font-size:15.5px;line-height:1.85}
+#phone[data-elder="1"] .cap-help-btn{font-size:17px;min-height:56px}
+.cap-warn-btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;margin-top:9px;padding:10px 15px;border-radius:10px;background:var(--gradA);color:#fff;font-weight:800;font-size:13px;min-height:42px;box-shadow:0 6px 14px rgba(244,105,75,.3)}
+.cap-warn-btn:active{transform:scale(.98)}
+#phone[data-elder="1"] .cap-warn-btn{font-size:15.5px;min-height:50px;padding:12px 18px}

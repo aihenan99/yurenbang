@@ -1,0 +1,106 @@
+/* protect.css — 内容保护层样式（2026-10-23）
+   仅在 html.yrb-guard 下生效；管理员（html.yrb-pass）完全不受影响。 */
+
+/* 1) 基础：禁止选中、禁止长按系统菜单 */
+html.yrb-guard body {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* 2) 白名单：输入框、后台、分享面板必须能正常选择与复制
+      ——「转发分享链接」是本层要保护的出口，不能一起锁死 */
+html.yrb-guard input,
+html.yrb-guard textarea,
+html.yrb-guard select,
+html.yrb-guard [contenteditable],
+html.yrb-guard #shareLayer,
+html.yrb-guard #shGuide,
+html.yrb-guard #adLayer,
+html.yrb-guard .yrb-sel {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* 3) 图片 / 画布：禁止拖出保存、禁止长按保存
+      pointer-events:none 让长按落到父容器上，系统菜单不会出现「存储图片」 */
+html.yrb-guard img,
+html.yrb-guard canvas {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+  pointer-events: none;
+}
+
+/* 视频：必须保留 pointer-events，否则原生播放控件（播放/进度/全屏）全部失效
+      （2026-10-24 修复：昨天误把 video 一并 pointer-events:none，真实视频点不动）。
+      保护手段改为：禁拖拽 + 禁长按菜单 + 隐藏下载按钮（见下方第 4 条） */
+html.yrb-guard video {
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+  pointer-events: auto;
+}
+
+/* 二维码是「转发工具」不是「本站内容」，允许长按保存，保证分享与扫码链路可走 */
+html.yrb-guard #shareLayer img,
+html.yrb-guard #shGuide img,
+html.yrb-guard #adLayer img,
+html.yrb-guard .jj-qr,
+html.yrb-guard #slQr,
+html.yrb-guard .shg-qr,
+html.yrb-guard #adQrImg {
+  pointer-events: auto;
+  -webkit-touch-callout: default;
+}
+
+/* 4) 视频原生控件里的下载按钮隐藏 */
+html.yrb-guard video::-internal-media-controls-download-button { display: none; }
+html.yrb-guard video::-webkit-media-controls-enclosure { overflow: hidden; }
+
+/* 5) 打印 / 另存为 PDF：只输出提示，不输出正文
+      用 visibility 而非 display —— 站点层级结构较深（#phone 包裹多层绝对定位），
+      display:none 要逐层命中才彻底；visibility 会继承，一处设死即可 */
+@media print {
+  html.yrb-guard body,
+  html.yrb-guard body * { visibility: hidden !important; }
+  html.yrb-guard body::before {
+    content: "本页内容受保护，无法打印或另存。\A 想分享给好友，请复制链接或转发二维码。";
+    white-space: pre-wrap;
+    visibility: visible !important;
+    display: block !important;
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    padding: 40px 24px;
+    font-size: 16px;
+    line-height: 2;
+    color: #333;
+    background: #fff;
+  }
+}
+
+/* 6) 被第三方站点嵌入时不出内容 */
+html.yrb-framed body { display: none !important; }
+html.yrb-framed::before {
+  content: "本站内容受保护，不支持嵌入展示。\A 请直接在浏览器打开「育人帮」查看。";
+  white-space: pre-wrap;
+  display: block;
+  padding: 48px 24px;
+  font-size: 17px;
+  line-height: 1.9;
+  color: #2b2b2b;
+  background: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+}

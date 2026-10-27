@@ -1,0 +1,32 @@
+/* 育人帮 · 资质证照 / 用户协议 样式（与 cloud.css 的 .d-h/.d-note 协议正文风格配套） */
+
+/* 列表行：名称 + 说明 + 状态胶囊 */
+.lic-row .lic-t{display:flex;flex-direction:column;gap:2px;text-align:left}
+.lic-row .lic-d{font-style:normal;font-size:11.5px;color:var(--muted);font-weight:500}
+.lic-row .chip{background:rgba(244,105,75,.12);color:var(--accent)}
+.lic-row .chip.off{background:var(--bg2);color:var(--muted)}
+
+/* 协议页顶部切换 */
+.lic-doc-tabs{display:flex;align-items:center;gap:8px;padding:10px 12px 2px;position:sticky;top:0;background:var(--bg);z-index:2}
+.lic-tab{flex:none;padding:7px 14px;border-radius:999px;border:1.5px solid var(--rule);background:var(--bg2);font-size:13px;font-weight:700;color:var(--muted)}
+.lic-tab.on{background:var(--gradA);color:#fff;border-color:transparent}
+.lic-tag{margin-left:auto;font-size:11px;color:var(--muted)}
+.lic-doc{padding:6px 16px 24px;font-size:13.5px;line-height:1.9;color:var(--text)}
+.lic-doc .d-h{font-weight:800;margin:14px 0 4px;font-size:14px}
+.lic-doc .d-note{color:var(--muted);font-size:12px;margin-top:14px}
+
+/* 全屏查看证照 */
+#licView{position:fixed;inset:0;z-index:70;display:none;flex-direction:column;background:rgba(12,12,16,.94);backdrop-filter:blur(6px)}
+#licView.open{display:flex;animation:lvIn .18s ease}
+@keyframes lvIn{from{opacity:0}to{opacity:1}}
+#licView .lv-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;color:#fff;font-size:15px}
+#licView .lv-bar button{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:16px;display:flex;align-items:center;justify-content:center}
+#licView .lv-body{flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:0 12px}
+#licView .lv-body img{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;background:#fff}
+#licView .lv-tip{text-align:center;color:rgba(255,255,255,.6);font-size:12px;padding:12px 0 22px}
+
+/* 长辈模式放大 */
+#phone[data-elder="1"] .lic-row .lic-d{font-size:13px}
+#phone[data-elder="1"] .lic-doc{font-size:16px;line-height:2}
+#phone[data-elder="1"] .lic-doc .d-h{font-size:17px}
+#phone[data-elder="1"] .lic-tab{font-size:15px;padding:9px 17px}

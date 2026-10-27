@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>pptx probe</title>
+<style>
+ body{margin:0;background:#f4efe8;font-family:-apple-system,"PingFang SC",sans-serif}
+ #wrap{padding:10px;width:360px}
+ #stage{width:360px;background:#fff;border-radius:10px;overflow:hidden}
+ #log{font-size:12px;color:#666;padding:6px 10px;white-space:pre-wrap}
+</style></head>
+<body>
+<div id="wrap"><div id="stage"></div></div>
+<div id="log">loading…</div>
+<script src="/yurenbang-app/assets/vendor/pptx-preview.umd.js"></script>
+<script>
+let msg="";
+const log=t=>{msg+=(msg?"\n":"")+t;document.getElementById("log").textContent=msg;};
+window.__pv=null;
+try{
+  window.__pv=pptxPreview.init(document.getElementById("stage"),{width:360,height:203,mode:"slide"});
+  log("inited, keys="+Object.keys(pptxPreview).join(","));
+}catch(e){log("init ERR "+e.message);}
+fetch("sample_fixed.pptx").then(r=>r.arrayBuffer()).then(b=>{
+  log("bytes="+b.byteLength);
+  return window.__pv.preview(b);
+}).then(()=>{
+  log("rendered, slides="+window.__pv.slideCount+" idx="+window.__pv.currentIndex);
+}).catch(e=>{log("render ERR "+(e&&e.message||e)+"\n"+(e&&e.stack||""));});
+</script>
+</body></html>

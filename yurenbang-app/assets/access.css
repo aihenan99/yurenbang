@@ -1,0 +1,262 @@
+/* =========================================================
+   育人帮 · 适老化 / 无障碍 / 便利性 / 科学性 增强层
+   策略与 refine23 一致：容器隔离，仅 a11y- / sci- / age- 前缀
+   ========================================================= */
+
+/* ---------- 启动屏长辈入口与适老悬浮球已移除（2026-10-24/25，样式随之清退） ---------- */
+
+/* ---------- 首页搜索 ---------- */
+#a11ySearchWrap{display:flex;gap:8px;align-items:center;margin:2px 0 10px}
+#a11ySearchWrap .sw-box{
+  flex:1;display:flex;align-items:center;gap:8px;
+  background:var(--bg2);border:1.5px solid var(--rule);border-radius:999px;padding:10px 15px;
+  font-size:15px;
+}
+#a11ySearchWrap input{flex:1;border:none;background:none;outline:none;font-size:14.5px;min-width:0;color:var(--ink)}
+#a11ySearchWrap .clr{width:24px;height:24px;border-radius:50%;background:var(--rule);color:var(--muted);font-size:12px;display:none;flex:none}
+
+/* ---------- 快捷语 / 快捷填入 chips ---------- */
+.a11y-chips{display:flex;gap:8px;overflow-x:auto;padding:7px 0;scrollbar-width:none}
+.a11y-chips::-webkit-scrollbar{display:none}
+.a11y-chip{
+  flex:none;background:var(--bg);border:1.5px solid var(--rule);border-radius:999px;
+  padding:9px 15px;font-size:13px;font-weight:600;color:var(--muted);transition:.15s;
+}
+.a11y-chip:active{border-color:var(--accent2);color:var(--accent2);background:rgba(47,163,147,.07)}
+
+/* ---------- 发布面板：语音转文字大按钮 ---------- */
+#a11yMicP{
+  width:100%;min-height:48px;border-radius:14px;border:1.8px solid var(--accent2);
+  background:rgba(47,163,147,.08);color:var(--accent2);font-weight:800;font-size:14.5px;
+  display:flex;align-items:center;justify-content:center;gap:8px;margin:10px 0 10px;transition:.15s;
+}
+#a11yMicP:active{transform:scale(.98)}
+#a11yMicP.rec{background:var(--accent2);color:#fff;animation:r23pulse 1.2s infinite}
+
+/* ---------- 回到顶部 ---------- */
+#a11yTop{
+  position:absolute;right:18px;bottom:calc(172px + env(safe-area-inset-bottom));z-index:41;
+  width:44px;height:44px;border-radius:50%;background:var(--bg2);
+  border:1.5px solid var(--rule);box-shadow:0 6px 16px rgba(60,40,30,.18);
+  display:none;align-items:center;justify-content:center;font-size:19px;color:var(--muted);
+}
+#a11yTop.show{display:flex}
+
+/* ---------- 专业认证徽标 ---------- */
+.pro-badge{
+  display:inline-flex;align-items:center;gap:3px;font-size:10.5px;color:#fff;
+  background:linear-gradient(135deg,#4C96D7,#2F6FBF);border-radius:99px;
+  padding:1.5px 8px;font-weight:700;margin-left:6px;vertical-align:1px;white-space:nowrap;
+}
+
+/* ---------- 年龄段徽标 ---------- */
+.age-chip{
+  display:inline-flex;align-items:center;font-size:10.5px;color:#7A5CC7;
+  background:rgba(122,92,199,.1);border-radius:99px;padding:2px 8px;font-weight:600;margin-left:4px;white-space:nowrap;
+}
+
+/* ---------- 科学育儿贴士卡 / 免责声明 ---------- */
+.sci-tip{
+  display:flex;gap:11px;align-items:flex-start;text-align:left;
+  background:linear-gradient(135deg,#EAF3FC,#EFFAF6);
+  border:1px solid #CFE4F2;border-radius:16px;padding:13px 14px;margin-bottom:14px;
+}
+.sci-tip .ti{font-size:23px;flex:none}
+.sci-tip .tt{font-size:13px;font-weight:800;color:#2F6FBF}
+.sci-tip .td{font-size:12.5px;color:#44586C;margin-top:3px;line-height:1.65}
+.sci-note{
+  margin:4px 2px 12px;font-size:12px;color:var(--muted);
+  background:rgba(76,150,215,.06);border:1px dashed #C7DBEE;border-radius:14px;
+  padding:11px 14px;line-height:1.75;text-align:left;
+}
+.sci-note b{color:#4A7BA6}
+
+/* ---------- 紧急求助安全热线提示 ---------- */
+#r23Hotline{
+  display:none;margin:10px 0 4px;border:1.5px solid #F2B8AC;
+  background:linear-gradient(135deg,#FFF1EC,#FFE4DC);border-radius:14px;
+  padding:12px 14px;font-size:12.5px;line-height:1.9;color:#A6432F;
+}
+#r23Hotline.show{display:block}
+#r23Hotline b{font-weight:800;font-size:13.5px}
+
+/* ---------- 适老设置弹窗行 ---------- */
+.a11y-mrow{display:flex;align-items:center;gap:12px;padding:13px 2px;border-bottom:1px solid var(--rule);font-size:14.5px;font-weight:600}
+.a11y-mrow:last-of-type{border-bottom:none}
+.a11y-mrow .seg{margin-left:auto;flex:1;justify-content:flex-end}
+.a11y-mrow .seg-btn{padding:8px 16px;font-size:12.5px;flex:none}
+
+/* =========================================================
+   长辈模式（data-elder="1"）· 深度适老化
+   ========================================================= */
+#phone[data-elder="1"]{
+  --fs-sm:15.5px;--fs:20px;--fs-lg:23px;--fs-xl:28px;
+  --ink:#241E17;--muted:#5E564B;--rule:#D9CCBA;
+}
+/* 正文与名称加粗加深，行距放宽 */
+#phone[data-elder="1"] .p-name{font-weight:800;font-size:19px}
+#phone[data-elder="1"] .p-sub{font-size:13.5px}
+#phone[data-elder="1"] .p-text{font-weight:600;line-height:1.75}
+#phone[data-elder="1"] .p-tag{font-size:12.5px;padding:2px 10px}
+/* 触控目标放大（≥48px） */
+#phone[data-elder="1"] .pa-btn{font-size:16px;padding:11px 13px}
+#phone[data-elder="1"] .pa-btn .n{font-size:14px}
+#phone[data-elder="1"] .pa-help{font-size:16.5px;padding:12px 24px}
+#phone[data-elder="1"] .helps-pill{font-size:13px;padding:4px 12px}
+#phone[data-elder="1"] .f-chip{font-size:15px;padding:10px 17px}
+#phone[data-elder="1"] .f-add{width:42px;height:42px;font-size:22px}
+#phone[data-elder="1"] .seg-btn{font-size:15px;padding:14px 4px}
+#phone[data-elder="1"] .ct{font-size:15px;padding:10px 19px}
+#phone[data-elder="1"] .icon-btn{width:44px;height:44px;border-radius:14px}
+#phone[data-elder="1"] .icon-btn svg{width:23px;height:23px}
+/* 底部导航放大 */
+#phone[data-elder="1"] #tabbar{height:calc(80px + env(safe-area-inset-bottom))}
+#phone[data-elder="1"] .tb-item{font-size:13.5px;gap:4px}
+#phone[data-elder="1"] .tb-item svg{width:27px;height:27px}
+#phone[data-elder="1"] .page{padding-bottom:calc(112px + env(safe-area-inset-bottom))}
+#phone[data-elder="1"] #caseFab{width:64px;height:64px;font-size:32px;bottom:calc(122px + env(safe-area-inset-bottom))}
+#phone[data-elder="1"] #a11yTop{bottom:calc(130px + env(safe-area-inset-bottom))}
+/* 列表与设置项放大 */
+#phone[data-elder="1"] .dd-item{padding:14px 6px;font-size:17px}
+#phone[data-elder="1"] .dd-item .ic{width:32px;height:32px;font-size:17px}
+#phone[data-elder="1"] .dr-item{padding:15px 8px;font-size:17px}
+#phone[data-elder="1"] .dr-item .ic{width:40px;height:40px;font-size:20px}
+#phone[data-elder="1"] .me-item{padding:16px 15px;font-size:16px}
+#phone[data-elder="1"] .sp-row{padding:16px 15px;font-size:16px}
+#phone[data-elder="1"] .me-n{font-size:30px}
+#phone[data-elder="1"] .ms b{font-size:23px}
+#phone[data-elder="1"] .ms span{font-size:12.5px}
+#phone[data-elder="1"] .fr-btn{font-size:14px;padding:9px 17px}
+#phone[data-elder="1"] .fr-n{font-size:16px}
+#phone[data-elder="1"] .fr-s{font-size:13px}
+#phone[data-elder="1"] .mg-t{font-size:16.5px}
+#phone[data-elder="1"] .mg-s{font-size:14px}
+#phone[data-elder="1"] .tl-t{font-size:17px}
+#phone[data-elder="1"] .tl-d{font-size:14.5px}
+#phone[data-elder="1"] .case-card .c-title{font-size:15px}
+#phone[data-elder="1"] .c-by{font-size:12.5px}
+/* 表单放大 */
+#phone[data-elder="1"] #pubText{min-height:116px;font-size:18px}
+#phone[data-elder="1"] #r23Title{height:50px;font-size:16px}
+#phone[data-elder="1"] .r23-tag{font-size:15px;padding:10px 17px}
+#phone[data-elder="1"] .r23-urg{font-size:15px;padding:14px 4px}
+#phone[data-elder="1"] .r23-vis button{font-size:14px;padding:13px 4px}
+#phone[data-elder="1"] .r23-label{font-size:14px}
+#phone[data-elder="1"] .r23-ck{font-size:14.5px}
+#phone[data-elder="1"] .r23-ck .box{width:24px;height:24px}
+#phone[data-elder="1"] #cmInput{height:50px;font-size:16.5px}
+#phone[data-elder="1"] .cm-tool{width:48px;height:48px;font-size:20px}
+#phone[data-elder="1"] .btn-a{font-size:17px}
+#phone[data-elder="1"] .btn-a.big{font-size:18px;padding:16px}
+#phone[data-elder="1"] .a11y-chip{font-size:15px;padding:11px 17px}
+#phone[data-elder="1"] #a11yMicP{font-size:16px;min-height:54px}
+/* 开关与徽标放大 */
+#phone[data-elder="1"] .switch{width:54px;height:31px}
+#phone[data-elder="1"] .switch::after{width:25px;height:25px}
+#phone[data-elder="1"] .switch.on::after{left:26px}
+#phone[data-elder="1"] .chip{font-size:12.5px;padding:4px 12px}
+#phone[data-elder="1"] .pro-badge{font-size:12px;padding:2px 10px}
+#phone[data-elder="1"] .age-chip{font-size:12px;padding:2.5px 10px}
+/* 提示更大更久 */
+#phone[data-elder="1"] #toast{font-size:16px;padding:14px 26px;bottom:136px}
+#phone[data-elder="1"] .bn-t{font-size:16px}
+#phone[data-elder="1"] .bn-s{font-size:13.5px}
+#phone[data-elder="1"] #a11ySearchWrap .sw-box{padding:12px 17px}
+#phone[data-elder="1"] #a11ySearchWrap input{font-size:16.5px}
+/* 动画放缓，减少闪烁刺激 */
+#phone[data-elder="1"] .s-hint{animation-duration:2.8s}
+
+/* =========================================================
+   我的清单页：我的求助 / 我的帮忙 / 我的收藏 / 浏览历史
+   ========================================================= */
+.ml-sum{display:flex;align-items:center;gap:8px;padding:2px 4px 12px;font-size:12.5px;color:var(--muted)}
+.ml-sum b{color:var(--ink);font-size:15px}
+.ml-item{display:flex;gap:11px;align-items:flex-start;width:100%;text-align:left;background:var(--bg2);border-radius:16px;padding:13px 14px;margin-bottom:10px;box-shadow:0 3px 12px rgba(70,45,30,.05);transition:transform .15s}
+.ml-item:active{transform:scale(.985)}
+.ml-ic{width:38px;height:38px;flex:none;border-radius:13px;background:var(--gradA);display:flex;align-items:center;justify-content:center;font-size:19px;color:#fff}
+.ml-ic.g{background:var(--gradT)}
+.ml-ic.y{background:linear-gradient(135deg,#FFCB6B,#E9A23B)}
+.ml-ic.p{background:linear-gradient(135deg,#FF9CB4,#E75D7C)}
+.ml-main{flex:1;min-width:0}
+.ml-t{font-weight:800;font-size:14px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.ml-note{font-size:12.5px;color:#5C554E;margin-top:5px;line-height:1.65;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.ml-meta{font-size:11.5px;color:var(--muted);margin-top:6px;display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.ml-tag{font-size:11px;padding:2px 9px;border-radius:99px;background:rgba(244,105,75,.12);color:#C2552F;font-weight:700;flex:none}
+.ml-quote{background:#FFF7F1;border-left:3px solid var(--accent);border-radius:0 10px 10px 0;padding:8px 10px;margin-top:7px;font-size:12.5px;color:#5C554E;line-height:1.65;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.ml-empty{text-align:center;padding:44px 22px;color:var(--muted);font-size:13.5px;line-height:1.9}
+.ml-empty .e{font-size:44px;display:block;margin-bottom:10px}
+.ml-acts{display:flex;gap:10px;justify-content:center;margin-top:16px}
+.ml-btn{border-radius:99px;padding:11px 20px;font-size:13.5px;font-weight:700;background:var(--gradA);color:#fff;box-shadow:var(--shadow)}
+.ml-btn.ghost{background:var(--bg2);color:var(--ink);box-shadow:0 2px 10px rgba(70,45,30,.08)}
+.ml-foot{padding:2px 4px 26px;text-align:center}
+.ml-foot-btn{font-size:12.5px;color:var(--muted);padding:8px 14px;border-radius:99px;border:1px dashed var(--rule)}
+/* 长辈模式：卡片与文字再放大一档，点击区域更大 */
+#phone[data-elder="1"] .ml-item{padding:15px 16px;border-radius:18px}
+#phone[data-elder="1"] .ml-t{font-size:16px}
+#phone[data-elder="1"] .ml-note,#phone[data-elder="1"] .ml-quote{font-size:14px}
+#phone[data-elder="1"] .ml-meta{font-size:12.5px}
+#phone[data-elder="1"] .ml-sum{font-size:14px}
+
+/* 帮忙评论面板需盖在求助详情之上（#r23Detail z-index:57）——
+   否则从详情页点「我也来帮忙」，打字条被详情挡住、无法发送 */
+#commentSheet{z-index:67}
+
+/* ============ 卡片侧边悬浮操作列（2026-10-24） ============
+   ♥ 点赞 / ⭐ 收藏 / 🔊 朗读 移到内容框右侧竖排，
+   底部操作行只留「帮忙数 + 帮忙 + 查看完整求助」
+   2026-10-25 调整：侧边列垂直居中下移；头部信息缩小淡化；
+   底部行修复「查看完整求助 width:100% 把帮忙按钮挤成竖条大块」的问题 */
+#feed .card{position:relative;padding-right:62px}
+.p-side{position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:9px;z-index:5}
+.p-side .pa-btn{width:42px;height:42px;justify-content:center;align-items:center;padding:0;margin:0;
+  border-radius:50%;background:var(--bg2);box-shadow:0 3px 12px rgba(70,45,30,.16);
+  font-size:17px;transition:.15s}
+.p-side .pa-btn:active{transform:scale(.9)}
+.p-side .pa-btn.like.on,.p-side .pa-btn.fav.on{color:var(--rose);font-weight:700}
+.p-side .pa-btn[data-tts].on{color:var(--accent2);background:rgba(47,163,147,.12)}
+.p-side .pa-btn .n{font-size:11.5px}
+
+/* 头部信息收缩：小头像 + 单行不换行 + 半透明弱化（详情页里有完整信息） */
+#feed .card .p-head{opacity:.82}
+#feed .card .p-ava{width:30px;height:30px}
+#feed .card .p-head>div:not(.p-ava){min-width:0;flex:1}
+#feed .card .p-name{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#feed .card .p-sub{font-size:10.5px;white-space:nowrap;overflow:hidden;display:block;opacity:.68;line-height:1.5}
+#feed .card .p-sub span{white-space:nowrap}
+#feed .card .p-tag{white-space:nowrap;flex:none}
+#phone[data-elder="1"] #feed .card .p-head{opacity:1}
+#phone[data-elder="1"] #feed .card .p-ava{width:40px;height:40px}
+#phone[data-elder="1"] #feed .card .p-name{font-size:16px}
+#phone[data-elder="1"] #feed .card .p-sub{font-size:12.5px;opacity:.85}
+
+/* 底部操作行：紧凑单行，帮忙按钮恢复正常大小（不再被撑成竖条大块） */
+#feed .card .p-acts{flex-wrap:nowrap;gap:2px}
+#feed .card .p-acts .helps-pill{white-space:nowrap;flex:none;padding:2px 8px}
+#feed .card .p-acts .pa-help{white-space:nowrap;flex:none;padding:7px 14px;font-size:13px;box-shadow:0 3px 10px rgba(244,105,75,.3)}
+#feed .card .p-acts .r23-detail-link{width:auto;flex:1;min-width:0;border-top:none;padding-top:0;margin:0 0 0 4px;
+  font-size:12.5px;justify-content:flex-end;white-space:nowrap;overflow:hidden}
+#feed .card .p-acts .r23-detail-link .ar{margin-left:2px;flex:none}
+#phone[data-elder="1"] #feed .card .p-acts .r23-detail-link{font-size:14.5px}
+#phone[data-elder="1"] #feed .card .p-acts .helps-pill{font-size:12.5px}
+
+/* ============ 抖音式满屏画面（2026-10-25 二次调整） ============
+   带图/视频帖去掉整个头部行：作者信息以半透明小字叠画面左下角，
+   ⋯ 菜单叠右上角；图片组与视频一致通栏满宽 */
+.m-who{position:absolute;left:12px;bottom:12px;z-index:4;display:flex;align-items:center;gap:8px;
+  opacity:.72;pointer-events:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.45));max-width:70%}
+.m-who .m-ava{width:34px;height:34px;flex:none}
+.m-who .m-ava svg{width:100%;height:100%;display:block;border-radius:50%}
+.m-who .m-name{color:#fff;font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px}
+.m-who .m-time{color:#fff;font-size:11px;opacity:.85;white-space:nowrap}
+.m-more{position:absolute;right:12px;top:10px;z-index:5;width:34px;height:34px;border-radius:50%;
+  border:0;background:rgba(0,0,0,.32);color:#fff;font-size:18px;line-height:1;
+  opacity:.75;display:flex;align-items:center;justify-content:center;padding:0}
+#feed .m-imgs{margin:4px -62px 10px -14px;border-radius:0}
+/* 媒体卡：♥⭐🔊 悬浮在画面上，正文不再留 62px 右缩进（用户反馈文字没到右边对齐）；正文两端对齐 */
+#feed .card.has-media{padding-right:14px}
+#feed .card.has-media .m-imgs{margin:4px -14px 10px}
+.p-text{text-align:justify}
+#phone[data-elder="1"] .m-who{opacity:.95}
+#phone[data-elder="1"] .m-who .m-ava{width:44px;height:44px}
+#phone[data-elder="1"] .m-who .m-name{font-size:16px}
+#phone[data-elder="1"] #feed .m-imgs{margin:4px -14px 10px}
