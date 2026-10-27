@@ -88,6 +88,19 @@ step("语法检查：_worker.js（ES Module）", () => {
   return { ok: true };
 });
 
+step("安全响应头：真的调用一次 Worker 核对 CSP/HSTS", () => {
+  const r = spawnSync(process.execPath, [join(ROOT, "scripts", "worker-headers.mjs")], {
+    encoding: "utf8"
+  });
+  const out = (r.stdout || "") + (r.stderr || "");
+  if (r.status !== 0) {
+    const bad = out.split("\n").filter((l) => l.includes("✗")).map((l) => l.trim());
+    throw new Error(bad.slice(0, 4).join(" / ") || out.trim().split("\n").pop());
+  }
+  const n = out.split("\n").filter((l) => l.includes("✓")).length;
+  return { ok: true, msg: n + " 项响应头约束" };
+});
+
 /* ---------- 2. 状态边界：有没有层乱写全局状态 ---------- */
 step("状态边界审计（契约 vs 实际写入）", () => {
   const r = spawnSync(process.execPath, [join(ROOT, "scripts", "state-audit.mjs")], {

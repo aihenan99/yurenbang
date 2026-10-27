@@ -36,6 +36,7 @@ deploy-cn.zip
 # 这些截图是历次验证留下的临时图，可随时重跑生成。
 temp/*.png
 temp/shots/
+temp/_worker_probe.mjs
 *.log
 
 # ---------- 系统垃圾 ----------

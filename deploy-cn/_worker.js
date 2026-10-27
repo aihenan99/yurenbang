@@ -240,7 +240,7 @@ const ALLOW = new Set([
 
 /* 静态案例库页面（由 temp/sync_deploy.py 按 yurenbang-app/anli/ 实际文件名注入，
    占位符保留在源码里，注入后是一份显式清单） */
-const ANLI = new Set(["/anli/erhai-zhengchao.html", "/anli/erhai-zhengchao", "/anli/gedai-yangyu-chongtu.html", "/anli/gedai-yangyu-chongtu", "/anli/haizi-bei-guli.html", "/anli/haizi-bei-guli", "/anli/haizi-chenmi-shouji.html", "/anli/haizi-chenmi-shouji", "/anli/haizi-sahuang.html", "/anli/haizi-sahuang", "/anli/haizi-xie-zuoye-tuola.html", "/anli/haizi-xie-zuoye-tuola", "/anli/index.html", "/anli/kaoshi-kaoza-qingxu.html", "/anli/kaoshi-kaoza-qingxu", "/anli/qingchunqi-buyuan-goutong.html", "/anli/qingchunqi-buyuan-goutong", "/anli/xie-zuowen-mei-hua-shuo.html", "/anli/xie-zuowen-mei-hua-shuo", "/anli/zaoshang-moceng-shangxue.html", "/anli/zaoshang-moceng-shangxue"]); /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */
+const ANLI = new Set(["/anli/erhai-zhengchao.html", "/anli/erhai-zhengchao", "/anli/gedai-yangyu-chongtu.html", "/anli/gedai-yangyu-chongtu", "/anli/haizi-bei-guli.html", "/anli/haizi-bei-guli", "/anli/haizi-chenmi-shouji.html", "/anli/haizi-chenmi-shouji", "/anli/haizi-sahuang.html", "/anli/haizi-sahuang", "/anli/haizi-xie-zuoye-tuola.html", "/anli/haizi-xie-zuoye-tuola", "/anli/index.html", "/anli/kaoshi-kaoza-qingxu.html", "/anli/kaoshi-kaoza-qingxu", "/anli/qingchunqi-buyuan-goutong.html", "/anli/qingchunqi-buyuan-goutong", "/anli/xie-zuowen-mei-hua-shuo.html", "/anli/xie-zuowen-mei-hua-shuo", "/anli/zaoshang-moceng-shangxue.html", "/anli/zaoshang-moceng-shangxue"]); /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */ /* __ANLI_INJECTED__ */
 
 function allowed(path) {
   if (ALLOW.has(path)) return true;
@@ -270,11 +270,51 @@ async function notFound(url, env) {
       门槛而非精确计量；真正的配额仍由上游与 TTS 缓存兜底。
    3) HTTP 方法白名单：TRACE/TRACK 等一律 405。
    ============================================================ */
+/* ---------- 内容安全策略（CSP） ----------
+ * 起点：先以 **Report-Only** 上线。它不阻断任何请求，只在浏览器控制台报违规，
+ *       用来摸清"现有代码到底依赖哪些源"，避免一上来就把站打挂。
+ *
+ * 切换为强制模式（确认连续一周无违规后）：把下面这行改成
+ *   const CSP_HEADER = "content-security-policy";
+ * 只改这一个字符串，策略本身不动。
+ *
+ * 策略为什么这么写（每条都有实际原因）：
+ *   'unsafe-inline'  首页有内联自愈脚本、JSON-LD、大量内联 style 属性
+ *   'unsafe-eval'    PPT 渲染引擎（pptx-preview）内部用动态求值
+ *   blob: data:      录制预览、粘贴图片、离线草稿都是 Blob/data URL
+ *   img-src https:   云端存储的签名图片地址（跨域，域名随平台变化）
+ *   media-src https: 同上，视频/语音
+ *   frame-src blob:  PPT/全屏查看器可能用 Blob 地址装载
+ *   worker-src       Service Worker 与后台压缩
+ *   object-src none  禁止 Flash/插件类嵌入（历史遗留攻击面）
+ *   frame-ancestors  比 X-Frame-Options 更现代，二者并存兼容旧浏览器
+ */
+const CSP_HEADER = "content-security-policy-report-only";
+const CSP_POLICY = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' data: blob: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https:",
+  "frame-src 'self' blob: https:",
+  "worker-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'"
+].join("; ");
+
 function secure(h) {
   h.set("x-content-type-options", "nosniff");
   h.set("x-frame-options", "DENY");
   h.set("referrer-policy", "strict-origin-when-cross-origin");
   h.set("permissions-policy", "camera=(self), microphone=(self), geolocation=(self), payment=()");
+  /* HSTS：180 天。刻意不加 includeSubDomains / preload——两者都难回退，
+     等真正有子域需要 HTTPS 时再单独评估。 */
+  h.set("strict-transport-security", "max-age=15552000");
+  h.set(CSP_HEADER, CSP_POLICY);
   return h;
 }
 const RL = new Map();
