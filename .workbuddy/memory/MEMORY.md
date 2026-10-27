@@ -28,6 +28,15 @@
 - 「首页＋添加按钮」「PPT 打开文件」等管理能力仅 YRB_CONSOLE.isAdmin() 可见
 - **种子假数据已全量下线（2026-10-25）**：S.posts/cases/growth/msgs 为空数组，信息流/案例只显示云端真实数据；autoHelp 模拟帮忙已删除；测试一律自注桩帖（9101/9102/9401/9501/990001），勿再依赖种子内容；meStats/roses/badge 均真实起步
 
+## 工程化基线（2026-10-27 建立，交接必读）
+- git：`main` 分支，基线 tag `v0.1.0-baseline`；`deploy-cn` **只跟踪 `_worker.js` + `error.html`**（人工源文件，其余是 sync 产物）
+- 一条命令验证：`npm run verify`（默认含部署一致性；`--fast` 0.6s；`--e2e` 加浏览器）；门禁已装 `.githooks`（pre-commit=fast、pre-push=标准），换机器后跑 `npm run hooks`
+- 状态边界：`assets/state.schema.js` 契约（25 字段 owner/writable）+ `assets/state.js` 守卫（dev 拦截并记录来源行号，生产零开销，线上加 `?stateaudit=1` 可开）+ `scripts/state-audit.mjs` 静态审计。**改 S 之前先看契约**
+- 加载序新增两层：app → **state.schema → state** → capture …（必须在 app 之后、其它层之前）
+- 安全头：`_worker.js` 的 `secure()` 已含 CSP（当前 **Report-Only**，转强制只改 `CSP_HEADER` 一个字符串）+ HSTS 180 天；改完必跑 `node scripts/worker-headers.mjs` 实测
+- 交接文档：`ARCHITECTURE.md`。加新层要同时改四处：html 的 script / sw.js 的 CORE / health.js 的 LAYERS / sync_deploy.py 的 layers
+- `sync_deploy.py` 的 ROOT 已改为按脚本位置推导（不再硬编码 E:\育人帮），并新增漂移检测
+
 ## 域名与部署
 - 育人帮.cn→CF Pages 项目 yurenbang（_worker.js 高级模式）；/yrbapi 同源代理云端（SDK 版本锁定 0.1.4-dev.ca27990）；/api 被占勿改；育人帮.com 301→.cn；部署必须 run_in_background
 - 本地测试服务：8794（--directory deploy-cn）与 8793（项目根，测试走 /deploy-cn/）；测试上下文 serviceWorkers:'block'
