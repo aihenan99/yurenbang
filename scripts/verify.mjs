@@ -177,6 +177,20 @@ if (E2E) {
     if (r.status !== 0) throw new Error(line || out.split("\n").slice(-3).join(" "));
     return { ok: true, msg: line.trim() };
   });
+
+  step("端到端：状态守卫真的接管了写入", () => {
+    if (!alive) return { ok: true, skipped: true, msg: "未检测到 8796 服务，跳过" };
+    const r = spawnSync(process.execPath, [join(ROOT, "temp", "state-guard-test.js")], {
+      cwd: join(ROOT, "temp"), encoding: "utf8"
+    });
+    const out = (r.stdout || "") + (r.stderr || "");
+    const line = out.split("\n").filter((l) => l.includes("通过 /")).pop() || "";
+    if (r.status !== 0) {
+      const bad = out.split("\n").filter((l) => l.includes("✗")).map((l) => l.trim());
+      throw new Error(bad.slice(0, 3).join(" / ") || line || "失败");
+    }
+    return { ok: true, msg: line.trim() };
+  });
 } else {
   console.log("  " + C.d + "跳过  端到端（加 --e2e 且本地 8796 服务已启动时才跑）" + C.x);
 }
