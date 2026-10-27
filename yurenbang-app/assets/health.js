@@ -75,7 +75,11 @@
     { id: "casedit", file: "assets/casedit.js", flag: "YRB_CASED", severity: "minor",
       probe: function () { return !!(window.YRB_CASED && typeof window.YRB_CASED.ready === "function"); } },
     { id: "guard", file: "assets/guard.js", flag: "YRB_GUARD", severity: "minor",
-      probe: function () { return !!(window.YRB_GUARD && typeof window.YRB_GUARD.push === "function"); } }
+      probe: function () { return !!(window.YRB_GUARD && typeof window.YRB_GUARD.push === "function"); } },
+    /* 状态边界层：只有 API 存在即可判活。守卫本身是开发期工具，
+       生产环境不装拦截属正常状态，所以**不能**用 enabled 判活。 */
+    { id: "state", file: "assets/state.js", flag: "YRB_STATE", severity: "minor",
+      probe: function () { return !!(window.YRB_STATE && typeof window.YRB_STATE.report === "function"); } }
   ];
 
   var ST = {};        /* id -> {state:'ok'|'healing'|'fail', tries, at, why} */

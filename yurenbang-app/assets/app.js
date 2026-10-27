@@ -323,7 +323,9 @@ function doPublish(){
   if(t==="img")p.kinds=["study","garden"];
   if(t==="video"){p.kind="heart";p.dur="0:26";}
   if(t==="voice")p.dur="0:12";
-  S.posts.unshift(p);S.published++;
+  /* 整体替换而非原地 unshift：保持「posts 只许整体替换」的状态契约（见 state.schema.js），
+     语义完全等价（unshift 的返回值此处未使用） */
+  S.posts=[p,...S.posts];S.published++;
   $("#pubText").value="";closeSheet("publishSheet");
   switchTab("home");S.hotMode=false;renderFuncRow();renderFeed();
   toast("发布成功，等待温柔的帮忙 🌸");

@@ -361,6 +361,10 @@ if ("serviceWorker" in navigator) {
 
 </div>
 <script src="assets/app.js"></script>
+<!-- 状态边界：必须在 app.js 之后（S 已定义）、其它功能层之前。
+     契约(state.schema.js) → 守卫(state.js)，两者都不改动任何业务逻辑。 -->
+<script src="assets/state.schema.js"></script>
+<script src="assets/state.js"></script>
 <script src="assets/capture.js"></script>
 <script src="assets/refine23.js"></script>
 <script src="assets/access.js"></script>
