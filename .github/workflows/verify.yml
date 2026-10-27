@@ -1,0 +1,35 @@
+name: 工程验证
+
+# 说明：主力门禁是本地 .githooks（提交即跑，最快反馈）。
+# 这份工作流是「远端兜底」——用于将来代码托管到 GitHub 后，
+# 在合并前强制跑一遍，防止有人用 --no-verify 绕过本地钩子。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 准备 Python（部署一致性检查需要）
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 快速检查（语法 / 状态边界 / 仓库卫生）
+        run: node scripts/verify.mjs --fast
+
+      - name: 完整检查（含部署包一致性）
+        run: node scripts/verify.mjs

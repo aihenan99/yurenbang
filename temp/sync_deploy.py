@@ -16,7 +16,7 @@ import time
 import sys
 import json
 
-ROOT = r"E:/育人帮"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "yurenbang-app")
 DST = os.path.join(ROOT, "deploy-cn")
 CHECK_ONLY = "--check" in sys.argv
@@ -92,7 +92,7 @@ def write_build_json(build):
         "build": build,
         "at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
         "app": "育人帮",
-        "layers": ["app", "capture", "refine23", "access", "cloud", "reward", "jiaojiao",
+        "layers": ["app", "state", "capture", "refine23", "access", "cloud", "reward", "jiaojiao",
                    "pptview", "admin", "adminguard", "gate", "license", "profile",
                    "food", "chips", "casedit", "health", "upgrade"],
     }
@@ -128,18 +128,48 @@ def stamp_assets(build=None):
     return build
 
 
+def rewrite_text(rel, txt):
+    """对文本套用域名适配规则（纯函数，供文件改写与漂移检测复用）。"""
+    for pat, rep in REWRITES.get(rel, []):
+        txt = re.sub(pat, rep, txt)
+    return txt
+
+
 def apply_rewrites(rel):
     """对部署包内某个文件套用域名适配；返回改动次数。"""
     path = os.path.join(DST, rel)
     if not os.path.exists(path):
         return 0
     txt = io.open(path, encoding="utf-8").read()
-    orig = txt
-    for pat, rep in REWRITES.get(rel, []):
-        txt = re.sub(pat, rep, txt)
-    if txt != orig:
-        io.open(path, "w", encoding="utf-8", newline="").write(txt)
-    return 0 if txt == orig else 1
+    txt2 = rewrite_text(rel, txt)
+    if txt2 != txt:
+        io.open(path, "w", encoding="utf-8", newline="").write(txt2)
+    return 0 if txt2 == txt else 1
+
+
+def check_drift():
+    """比对「源码 + 域名改写」与部署包内容，找出**改了源码却忘记同步**的文件。
+
+    这是最容易被忽略的一类事故：本地改好、测试通过，但部署包里还是旧代码，
+    发上去等于没改。--check 时一并报出来。
+    """
+    bad = []
+    sdir, ddir = os.path.join(SRC, "assets"), os.path.join(DST, "assets")
+    if not os.path.isdir(sdir):
+        return bad
+    for name in sorted(os.listdir(sdir)):
+        s = os.path.join(sdir, name)
+        if not os.path.isfile(s) or not name.endswith((".js", ".css", ".json")):
+            continue
+        rel = "assets/" + name
+        d = os.path.join(ddir, name)
+        if not os.path.exists(d):
+            bad.append(rel + "（部署包缺失）")
+            continue
+        src = io.open(s, encoding="utf-8").read()
+        if rewrite_text(rel, src) != io.open(d, encoding="utf-8").read():
+            bad.append(rel)
+    return bad
 
 
 def sync_assets():
@@ -459,6 +489,11 @@ def main():
     print("\n[校验] 通过 %d 项" % len(ok))
     for m in ok:
         print("   ✓ " + m)
+    drift = check_drift()
+    if drift:
+        # 只提示不拦截：允许"先改源码、稍后统一同步"的工作方式，但绝不让你忘了它
+        print("[漂移] %d 个文件源码已改、部署包未同步：%s"
+              % (len(drift), ", ".join(drift[:12]) + (" …" if len(drift) > 12 else "")))
     if bad:
         print("[校验] 失败 %d 项" % len(bad))
         for m in bad:

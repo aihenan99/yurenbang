@@ -1,0 +1,26 @@
+# 统一行尾，避免 Windows 开发 + Linux CI 混用导致脚本失效
+* text=auto eol=lf
+
+# Windows 批处理必须是 CRLF，否则 cmd 解析异常
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二进制资源：不做任何行尾转换，也不做文本 diff
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.pptx binary
+*.mp4 binary
+*.woff binary
+*.woff2 binary
+
+# 这些文件用肉眼审阅，diff 里保持完整
+*.md text
+*.sql text
+*.py text
+*.js text
+*.mjs text
+*.css text
+*.html text

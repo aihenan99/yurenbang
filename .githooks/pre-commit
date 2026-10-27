@@ -1,0 +1,28 @@
+#!/bin/sh
+# ============================================================================
+# 育人帮 · 提交前门禁（pre-commit）
+#
+# 只做「快」的检查（目标 < 1 秒）：语法、状态边界、仓库卫生。
+# 慢的（部署一致性、浏览器端到端）留给 pre-push 和 CI。
+#
+# 安装：npm run hooks    （等价于 git config core.hooksPath .githooks）
+# 临时绕过：git commit --no-verify   （不推荐，但保留出口）
+# ============================================================================
+
+# 在仓库根执行，避免子目录提交时路径错乱
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "[pre-commit] 未找到 node，跳过检查"
+  exit 0
+fi
+
+node scripts/verify.mjs --fast
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "────────────────────────────────────────────────"
+  echo " 提交被拦下：上面的问题修好再提交。"
+  echo " 确属急事可用 git commit --no-verify 绕过（请事后补修）。"
+  echo "────────────────────────────────────────────────"
+  exit 1
+fi
