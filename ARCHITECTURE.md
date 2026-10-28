@@ -109,6 +109,10 @@ E:\育人帮\
    - `assets/health.js` 的 `LAYERS`（探针 + 自动补载）
    - `temp/sync_deploy.py` 的 `layers`（build.json 元信息）
 
+   这四处由 `scripts/layers-audit.mjs` 自动比对（已并入 `npm run verify:fast`）：
+   顺序不一致、漏登记、build.json 少声明、层体积超预算，都会直接红。
+   `LAYERS` 的顺序必须与 html 的 `<script>` 顺序一致——自愈补载按这张表的顺序重来。
+
 ### 层的写法（照抄这个骨架）
 
 ```js
@@ -325,7 +329,7 @@ npm run hooks          # = git config core.hooksPath .githooks
 
 | # | 债 | 影响 | 建议时机 |
 |---|---|---|---|
-| 1 | 26 个脚本靠加载顺序维系，顺序错了静默失效 | 加层容易漏改四处 | 已有清单（第 5 节）+ health 兜底，暂可接受 |
+| 1 | 27 个脚本靠加载顺序维系，顺序错了静默失效 | 加层容易漏改四处 | **已闭环**：`scripts/layers-audit.mjs` 自动比对四处 + 顺序 + 体积预算 |
 | 2 | `S` 仍是共享可变对象 | 深层写与数组原地改仍需靠人守纪律 | 新代码一律走 `YRB_STATE.set`，逐步收 |
 | 3 | 125 处 `innerHTML` 拼字符串 | 漏一处 `esc()` 就是 XSS | CSP 转强制后可显著降低风险 |
 | 4 | 测试有 180+ 个但缺统一命名与断言规范 | 新人不知道跑哪个 | 已在 `verify` 收了口，逐步把关键用例迁进去 |

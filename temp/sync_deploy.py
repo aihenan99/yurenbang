@@ -92,9 +92,10 @@ def write_build_json(build):
         "build": build,
         "at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
         "app": "育人帮",
-        "layers": ["app", "state", "capture", "refine23", "access", "cloud", "reward", "jiaojiao",
-                   "pptview", "admin", "adminguard", "gate", "license", "profile",
-                   "food", "chips", "casedit", "longimg", "health", "upgrade"],
+        "layers": ["app", "state.schema", "state", "capture", "refine23", "access", "cloud",
+                   "reward", "jiaojiao", "pptview", "admin", "adminguard", "gate", "license",
+                   "profile", "food", "account", "chips", "rose", "protect", "mediafull", "cover",
+                   "casedit", "longimg", "guard", "health", "upgrade"],
     }
     with io.open(os.path.join(DST, "build.json"), "w", encoding="utf-8", newline="") as f:
         f.write(json.dumps(data, ensure_ascii=False, indent=1))

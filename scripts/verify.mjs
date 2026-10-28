@@ -115,7 +115,22 @@ step("状态边界审计（契约 vs 实际写入）", () => {
   return { ok: true, msg: last.replace(/^✓\s*/, "") };
 });
 
-/* ---------- 3. 仓库卫生：不该进版本库的东西 ---------- */
+/* ---------- 3. 层登记一致性：加层四处登记有没有漏 ---------- */
+step("层登记一致性（html / sw / health / build.json）", () => {
+  const r = spawnSync(process.execPath, [join(ROOT, "scripts", "layers-audit.mjs")], {
+    encoding: "utf8"
+  });
+  const out = (r.stdout || "") + (r.stderr || "");
+  if (r.status !== 0) {
+    const bad = out.split("\n").filter((l) => l.includes("✗")).map((l) => l.trim());
+    throw new Error(bad.slice(0, 3).join(" / ") || "审计未通过");
+  }
+  const n = out.split("\n").filter((l) => l.includes("✓")).length;
+  const m = out.match(/（(\d+) 层）/);
+  return { ok: true, msg: n + " 项约束" + (m ? "，" + m[1] + " 层" : "") };
+});
+
+/* ---------- 4. 仓库卫生：不该进版本库的东西 ---------- */
 step("仓库卫生：无超大文件 / 无环境变量文件", () => {
   const bad = [];
   const walk = (dir) => {

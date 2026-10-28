@@ -24,7 +24,8 @@
   var HEARTBEAT = 90000;                     /* 心跳巡检间隔 */
 
   /* ---------------- 层登记表 ----------------
-     severity: core=骨架/登录（坏了必须告诉用户）  major=可见入口  minor=增强项 */
+     severity: core=骨架/登录（坏了必须告诉用户）  major=可见入口  minor=增强项
+     顺序必须与 yurenbang-app.html 的 <script> 顺序一致（self-heal 按此顺序补载）*/
   var LAYERS = [
     { id: "app", file: "assets/app.js", flag: "YRB_APP", severity: "core",
       probe: function () {
@@ -32,6 +33,12 @@
                typeof window.renderFeed === "function" &&
                !!document.getElementById("feed");
       } },
+    /* 状态边界层：只判 API 在位。守卫本身是开发期工具，生产不装拦截属正常，
+       所以**不能**拿 enabled 判活。state.schema 是契约文件，只暴露 schema 常量。 */
+    { id: "state.schema", file: "assets/state.schema.js", flag: "YRB_STATE_SCHEMA", severity: "minor",
+      probe: function () { return !!window.YRB_STATE_SCHEMA; } },
+    { id: "state", file: "assets/state.js", flag: "YRB_STATE", severity: "minor",
+      probe: function () { return !!(window.YRB_STATE && typeof window.YRB_STATE.report === "function"); } },
     { id: "capture", file: "assets/capture.js", flag: "YRB_CAPTURE", severity: "minor",
       probe: function () { return !!window.YRB_CAPTURE; } },
     { id: "refine23", file: "assets/refine23.js", flag: "YRB_R23", severity: "major",
@@ -60,12 +67,12 @@
       probe: function () { return !!window.YRB_PROFILE; } },
     { id: "food", file: "assets/food.js", flag: "YRB_FOOD", severity: "major",
       probe: function () { return !!window.YRB_FOOD; } },
+    { id: "account", file: "assets/account.js", flag: "YRB_ACCOUNT", severity: "major",
+      probe: function () { return !!window.YRB_ACCOUNT; } },
     { id: "chips", file: "assets/chips.js", flag: "YRB_CHIPS", severity: "major",
       probe: function () { return !!window.YRB_CHIPS; } },
     { id: "rose", file: "assets/rose.js", flag: "YRB_ROSE", severity: "major",
       probe: function () { return !!(window.YRB_ROSE && typeof window.YRB_ROSE.give === "function"); } },
-    { id: "account", file: "assets/account.js", flag: "YRB_ACCOUNT", severity: "major",
-      probe: function () { return !!window.YRB_ACCOUNT; } },
     { id: "protect", file: "assets/protect.js", flag: "YRB_PROTECT", severity: "major",
       probe: function () { return !!(window.YRB_PROTECT && typeof window.YRB_PROTECT.enabled === "function"); } },
     { id: "mediafull", file: "assets/mediafull.js", flag: "YRB_MEDIAFULL", severity: "minor",
@@ -77,11 +84,7 @@
     { id: "longimg", file: "assets/longimg.js", flag: "YRB_LONGIMG", severity: "minor",
       probe: function () { return !!(window.YRB_LONGIMG && typeof window.YRB_LONGIMG.ready === "function"); } },
     { id: "guard", file: "assets/guard.js", flag: "YRB_GUARD", severity: "minor",
-      probe: function () { return !!(window.YRB_GUARD && typeof window.YRB_GUARD.push === "function"); } },
-    /* 状态边界层：只有 API 存在即可判活。守卫本身是开发期工具，
-       生产环境不装拦截属正常状态，所以**不能**用 enabled 判活。 */
-    { id: "state", file: "assets/state.js", flag: "YRB_STATE", severity: "minor",
-      probe: function () { return !!(window.YRB_STATE && typeof window.YRB_STATE.report === "function"); } }
+      probe: function () { return !!(window.YRB_GUARD && typeof window.YRB_GUARD.push === "function"); } }
   ];
 
   var ST = {};        /* id -> {state:'ok'|'healing'|'fail', tries, at, why} */
