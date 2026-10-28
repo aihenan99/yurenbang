@@ -69,26 +69,20 @@ jobs:
           sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
           gitleaks version
 
-      - name: 全历史扫描
+      - name: 全历史扫描（输出 JSON 报告）
         # --log-opts=--all：扫全部历史提交，不只这次改动的 diff（历史里的密钥同样要抓）
-        # --redact：公开仓库，日志里不打印密钥原文，但仍给出 RuleID/文件/行号
+        # 不管退出码，由下一步统一判定——这样"扫描没跑起来"和"确实命中"能区分开
         run: |
           set +e
-          gitleaks detect --source . --config .gitleaks.toml \
-            --log-opts="--all" --redact --verbose --no-banner 2>&1 | tee /tmp/gitleaks.txt
-          code=${PIPESTATUS[0]}
-          # 把命中项摘出来放到 Job Summary，点开就能看到（不用翻日志）
-          if [ "$code" -ne 0 ]; then
-            {
-              echo "## gitleaks 命中"
-              echo '```'
-              grep -E "Finding:|RuleID:|File:|Line:|Commit:" /tmp/gitleaks.txt | head -60
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "## gitleaks 零命中（全历史）" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          exit "$code"
+          gitleaks detect --source . --config .gitleaks.toml --log-opts="--all" \
+            --report-format json --report-path "$RUNNER_TEMP/gitleaks.json" \
+            --redact --no-banner
+          echo "gitleaks 退出码 $?"
+
+      - name: 汇报命中项（日志 + Job Summary + 注解）
+        # 命中项转成 ::error 注解：公开仓库页面不登录也能看到规则/文件/行号
+        if: always()
+        run: python3 scripts/gitleaks-report.py "$RUNNER_TEMP/gitleaks.json"
 
   # 说明：GitHub 自带的 Secret scanning / Push protection 是仓库设置项，
   # 无法用 workflow 打开。公开仓库默认开启 secret scanning；开启方式见
