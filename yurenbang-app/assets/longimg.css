@@ -25,3 +25,11 @@
 #phone[data-elder="1"] .lg-acts button{font-size:17px;padding:16px 8px}
 /* 卡片侧栏里的长图按钮（p-side 由 access.js 建，本层只追加） */
 .p-side [data-lg]{font-size:17px}
+
+/* 案例卡封面右上角的长图按钮（.c-thumb 本身是 position:relative） */
+.lg-cbtn{position:absolute;top:6px;right:6px;z-index:3;width:32px;height:32px;border:none;
+  border-radius:50%;background:rgba(255,255,255,.92);color:#3B2E26;font-size:15px;line-height:1;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  box-shadow:0 2px 8px rgba(70,45,30,.18)}
+.lg-cbtn:active{transform:scale(.92)}
+#phone[data-elder="1"] .lg-cbtn{width:40px;height:40px;font-size:19px}

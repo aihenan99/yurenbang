@@ -20,22 +20,42 @@
   var MAX_H = 6800;       /* 逻辑高度上限（*scale 后仍在安全区） */
   var PAD = 30;
 
-  /* ---------- 卡片侧栏注入（幂等 + 观察 rebuild） ---------- */
+  /* ---------- 案例卡注入（案例广场的卡片结构不同，单独一套） ---------- */
+  function decorateCases() {
+    var grid = document.getElementById("caseGrid");
+    if (!grid) return;
+    var cards = grid.querySelectorAll(".case-card");
+    for (var i = 0; i < cards.length; i++) {
+      if (cards[i].querySelector("[data-lgc]")) continue;
+      var thumb = cards[i].querySelector(".c-thumb");
+      if (!thumb) continue;
+      var b = document.createElement("button");
+      b.className = "lg-cbtn";
+      b.type = "button";
+      b.dataset.lgc = "1";
+      b.setAttribute("aria-label", "生成这条案例的分享长图");
+      b.textContent = "🖼";
+      thumb.appendChild(b);
+    }
+  }
+
   function decorate() {
     var feed = document.getElementById("feed");
-    if (!feed) return;
-    var cards = feed.querySelectorAll(".card");
-    for (var i = 0; i < cards.length; i++) {
-      var side = cards[i].querySelector(".p-side");
-      if (!side || side.querySelector("[data-lg]")) continue;
-      var b = document.createElement("button");
-      b.className = "pa-btn";
-      b.dataset.lg = "1";
-      b.type = "button";
-      b.setAttribute("aria-label", "生成这张求助的分享长图");
-      b.textContent = "🖼";
-      side.appendChild(b);
+    if (feed) {
+      var cards = feed.querySelectorAll(".card");
+      for (var i = 0; i < cards.length; i++) {
+        var side = cards[i].querySelector(".p-side");
+        if (!side || side.querySelector("[data-lg]")) continue;
+        var b = document.createElement("button");
+        b.className = "pa-btn";
+        b.dataset.lg = "1";
+        b.type = "button";
+        b.setAttribute("aria-label", "生成这张求助的分享长图");
+        b.textContent = "🖼";
+        side.appendChild(b);
+      }
     }
+    decorateCases();
   }
   var decoTimer = null;
   function schedule() {
@@ -43,10 +63,13 @@
     decoTimer = setTimeout(function () { decoTimer = null; decorate(); }, 120);
   }
   function startObserve() {
-    var feed = document.getElementById("feed");
-    if (!feed || feed.dataset.lgObs === "1") return;
-    feed.dataset.lgObs = "1";
-    new MutationObserver(schedule).observe(feed, { childList: true, subtree: true });
+    var targets = [document.getElementById("feed"), document.getElementById("caseGrid")];
+    for (var i = 0; i < targets.length; i++) {
+      var t = targets[i];
+      if (!t || t.dataset.lgObs === "1") continue;
+      t.dataset.lgObs = "1";
+      new MutationObserver(schedule).observe(t, { childList: true, subtree: true });
+    }
   }
 
   /* ---------- 文本换行（canvas 无自动换行，中文逐字测量 + 避头点） ---------- */
@@ -83,7 +106,61 @@
     ctx.closePath();
   }
 
-  /* ---------- 画长图 ---------- */
+  /* ---------- 公共版式：品牌头 + 页脚（帖子与案例共用，避免两套布局漂移） ---------- */
+function drawHeader(ctx) {
+  var y = 44;
+  ctx.fillStyle = "#F0543C";
+  rr(ctx, PAD, y, 64, 64, 16); ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.font = "800 38px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.textAlign = "center"; ctx.fillText("育", PAD + 32, y + 46); ctx.textAlign = "left";
+  ctx.fillStyle = "#3B2E26";
+  ctx.font = "800 30px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.fillText("育人帮 · 家长互助社区", PAD + 84, y + 30);
+  ctx.fillStyle = "#8C8078";
+  ctx.font = "400 21px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.fillText("关心下一代，呵护成长 —— 有困惑，发一条", PAD + 84, y + 58);
+  return y + 64 + 26;
+}
+
+function drawFooter(ctx, y) {
+  if (QR_OK && QRImg) {
+    ctx.drawImage(QRImg, (W - 170) / 2, y, 170, 170);
+    ctx.fillStyle = "#3B2E26";
+    ctx.font = "800 24px 'PingFang SC','Microsoft YaHei',sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("微信扫一扫 · 免费进入家长互助社区", W / 2, y + 204);
+    ctx.textAlign = "left";
+    y += 200;
+  } else {
+    ctx.fillStyle = "#3B2E26";
+    ctx.font = "800 26px 'PingFang SC','Microsoft YaHei',sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("搜索「育人帮」或访问 xn--gmqq09al6z.cn", W / 2, y + 34);
+    ctx.textAlign = "left";
+    y += 60;
+  }
+  /* 页脚水印 */
+  ctx.fillStyle = "#C9BDB2";
+  ctx.font = "400 18px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("社区互助不能代替专业救助 · 紧急情况请拨 110 / 120 · 青少年服务热线 12355", W / 2, MAX_H - 30);
+  ctx.textAlign = "left";
+  return y;
+}
+
+/* 统一收尾：裁到实际高度 + 输出 jpeg */
+function exportCanvas(c, y) {
+  var outH = Math.min(Math.ceil(y + 60), MAX_H);
+  var out = document.createElement("canvas");
+  out.width = W * SCALE; out.height = outH * SCALE;
+  var octx = out.getContext("2d");
+  octx.fillStyle = "#FFF9F3"; octx.fillRect(0, 0, out.width, out.height);
+  octx.drawImage(c, 0, 0);
+  return out.toDataURL("image/jpeg", 0.92);
+}
+
+/* ---------- 画长图（帖子） ---------- */
   function draw(p) {
     var c = document.createElement("canvas");
     c.width = W * SCALE; c.height = MAX_H * SCALE;
@@ -96,19 +173,7 @@
     ctx.fillRect(0, 0, W, MAX_H);
 
     /* 头部：品牌 */
-    var y = 44;
-    ctx.fillStyle = "#F0543C";
-    rr(ctx, PAD, y, 64, 64, 16); ctx.fill();
-    ctx.fillStyle = "#fff";
-    ctx.font = "800 38px 'PingFang SC','Microsoft YaHei',sans-serif";
-    ctx.textAlign = "center"; ctx.fillText("育", PAD + 32, y + 46); ctx.textAlign = "left";
-    ctx.fillStyle = "#3B2E26";
-    ctx.font = "800 30px 'PingFang SC','Microsoft YaHei',sans-serif";
-    ctx.fillText("育人帮 · 家长互助社区", PAD + 84, y + 30);
-    ctx.fillStyle = "#8C8078";
-    ctx.font = "400 21px 'PingFang SC','Microsoft YaHei',sans-serif";
-    ctx.fillText("关心下一代，呵护成长 —— 有困惑，发一条", PAD + 84, y + 58);
-    y += 64 + 26;
+    var y = drawHeader(ctx);
 
     /* 卡片：作者 + 正文 */
     var cx = PAD, cw = W - PAD * 2;
@@ -180,45 +245,126 @@
 
     y += cardH + 26;
 
-    /* 底部：引导 + 二维码 */
-    var qrH = 0;
-    /* 二维码：异步已预载（loadQR），没图就用文字兜底 */
-    if (QR_OK && QRImg) {
-      qrH = 200;
-      ctx.drawImage(QRImg, (W - 170) / 2, y, 170, 170);
-      ctx.fillStyle = "#3B2E26";
-      ctx.font = "800 24px 'PingFang SC','Microsoft YaHei',sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("微信扫一扫 · 免费进入家长互助社区", W / 2, y + 204);
-      ctx.textAlign = "left";
-      y += qrH;
-    } else {
-      ctx.fillStyle = "#3B2E26";
-      ctx.font = "800 26px 'PingFang SC','Microsoft YaHei',sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("搜索「育人帮」或访问 xn--gmqq09al6z.cn", W / 2, y + 34);
-      ctx.textAlign = "left";
-      y += 60;
-    }
-
-    /* 页脚水印 */
-    ctx.fillStyle = "#C9BDB2";
-    ctx.font = "400 18px 'PingFang SC','Microsoft YaHei',sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("社区互助不能代替专业救助 · 紧急情况请拨 110 / 120 · 青少年服务热线 12355", W / 2, MAX_H - 30);
-    ctx.textAlign = "left";
-
-    /* 裁剪到实际高度再输出 */
-    var outH = Math.min(Math.ceil(y + 60), MAX_H);
-    var out = document.createElement("canvas");
-    out.width = W * SCALE; out.height = outH * SCALE;
-    var octx = out.getContext("2d");
-    octx.fillStyle = "#FFF9F3"; octx.fillRect(0, 0, out.width, out.height);
-    octx.drawImage(c, 0, 0);
-    return out.toDataURL("image/jpeg", 0.92);
+    /* 底部：引导 + 二维码 + 水印 */
+    y = drawFooter(ctx, y);
+    return exportCanvas(c, y);
   }
 
-  /* ---------- 二维码预载（同源资源，不会污染画布） ---------- */
+  /* ---------- 富文本转纯文本（案例正文是 content_html） ----------
+   用 DOMParser 生成惰性文档：不执行脚本、不加载图片，比 innerHTML 安全得多。 */
+function htmlToText(html) {
+  var s = String(html || "");
+  if (!s) return "";
+  try {
+    var d = new DOMParser().parseFromString(s, "text/html");
+    /* 块级标签先转换行，避免段落糊成一片 */
+    var blocks = d.body.querySelectorAll("p,div,h1,h2,h3,h4,li,br,blockquote");
+    for (var i = 0; i < blocks.length; i++) {
+      var el = blocks[i];
+      if (el.tagName === "BR") { el.replaceWith("\n"); continue; }
+      el.appendChild(d.createTextNode("\n"));
+    }
+    var t = d.body.textContent || "";
+    return t.replace(/[ \t\u00a0]+/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+  } catch (e) {
+    return s.replace(/<[^>]*>/g, " ").replace(/[ \t]+/g, " ").trim();
+  }
+}
+
+/* ---------- 画长图（案例） ---------- */
+function drawCase(c) {
+  var canvas = document.createElement("canvas");
+  canvas.width = W * SCALE; canvas.height = MAX_H * SCALE;
+  var ctx = canvas.getContext("2d");
+  ctx.scale(SCALE, SCALE);
+  ctx.textBaseline = "alphabetic";
+
+  ctx.fillStyle = "#FFF9F3";
+  ctx.fillRect(0, 0, W, MAX_H);
+
+  var y = drawHeader(ctx);
+  var cx = PAD, cw = W - PAD * 2;
+  var title = String(c.t || "案例").trim();
+  var body = htmlToText(c.content_html);
+
+  /* 标题（最多 4 行，超出省略） */
+  ctx.font = "800 38px 'PingFang SC','Microsoft YaHei',sans-serif";
+  var tLines = wrap(ctx, title, cw - 8);
+  var tMax = 4, tTrunc = tLines.length > tMax;
+  if (tTrunc) tLines = tLines.slice(0, tMax);
+  if (tTrunc) tLines[tMax - 1] = tLines[tMax - 1].slice(0, -1) + "…";
+  var TITLE_H = 54;
+
+  var LINE_H = 48, BODY_FS = 31, MAX_LINES = 30;
+  ctx.font = "400 " + BODY_FS + "px 'PingFang SC','Microsoft YaHei',sans-serif";
+  var bLines = body ? wrap(ctx, body, cw - 48) : [];
+  var bTrunc = bLines.length > MAX_LINES;
+  if (bTrunc) bLines = bLines.slice(0, MAX_LINES);
+  if (!body) bLines = ["（这条案例没有正文，打开育人帮查看图片或视频）"];
+
+  var headH = 74;                                  /* 作者行 */
+  var bodyH = bLines.length * LINE_H + (bTrunc ? 44 : 0);
+  var cardH = tLines.length * TITLE_H + 18 + headH + 16 + bodyH + 70;
+
+  /* 卡片底 */
+  ctx.fillStyle = "#FFFFFF";
+  rr(ctx, cx, y, cw, cardH, 22); ctx.fill();
+  ctx.strokeStyle = "#F3E7DC"; ctx.lineWidth = 1.5; ctx.stroke();
+
+  /* 标题 */
+  var ty = y + 20;
+  ctx.fillStyle = "#3B2E26";
+  ctx.font = "800 38px 'PingFang SC','Microsoft YaHei',sans-serif";
+  for (var i = 0; i < tLines.length; i++) { ctx.fillText(tLines[i], cx + 24, ty + 40); ty += TITLE_H; }
+
+  /* 作者行 */
+  var ay = ty + 26;
+  ctx.fillStyle = "#FFE1D2";
+  ctx.beginPath(); ctx.arc(cx + 34, ay + 4, 22, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#B4691F";
+  ctx.font = "800 24px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(String(c.by || "家长").slice(0, 1), cx + 34, ay + 12);
+  ctx.textAlign = "left";
+  ctx.fillStyle = "#8C8078";
+  ctx.font = "400 22px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.fillText(String(c.by || "家长") + " 分享", cx + 68, ay + 10);
+  /* 类型标签 */
+  var tagTxt = c.type === "ppt" ? "PPT 案例" : c.type === "video" ? "视频案例" : c.type === "text" ? "图文案例" : "图片案例";
+  ctx.font = "800 20px 'PingFang SC','Microsoft YaHei',sans-serif";
+  var tw = ctx.measureText(tagTxt).width + 28;
+  ctx.fillStyle = "#FFF1DC";
+  rr(ctx, cx + cw - tw - 22, ay - 14, tw, 36, 18); ctx.fill();
+  ctx.fillStyle = "#B4691F";
+  ctx.textAlign = "center";
+  ctx.fillText(tagTxt, cx + cw - tw / 2 - 22, ay + 9);
+  ctx.textAlign = "left";
+
+  /* 正文 */
+  var by2 = ay + headH - 10;
+  ctx.fillStyle = "#3B2E26";
+  ctx.font = "400 " + BODY_FS + "px 'PingFang SC','Microsoft YaHei',sans-serif";
+  for (var k = 0; k < bLines.length; k++) {
+    ctx.fillText(bLines[k], cx + 24, by2 + BODY_FS);
+    by2 += LINE_H;
+  }
+  if (bTrunc) {
+    ctx.fillStyle = "#C89A7B";
+    ctx.font = "400 22px 'PingFang SC','Microsoft YaHei',sans-serif";
+    ctx.fillText("…内容较长，打开育人帮看全文", cx + 24, by2 + 26);
+  }
+
+  /* 统计行 */
+  ctx.fillStyle = "#8C8078";
+  ctx.font = "400 22px 'PingFang SC','Microsoft YaHei',sans-serif";
+  ctx.fillText("♥ " + (c.likes || 0) + "    ⭐ " + (c.favs || 0) + "    🤝 " + (c.helps || 0), cx + 24, y + cardH - 26);
+
+  y += cardH + 26;
+  y = drawFooter(ctx, y);
+  return exportCanvas(canvas, y);
+}
+
+/* ---------- 二维码预载（同源资源，不会污染画布） ---------- */
   var QRImg = null, QR_OK = false;
   (function loadQR() {
     var im = new Image();
@@ -274,12 +420,25 @@
     var p = null;
     try { p = S.posts.find(function (x) { return x.id === id; }); } catch (e) {}
     if (!p) return;
+    show(function () { return draw(p); });
+  }
+
+  /* 案例卡：data-i 是 S.cases 的索引（app.js 的 renderCases 约定） */
+  function openCase(card) {
+    var i = +card.dataset.i;
+    var c = null;
+    try { c = (S.cases || [])[i]; } catch (e) {}
+    if (!c) return;
+    show(function () { return drawCase(c); });
+  }
+
+  /* 浮层统一入口：先让浮层画出来，再异步出图（大帖不卡 UI） */
+  function show(build) {
     var el = ensureOverlay();
     el.classList.add("open");
-    /* 让浮层先画出来，再异步出图（大帖不卡 UI） */
     setTimeout(function () {
       try {
-        lastURL = draw(p);
+        lastURL = build();
         lastFile = null;
         try {
           var arr = atob(lastURL.split(",")[1]);
@@ -288,7 +447,7 @@
           lastFile = new File([buf], "yurenbang.jpg", { type: "image/jpeg" });
         } catch (e) {}
         var sc = el.querySelector(".lg-scroll");
-        sc.innerHTML = '<img alt="求助内容长图" src="' + lastURL + '">';
+        sc.innerHTML = '<img alt="内容长图" src="' + lastURL + '">';
       } catch (e) {
         close();
         if (window.YRB_APP && typeof window.toast === "function") try { window.toast("生成失败，请重试"); } catch (e2) {}
@@ -297,6 +456,17 @@
   }
 
   /* ---------- 事件委托 ---------- */
+  /* 案例卡的点击由 app.js 在 document 上（冒泡阶段）接管，会打开案例查看器。
+     我们的按钮必须抢在它之前：用**捕获阶段**监听并阻断，否则点长图会连带跳转。 */
+  document.addEventListener("click", function (e) {
+    var cb = e.target.closest && e.target.closest("[data-lgc]");
+    if (!cb) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var card = cb.closest(".case-card");
+    if (card) openCase(card);
+  }, true);
+
   document.addEventListener("click", function (e) {
     var b = e.target.closest("[data-lg]");
     if (!b) return;
@@ -310,5 +480,11 @@
   else boot();
   window.addEventListener("yrb-cloud-ready", schedule);
 
-  window.YRB_LONGIMG = { open: open, close: close, ready: function () { return true; } };
+  window.YRB_LONGIMG = {
+    open: open, openCase: openCase, close: close,
+    /* 测试用：直接拿案例对象出图（不依赖卡片 DOM）；textOf 暴露富文本转纯文本 */
+    renderCase: function (c) { return drawCase(c); },
+    textOf: htmlToText,
+    ready: function () { return true; }
+  };
 })();
