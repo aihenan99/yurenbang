@@ -11,6 +11,7 @@
     "verify": "node scripts/verify.mjs",
     "verify:fast": "node scripts/verify.mjs --fast",
     "verify:e2e": "node scripts/verify.mjs --e2e",
+    "serve": "python -m http.server 8796 --bind 127.0.0.1 --directory yurenbang-app",
     "audit:state": "node scripts/state-audit.mjs",
     "sync": "python temp/sync_deploy.py",
     "sync:check": "python temp/sync_deploy.py --check",
