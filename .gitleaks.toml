@@ -35,6 +35,10 @@ regexes = [
   '''^6A5AA1D4EAFF4E9FB37E23D68491D6F4$''',
   '''^wbpk_Lt4Zxzyd4j1x3DZdRFyFF9_[A-Za-z0-9]+$''',
   '''^wbapp_Lt4Zxzyd4j1x3DZdRFyFF9$''',
+  # health.js 里变量名带 KEY（LOG_KEY / MUTE_KEY），值是 localStorage 键名不是凭据。
+  # 只放这两个具体值，不放开 yrb_* 前缀——否则以后真有密钥叫 yrb_xxx 就被藏了。
+  '''^yrb_health_log_v1$''',
+  '''^yrb_health_mute_v1$''',
 ]
 
 # ---- 路径级别：只放"内容已审过"的具体文件/目录 ----
