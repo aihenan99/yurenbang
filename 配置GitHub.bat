@@ -12,14 +12,36 @@ echo   目录: %CD%
 echo ============================================
 echo.
 
+rem ---------- 0. 找到 git（系统版或 WorkBuddy 便携版） ----------
 where git >nul 2>nul
-if errorlevel 1 (
-  echo [错误] 找不到 git 命令，请先安装 Git for Windows。
+if not errorlevel 1 goto githave
+
+set "GITBIN="
+for /d %%d in ("%USERPROFILE%\.workbuddy\binaries\PortableGit\versions\*") do (
+  if not defined GITBIN if exist "%%d\cmd\git.exe" set "GITBIN=%%d\cmd"
+  if not defined GITBIN if exist "%%d\bin\git.exe" set "GITBIN=%%d\bin"
+  if not defined GITBIN if exist "%%d\mingw64\bin\git.exe" set "GITBIN=%%d\mingw64\bin"
+)
+if not defined GITBIN if exist "E:\app_workbuddy\resources\vendor\PortableGit\cmd\git.exe" set "GITBIN=E:\app_workbuddy\resources\vendor\PortableGit\cmd"
+if not defined GITBIN if exist "E:\app_workbuddy\resources\vendor\PortableGit\mingw64\bin\git.exe" set "GITBIN=E:\app_workbuddy\resources\vendor\PortableGit\mingw64\bin"
+if not defined GITBIN if exist "%ProgramFiles%\Git\cmd\git.exe" set "GITBIN=%ProgramFiles%\Git\cmd"
+if not defined GITBIN if exist "%ProgramFiles(x86)%\Git\cmd\git.exe" set "GITBIN=%ProgramFiles(x86)%\Git\cmd"
+
+if not defined GITBIN (
+  echo [错误] 电脑上找不到 git。
+  echo 已自动尝试过：系统 PATH、WorkBuddy 便携版、Program Files 安装版。
+  echo.
+  echo 如果电脑确实没装过 git，下载安装后重跑本脚本：
+  echo     https://git-scm.com/download/win
   echo.
   pause
   exit /b 1
 )
 
+set "PATH=%GITBIN%;%PATH%"
+echo [提示] 使用便携版 git：%GITBIN%
+
+:githave
 git rev-parse --git-dir >nul 2>nul
 if errorlevel 1 (
   echo [错误] 当前目录不是 git 仓库，请把本脚本放在 E:\育人帮 根目录下运行。
