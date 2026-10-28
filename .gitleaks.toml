@@ -7,68 +7,53 @@
 # 扫描范围：`--log-opts=--all` 扫全部历史提交，不只本次 diff。
 # 早先用的 gitleaks-action 只扫本次推送的提交，等于"历史从来没扫过"——
 # 2026-10-28 换成自装 CLI 后第一次真正全历史扫描，下面这些条目就是那次暴露的。
+#
+# ⚠️ 语法选择（踩过坑，别改）：这里用**单数 `[allowlist]`**，不用新版的多张
+#    `[[allowlists]]`。原因：多张表是 gitleaks 8.25+ 才有的全局写法（8.24 里
+#    `[[allowlists]]` 只存在于 rule 内部），写错版本会**整段白名单被静默忽略**，
+#    表现就是"明明放行了还红"。工作流固定 v8.24.3，两个版本都能吃这一份配置。
 
 title = "育人帮 · gitleaks"
 
 [extend]
 useDefault = true
 
-# ---------- ① 值级别放行：公开常量，出现在任何文件里都不算泄密 ----------
+[allowlist]
+description = """放行清单（逐条理由）：
+1) IndexNow 站点验证 key —— 本就是要公开给搜索引擎的文件 /8f3c…txt 的内容
+2) Edge TTS 公共客户端令牌 —— 微软官方客户端的固定值，非本平台凭据（/yrbtts 代理用）
+3) 平台 publishable key 与 app id —— anon 级公开值，本就直接下发前端并经同源代理，
+   真正的边界是 RLS 与 is_admin()，不是这把 key
+4) tests/ docs/ —— 示例占位值（假 token / 假手机号 / 假 session）
+5) 一次性接口探针（temp 下若干 .py/.js）—— 只验连通性，用的就是上面 1)3) 的公开常量
+6) .workbuddy/memory/ —— 内部工作笔记（历史已公开；内容是 localStorage 键名、接口路径
+   等非凭据信息；是否停止入库见 docs/安全基线.md「已知暴露面」）"""
 
-[[allowlists]]
-description = "IndexNow 站点验证 key：本就是要公开给搜索引擎的文件内容（/8f3c...txt 公网可读）"
-regexTarget = "secret"
-regexes = ['''^8f3c2a7d94b14e6f9a0c5d2e7b3f18a6$''']
-
-[[allowlists]]
-description = "Edge TTS 公共客户端令牌：微软官方客户端的固定值，非本平台凭据（/yrbtts 代理用）"
-regexTarget = "secret"
-regexes = ['''^6A5AA1D4EAFF4E9FB37E23D68491D6F4$''']
-
-[[allowlists]]
-description = "平台 publishable key 与应用 ID：anon 级公开值，本就直接下发到前端并经同源代理；真正的边界是 RLS 与 is_admin()"
-regexTarget = "secret"
+# ---- 值级别：公开常量，出现在任何文件里都不算泄密（正则匹配 secret 本身）----
 regexes = [
+  '''^8f3c2a7d94b14e6f9a0c5d2e7b3f18a6$''',
+  '''^6A5AA1D4EAFF4E9FB37E23D68491D6F4$''',
   '''^wbpk_Lt4Zxzyd4j1x3DZdRFyFF9_[A-Za-z0-9]+$''',
   '''^wbapp_Lt4Zxzyd4j1x3DZdRFyFF9$''',
 ]
 
-# ---------- ② 路径级别放行：只放"内容已审过"的具体文件/目录 ----------
-
-[[allowlists]]
-description = "IndexNow 公开 key 的产物文件与部署脚本"
+# ---- 路径级别：只放"内容已审过"的具体文件/目录 ----
 paths = [
   '''8f3c2a7d94b14e6f9a0c5d2e7b3f18a6\.txt''',
   '''temp/sync_deploy\.py''',
   '''temp/indexnow_push\.py''',
   '''deploy-cn/_worker\.js''',
   '''docs/SEO.*''',
-]
-
-[[allowlists]]
-description = "测试与文档里的示例占位值（假 token / 假手机号 / 假 session）"
-paths = [
   '''tests/''',
   '''docs/''',
-]
-
-[[allowlists]]
-description = "构建产物里的公开 SDK / 平台应用标识（anon key 级别的公开值，本就走同源代理）"
-paths = [
   '''yurenbang-app/assets/cloud\.js''',
   '''deploy-cn/assets/cloud\.js''',
-]
-
-[[allowlists]]
-description = "一次性接口探针：只验连通性，令牌是公开 publishable key，密码字段是故意写错的试探值"
-paths = [
   '''temp/verify_pwd_hash\.py''',
   '''temp/probe_reset\.py''',
   '''temp/obs_deploy\.py''',
-]
-
-[[allowlists]]
-description = "内部工作笔记（历史已公开；内容为 localStorage 键名、接口路径等非凭据信息。2026-10-28 起评估停止入库，见 docs/安全基线.md）"
-paths = [
+  '''temp/cors_probe\.js''',
+  '''temp/proxy_check\.js''',
+  '''temp/hashtable_probe\.js''',
+  '''temp/edge-tts.*\.js''',
   '''\.workbuddy/memory/''',
 ]

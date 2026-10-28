@@ -54,9 +54,11 @@ jobs:
         # 为什么不用 gitleaks/gitleaks-action：它在运行时自行去 Releases 拉二进制，
         # 拉取失败/被限流时只会把整步标红，看不到到底命中了什么。自己装、自己跑，
         # 日志里能直接看到 RuleID / 文件 / 行号，排查才有依据。
+        # 为什么死锁版本：allowlist 配置语义随版本变过（8.25 起才有多张 [[allowlists]]），
+        # 版本漂移会让白名单**静默失效**——"明明放行了还红"就是这么来的。
         run: |
           set -euo pipefail
-          V=8.18.4
+          V=8.24.3
           file="gitleaks_${V}_linux_x64.tar.gz"
           for i in 1 2 3; do
             if curl -fsSL --retry 3 -o "$file" \

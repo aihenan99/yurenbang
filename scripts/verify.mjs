@@ -192,6 +192,34 @@ step("仓库卫生：无超大文件 / 无环境变量 / temp 无测试脚本", 
     throw new Error("受管源码出现管理员手机号，请改用 config/admin.local.json：" + leak.slice(0, 5).join(", "));
   }
 
+  /* 同一把针，再扫一遍「其它被 git 跟踪的文件」（2026-10-28 补）：
+     上面那圈只覆盖源码/docs/根目录文档——`.workbuddy/memory/` 是内部工作笔记，
+     一直在公开仓库里，里面写过号码。这一圈**不拦构建、只点名**：
+     要不要停止入库属于作者的决定，工具不该替人做，但必须每次都说出来，
+     免得"知道有问题"最后变成"忘了有问题"。详见 docs/安全基线.md「已知暴露面」。 */
+  const warnLeak = [];
+  const gitBin = process.env.GIT_BIN || "git";
+  const ls = spawnSync(gitBin, ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" });
+  if (ls.status === 0 && ls.stdout) {
+    const listed = ls.stdout.split("\0").filter(Boolean);
+    for (const rel of listed) {
+      const p = join(ROOT, rel);
+      let st;
+      try { st = statSync(p); } catch (_) { continue; }
+      if (!st.isFile() || st.size > 8 * 1024 * 1024) continue;
+      try {
+        if (!needles.some((n) => readFileSync(p, "utf8").includes(n))) continue;
+      } catch (_) { continue; }
+      if (leak.includes(rel)) continue;            /* 已在上面判过 */
+      warnLeak.push(rel);
+    }
+  }
+  if (warnLeak.length) {
+    console.log("  " + C.y + "提示  " + warnLeak.length + " 个被跟踪的非源码文件含管理员手机号：" +
+      warnLeak.slice(0, 6).join(", ") + C.x + C.d + (warnLeak.length > 6 ? " …" : "") + C.x);
+    console.log("  " + C.d + "      公开仓库会一并发布这些内容；处置方式见 docs/安全基线.md「已知暴露面」" + C.x);
+  }
+
   if (bad.length) throw new Error("请移出版本库或加进 .gitignore：" + bad.slice(0, 5).join(", "));
   return { ok: true, msg: "temp/ 无游离测试脚本 · 源码零管理员手机号" };
 });
