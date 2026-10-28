@@ -895,20 +895,116 @@ document.addEventListener("click",e=>{
   openThank(+card.dataset.id);
 },true);
 
-/* ============ 举报 ============ */
+/* ============ 举报（2026-10-28 落地：真提交 + 断网排队） ============
+   背景：原实现只弹一句「已提交」，不落库、无受理方，属于假功能。
+   涉及未成年人的社区必须有真实可查的举报链路，故改为：
+     ① 先直连云端写 yb_reports（schema 见 db/schema.sql §2.1）
+     ② 网络不可用时入本机队列（localStorage），联网/登录后自动补发
+     ③ 服务端未就绪（表未建 / RLS 拒绝）时**如实告知失败**，绝不假装成功
+   铁律：云端对象一律运行时取（YRB_CLOUD 在 cloud.js 里定义，晚于本层加载）。 */
 let rpReason="";
+const RP_QKEY="yrb_report_queue_v1", RP_MAXQ=20;
+
+function rpPost(){
+  try{ return (S&&S.posts||[]).find(x=>x.id===curDetail)||null; }catch(_){ return null; }
+}
+function rpReadQ(){
+  try{ const a=JSON.parse(localStorage.getItem(RP_QKEY)||"[]"); return Array.isArray(a)?a:[]; }catch(_){ return []; }
+}
+function rpWriteQ(a){
+  try{ localStorage.setItem(RP_QKEY,JSON.stringify(a.slice(-RP_MAXQ))); }catch(_){}
+}
+/* 组装一行 yb_reports；没有云端 id（未同步）时 target_id 退化为 local:本地id */
+function rpRow(p){
+  const C=window.YRB_CLOUD||null;
+  const who=(C&&C.who)?C.who():null;
+  return {
+    target_type:"post",
+    target_id:(p&&p.cloudId)?String(p.cloudId):("local:"+((p&&p.id)||"")),
+    target_title:String((p&&(p.title||p.text))||"").slice(0,80),
+    snapshot:String((p&&(p.text||p.title))||"").slice(0,2000),
+    reason:rpReason,
+    note:"",
+    reporter_id:who?String(who.id||""):"",
+    reporter_name:who?String(who.name||"家长"):"家长"
+  };
+}
+async function rpSend(row){
+  const C=window.YRB_CLOUD||null;
+  if(!C||!C.client||!C.client.database)return {ok:false,reason:"offline"};
+  if(!(C.signedIn&&C.signedIn()))return {ok:false,reason:"auth"};
+  try{
+    const r=await C.client.database.from("yb_reports").insert(row);
+    if(r&&r.error)return {ok:false,reason:"db",message:String(r.error.message||r.error.code||"")};
+    return {ok:true};
+  }catch(e){ return {ok:false,reason:"net",message:String((e&&e.message)||e)}; }
+}
+/* 补发队列：只在「离线/未登录」时保留，db 层错误不重试（避免死循环刷日志） */
+let rpFlushing=false;
+async function rpFlush(){
+  if(rpFlushing)return; rpFlushing=true;
+  try{
+    const q=rpReadQ(); if(!q.length)return;
+    const C=window.YRB_CLOUD||null;
+    const who=(C&&C.signedIn&&C.signedIn()&&C.who)?C.who():null;
+    const stay=[];
+    for(const row of q){
+      if(!row.reporter_id){
+        if(!who||!who.id){ stay.push(row); continue; }   /* 还没登录：继续等 */
+        row.reporter_id=String(who.id);                    /* 登录后补上归属再发 */
+        if(!row.reporter_name)row.reporter_name=String(who.name||"家长");
+      }
+      const r=await rpSend(row);
+      if(!r.ok&&(r.reason==="auth"||r.reason==="offline"))stay.push(row);
+    }
+    rpWriteQ(stay);
+    if(stay.length<q.length)console.log("[report] 补发成功 "+(q.length-stay.length)+" 条");
+  }finally{ rpFlushing=false; }
+}
+
 function openReport(){
   $$("#r23RpGrid button").forEach(x=>x.classList.remove("on"));rpReason="";
   $("#r23Report").classList.add("open");
 }
-function submitReport(){
+async function submitReport(){
   rpReason=($$("#r23RpGrid button.on")||[{}])[0]?.dataset.r||"";   /* 2026-10-25 修复：原用 $（单元素）却按数组取 [0]，element[0] 恒 undefined，举报永远卡「请选择理由」 */
   if(!rpReason){toast("请选择举报理由");return;}
+  const p=rpPost();
+  if(!p){toast("找不到被举报的内容，请返回重试");return;}
+  const go=$("#r23RpGo");
+  if(go){go.disabled=true;go.textContent="正在提交…";}
+  let r={ok:false,reason:"offline"};
+  try{ r=await rpSend(rpRow(p)); }catch(_){}
+  if(go){go.disabled=false;go.textContent="提交举报";}
+  if(r.ok){
+    $("#r23Report").classList.remove("open");
+    toast("举报已提交，社区守护员会在 24 小时内处理 🛡");
+    return;
+  }
+  if(r.reason==="auth"){
+    toast("举报需要先登录，登录后请再提交一次");
+    try{ window.YRB_CLOUD&&YRB_CLOUD.openLogin&&YRB_CLOUD.openLogin(); }catch(_){}
+    return;
+  }
+  if(r.reason==="db"){
+    /* 表未建 / 被 RLS 拒绝：如实说没提交成功，别让用户以为举报了 */
+    $("#r23Report").classList.remove("open");
+    toast("举报暂时没能提交（服务端未就绪），请稍后再试");
+    console.warn("[report] 提交失败：",r.message);
+    return;
+  }
+  /* 网络不可用：入队，联网或登录后自动补发 */
+  const q=rpReadQ();q.push(rpRow(p));rpWriteQ(q);
   $("#r23Report").classList.remove("open");
-  toast("举报已提交，社区守护员将在 24 小时内处理 🛡");
+  toast("网络不太好，举报已存在本机，联网后会自动补发 🛡");
 }
 
 /* ============ 启动 ============ */
 injectAll();
 window.YRB_R23=1;   /* 自愈标记：弱网补载用 */
+
+/* 举报队列补发时机：联网、登录态变化、启动后各试一次（失败静默，不打扰用户） */
+window.addEventListener("online",()=>{setTimeout(rpFlush,1500);});
+window.addEventListener("yrb-auth",()=>{setTimeout(rpFlush,2500);});
+setTimeout(rpFlush,4000);
 })();

@@ -162,16 +162,18 @@ async function copyText(t) {
 }
 
 /* ---------- 管理后台：数据 ---------- */
-let AD = { posts: [], comments: [], tutors: [], cases: [], qrRow: null, licRows: {}, chipsRow: null, chipDraft: null, tab: "content", loading: false, deep: null, deepBusy: false, errs: null };
+let AD = { posts: [], comments: [], tutors: [], cases: [], reports: [], reportsErr: "", qrRow: null, licRows: {}, chipsRow: null, chipDraft: null, tab: "content", loading: false, deep: null, deepBusy: false, errs: null };
 async function fetchAll() {
   const c = db(); if (!c) throw new Error("云服务未就绪");
-  const [p, cm, tj, st, ls, cs] = await Promise.all([
+  const [p, cm, tj, st, ls, cs, rp] = await Promise.all([
     c.from("yb_posts").select("*").order("created_at", { ascending: false }).limit(200),
     c.from("yb_comments").select("*").order("created_at", { ascending: false }).limit(200),
     c.from("yb_tutor_req").select("*").order("created_at", { ascending: false }).limit(300),
     c.from("yb_settings").select("key,value").eq("key", "jiaojiao_qr").maybeSingle(),
     c.from("yb_settings").select("key,value"),
-    c.from("yb_cases").select("*").order("created_at", { ascending: false }).limit(200)
+    c.from("yb_cases").select("*").order("created_at", { ascending: false }).limit(200),
+    /* 举报表 2026-10-28 新增：未建表时只降级提示，不能把整个后台拖挂 */
+    c.from("yb_reports").select("*").order("created_at", { ascending: false }).limit(200)
   ]);
   if (p && p.error) throw p.error;
   if (cm && cm.error) throw cm.error;
@@ -180,10 +182,13 @@ async function fetchAll() {
   if (st && st.error) console.warn("[后台] 二维码设置读取失败：", st.error.message || st.error);
   if (ls && ls.error) console.warn("[后台] 资质证照读取失败：", ls.error.message || ls.error);
   if (cs && cs.error) console.warn("[后台] 案例读取失败：", cs.error.message || cs.error);
+  if (rp && rp.error) console.warn("[后台] 举报读取失败（可能尚未建表）：", rp.error.message || rp.error);
   AD.posts = (p && p.data) || [];
   AD.comments = (cm && cm.data) || [];
   AD.tutors = (tj && tj.data) || [];
   AD.cases = (cs && cs.data) || [];
+  AD.reports = (rp && rp.data) || [];
+  AD.reportsErr = (rp && rp.error) ? String(rp.error.message || rp.error.code || "读取失败") : "";
   AD.qrRow = (st && st.data) || null;
   AD.licRows = {};
   ((ls && ls.data) || []).forEach(x => {
@@ -210,10 +215,47 @@ function stats() {
 }
 
 /* ---------- 管理后台：页签 ---------- */
-const TABS = [["content", "📚 社区内容"], ["cases", "🎬 案例管理"], ["tutor", "🎓 家教登记"], ["license", "📜 资质证照"], ["homechips", "🧩 首页栏目"], ["health", "🩺 系统健康"]];
+const TABS = [["content", "📚 社区内容"], ["reports", "🛡 举报处理"], ["cases", "🎬 案例管理"], ["tutor", "🎓 家教登记"], ["license", "📜 资质证照"], ["homechips", "🧩 首页栏目"], ["health", "🩺 系统健康"]];
 function tabBarHTML() {
   return `<div class="ad-tabs">${TABS.map(([k, t]) =>
     `<button class="ad-tab ${AD.tab === k ? "on" : ""}" data-adtab="${k}">${t}</button>`).join("")}</div>`;
+}
+
+/* ---------- 举报处理页签（2026-10-28）：原前端只弹窗不落库，此页是真正的受理端 ---------- */
+function reportsTabHTML() {
+  const rows = AD.reports || [];
+  const open = rows.filter(x => x.status === "open");
+  const done = rows.filter(x => x.status !== "open");
+  const label = (x) => x.target_type === "case" ? "案例" : x.target_type === "comment" ? "帮忙" : "求助";
+  const one = (x) => `<div class="ad-item">
+      <div class="ad-t">🛡 ${esc(x.reason || "（未填理由）")} · ${esc(String(x.target_title || "（无标题）").slice(0, 40))}</div>
+      <div class="ad-meta">
+        <span>${esc(x.reporter_name || "家长")}</span>
+        <span>${label(x)} #${esc(String(x.target_id || ""))}</span>
+        <span>🕘 ${relTime(x.created_at)}</span>
+        <span class="ad-tag">${x.status === "open" ? "待处理" : x.status === "handled" ? "已处理" : "不成立"}</span>
+      </div>
+      ${x.snapshot ? `<div class="ad-note" style="margin:6px 2px;white-space:pre-wrap;max-height:5.4em;overflow:hidden">${esc(String(x.snapshot).slice(0, 300))}</div>` : ""}
+      ${x.note ? `<div class="ad-note" style="margin:6px 2px">用户补充：${esc(x.note)}</div>` : ""}
+      ${x.status === "open"
+        ? `<div class="ad-acts">
+             <button class="ad-act warn" data-ad="rpdone" data-id="${esc(String(x.id))}">✅ 已处理</button>
+             <button class="ad-act" data-ad="rpreject" data-id="${esc(String(x.id))}">🚫 不成立</button>
+           </div>`
+        : `<div class="ad-note" style="margin:6px 2px">处理记录：${esc(x.handle_note || "—")}${x.handled_at ? " · " + relTime(x.handled_at) : ""}</div>`}
+    </div>`;
+
+  if (!rows.length) {
+    return `<div class="ad-sec">🛡 举报处理 <span class="n">0</span></div>
+      <div class="ad-empty">${AD.reportsErr
+        ? `举报表还没建立：${esc(AD.reportsErr)}<br>恢复云端后执行 db/schema.sql §2.1 即可启用。`
+        : "还没有人举报，很好。"}</div>`;
+  }
+  return `
+    <div class="ad-sec">🛡 举报处理 <span class="n">${open.length} 待处理 / ${rows.length} 合计</span></div>
+    <div class="ad-note" style="margin:0 2px 8px">处理是<b>打标记，不删行</b>——举报记录永久保留作为审计痕迹。看到举报请先核实内容：属实的到「社区内容」下架或删除。</div>
+    ${open.map(one).join("") || `<div class="ad-empty">没有待处理的举报</div>`}
+    ${done.length ? `<div class="ad-sec" style="margin-top:14px">已处理 <span class="n">${done.length}</span></div>${done.slice(0, 20).map(one).join("")}` : ""}`;
 }
 
 /* ---------- 案例管理页签（2026-10-24）：查看 + 删除 ---------- */
@@ -589,6 +631,10 @@ function render() {
     </div>`).join("") || `<div class="ad-empty">还没有帮忙记录</div>`;
 
   const head = tabBarHTML();
+  if (AD.tab === "reports") {
+    body.innerHTML = head + reportsTabHTML() + adminFooterHTML();
+    return;
+  }
   if (AD.tab === "cases") {
     body.innerHTML = head + casesTabHTML() + adminFooterHTML();
     return;
@@ -663,6 +709,22 @@ async function act(el) {
       const r = await c.from("yb_posts").update({ hidden: v }).eq("id", id);
       if (r && r.error) throw r.error;
       toast && toast(v ? "已下架，信息流不再展示" : "已恢复展示");
+    } catch (e) { toast && toast("操作失败：" + ((e && e.message) || "没有权限")); }
+    loadAndRender();
+  } else if (op === "rpdone" || op === "rpreject") {
+    /* 举报处理：只改状态、不删行（保留审计痕迹） */
+    const st = op === "rpdone" ? "handled" : "rejected";
+    el.textContent = "处理中…";
+    try {
+      const w = me() || {};
+      const r = await c.from("yb_reports").update({
+        status: st,
+        handled_at: new Date().toISOString(),
+        handled_by: String(w.name || "管理员"),
+        handle_note: op === "rpdone" ? "已核实处理" : "核实后不成立"
+      }).eq("id", id);
+      if (r && r.error) throw r.error;
+      toast && toast(op === "rpdone" ? "已标记为处理完成" : "已标记为不成立");
     } catch (e) { toast && toast("操作失败：" + ((e && e.message) || "没有权限")); }
     loadAndRender();
   } else if (op === "delpost" || op === "delcm") {

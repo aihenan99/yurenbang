@@ -196,7 +196,8 @@ if (E2E) {
       tests: [
         ["图文编辑器全流程", "casedit-test.js"],
         ["状态守卫接管写入", "state-guard-test.js"],
-        ["分享长图生成", "longimg-test.js"]
+        ["分享长图生成", "longimg-test.js"],
+        ["举报落库与断网补发", "report-test.js"]
       ]
     },
     {
