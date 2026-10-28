@@ -181,6 +181,7 @@ if (E2E) {
   const LINES = [
     {
       port: 8796, base: "http://127.0.0.1:8796/yurenbang-app.html", label: "源码 8796",
+      dir: "tests/core",
       tests: [
         ["图文编辑器全流程", "casedit-test.js"],
         ["状态守卫接管写入", "state-guard-test.js"],
@@ -189,6 +190,7 @@ if (E2E) {
     },
     {
       port: 8793, base: "http://127.0.0.1:8793/deploy-cn/", label: "部署包 8793",
+      dir: "tests/core",
       tests: [
         ["部署包冒烟（层完整/无404/无自愈）", "bundle-test.js"],
         ["首页栏目配置", "chips-test.js"],
@@ -222,8 +224,8 @@ if (E2E) {
     for (const [name, file] of line.tests) {
       step("端到端：" + name + "（" + line.label + "）", () => {
         const t0 = Date.now();
-        const r = spawnSync(process.execPath, [join(ROOT, "temp", file)], {
-          cwd: join(ROOT, "temp"), encoding: "utf8", timeout: 180000
+        const r = spawnSync(process.execPath, [join(ROOT, line.dir, file)], {
+          cwd: join(ROOT, line.dir), encoding: "utf8", timeout: 180000
         });
         const out = (r.stdout || "") + (r.stderr || "");
         const s = summaryOf(out);
