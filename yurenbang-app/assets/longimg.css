@@ -1,0 +1,27 @@
+/* longimg.css —— 分享长图层（2026-10-28）
+   职责：全屏浮层展示 canvas 现绘的帖子长图，长按保存转发。
+   约束：z-index 90（不得超 #modal 的 96）；显隐走 .open；老年人大按钮。 */
+.lg-mask{position:fixed;inset:0;z-index:90;display:none;background:rgba(30,20,14,.55)}
+.lg-mask.open{display:block}
+.lg-box{position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:100%;max-width:520px;
+  height:88%;background:#FFF9F3;border-radius:22px 22px 0 0;display:flex;flex-direction:column;
+  box-shadow:0 -10px 40px rgba(70,45,30,.2)}
+.lg-bar{flex:none;display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #F0E4DA}
+.lg-bar .t{flex:1;font-size:16px;font-weight:800;color:#3B2E26}
+.lg-x{flex:none;width:34px;height:34px;border-radius:50%;border:none;background:#F5EBE2;color:#6B5F56;
+  font-size:16px;font-weight:800;cursor:pointer}
+.lg-scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;text-align:center;padding:14px 12px}
+.lg-scroll img{display:block;width:100%;max-width:430px;margin:0 auto;border-radius:14px;
+  box-shadow:0 8px 26px rgba(70,45,30,.16)}
+.lg-tip{flex:none;padding:8px 18px 4px;text-align:center;font-size:12.5px;color:#8C8078;line-height:1.7}
+.lg-acts{flex:none;display:flex;gap:10px;padding:10px 16px calc(14px + env(safe-area-inset-bottom))}
+.lg-acts button{flex:1;border:none;border-radius:999px;padding:14px 8px;font-size:15px;font-weight:800;cursor:pointer}
+.lg-save{background:linear-gradient(135deg,#FF8A5C,#F0543C);color:#fff;box-shadow:0 8px 24px rgba(240,84,60,.3)}
+.lg-close{background:#fff;color:#3B2E26;border:1.5px solid #FFE1D2 !important}
+.lg-busy{flex:1;display:flex;align-items:center;justify-content:center;color:#8C8078;font-size:14px}
+/* 长辈模式：按钮与提示同步放大（沿用 #phone[data-elder] 全局开关） */
+#phone[data-elder="1"] .lg-bar .t{font-size:18px}
+#phone[data-elder="1"] .lg-tip{font-size:14.5px}
+#phone[data-elder="1"] .lg-acts button{font-size:17px;padding:16px 8px}
+/* 卡片侧栏里的长图按钮（p-side 由 access.js 建，本层只追加） */
+.p-side [data-lg]{font-size:17px}

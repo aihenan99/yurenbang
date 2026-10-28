@@ -74,6 +74,8 @@
       probe: function () { return !!window.YRB_COVER; } },
     { id: "casedit", file: "assets/casedit.js", flag: "YRB_CASED", severity: "minor",
       probe: function () { return !!(window.YRB_CASED && typeof window.YRB_CASED.ready === "function"); } },
+    { id: "longimg", file: "assets/longimg.js", flag: "YRB_LONGIMG", severity: "minor",
+      probe: function () { return !!(window.YRB_LONGIMG && typeof window.YRB_LONGIMG.ready === "function"); } },
     { id: "guard", file: "assets/guard.js", flag: "YRB_GUARD", severity: "minor",
       probe: function () { return !!(window.YRB_GUARD && typeof window.YRB_GUARD.push === "function"); } },
     /* 状态边界层：只有 API 存在即可判活。守卫本身是开发期工具，

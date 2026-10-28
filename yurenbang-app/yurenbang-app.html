@@ -75,6 +75,7 @@ if ("serviceWorker" in navigator) {
 <link rel="stylesheet" href="assets/protect.css">
 <link rel="stylesheet" href="assets/mediafull.css">
 <link rel="stylesheet" href="assets/casedit.css">
+<link rel="stylesheet" href="assets/longimg.css">
 </head>
 <body>
 <!-- 搜索引擎可读正文：应用本身由 JS 渲染，爬虫抓不到内容。
@@ -401,6 +402,8 @@ if ("serviceWorker" in navigator) {
 <!-- 案例封面层：PPT 第一页离屏渲染为封面（localStorage 缓存），视频停在第一帧 -->
 <script src="assets/cover.js"></script>
 <script src="assets/casedit.js"></script>
+<!-- 分享长图层：canvas 现生成帖子长图供转发（不落库不占存储，2026-10-28） -->
+<script src="assets/longimg.js"></script>
 <!-- 错误监控守护层：全局错误捕获 → 云端限频上报 → 后台体检可见（2026-10-25） -->
 <script src="assets/guard.js"></script>
 <!-- 免疫系统：功能级探针 + 分级补载 + 运行时自愈 + 透明降级（必须最后加载，才能看到全部层） -->

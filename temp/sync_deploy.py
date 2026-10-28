@@ -94,7 +94,7 @@ def write_build_json(build):
         "app": "育人帮",
         "layers": ["app", "state", "capture", "refine23", "access", "cloud", "reward", "jiaojiao",
                    "pptview", "admin", "adminguard", "gate", "license", "profile",
-                   "food", "chips", "casedit", "health", "upgrade"],
+                   "food", "chips", "casedit", "longimg", "health", "upgrade"],
     }
     with io.open(os.path.join(DST, "build.json"), "w", encoding="utf-8", newline="") as f:
         f.write(json.dumps(data, ensure_ascii=False, indent=1))
