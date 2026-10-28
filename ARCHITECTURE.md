@@ -319,6 +319,7 @@ npm run hooks          # = git config core.hooksPath .githooks
 | 依赖/泄密 | `npm audit` + gitleaks 全历史，push/PR/每周一体检 | `.github/workflows/security.yml` |
 | 私有配置 | 管理员手机号不在源码，`config/admin.local.json` → sync 注入 `window.YRB_ADMIN` | `config/` + `sync_deploy.py` |
 | 防回潮 | verify 仓库卫生：受管源码出现管理员手机号即失败 | `scripts/verify.mjs` |
+| 隐私合规 | 同意闸门/政策正文/限时签名/脱敏 自动自检；P0 清单见评估报告 | `scripts/privacy-audit.mjs` + `docs/隐私合规/` |
 
 **CSP 现状**：观测模式，不阻断。本地已演练过强制模式（`npm run verify:csp`，17 项断言
 零违规）；正式切换按 `docs/CSP转强制预案.md` P1→P4 走，转强制只需改一个字符串。

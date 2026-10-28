@@ -196,6 +196,23 @@ step("仓库卫生：无超大文件 / 无环境变量 / temp 无测试脚本", 
   return { ok: true, msg: "temp/ 无游离测试脚本 · 源码零管理员手机号" };
 });
 
+/* ---------- 4.5 隐私合规：承诺不许悄悄失效 ---------- */
+step("隐私合规自检（同意闸门 / 政策正文 / 限时签名 / 脱敏）", () => {
+  const r = spawnSync(process.execPath, [join(ROOT, "scripts", "privacy-audit.mjs")], { encoding: "utf8" });
+  const out = (r.stdout || "") + (r.stderr || "");
+  if (r.status !== 0) {
+    const bad = out.split("\n").filter((l) => l.includes("✗")).map((l) => l.trim());
+    throw new Error(bad.slice(0, 4).join(" / ") || "自检未通过");
+  }
+  const m = out.match(/回归项 (\d+)\/(\d+) 通过/);
+  const p0 = out.match(/P0 待整改 (\d+) 项/);
+  return {
+    ok: true,
+    msg: (m ? "回归项 " + m[1] + "/" + m[2] + " 通过" : "通过") +
+      (p0 ? "；P0 待整改 " + p0[1] + " 项（见 docs/隐私与数据安全评估.md）" : "")
+  };
+});
+
 /* ---------- 4. 部署一致性：源码与待部署包是否同源 ---------- */
 if (!FAST) {
   const PY = process.platform === "win32" ? "python" : "python3";
