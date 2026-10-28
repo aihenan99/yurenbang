@@ -36,6 +36,10 @@
 - 安全头：`_worker.js` 的 `secure()` 已含 CSP（当前 **Report-Only**，转强制只改 `CSP_HEADER` 一个字符串）+ HSTS 180 天；改完必跑 `node scripts/worker-headers.mjs` 实测
 - 交接文档：`ARCHITECTURE.md`。加新层要同时改四处：html 的 script / sw.js 的 CORE / health.js 的 LAYERS / sync_deploy.py 的 layers
 - `sync_deploy.py` 的 ROOT 已改为按脚本位置推导（不再硬编码 E:\育人帮），并新增漂移检测
+- 安全基线（2026-10-28）：`.github/workflows/security.yml`（npm audit + gitleaks 全历史，push/PR/每周一）+ `.gitleaks.toml` 白名单；`npm run audit:deps` 本地跑
+- CSP 演练：`npm run verify:csp`（scripts/csp-rehearsal.mjs）——内存切强制 + 真浏览器三页走查零违规，17 项断言；**演练器匹配常量必须行首锚定**（注释里有同字面量示例行）
+- 管理员手机号：源码零号码，`config/admin.local.json`（gitignore）→ sync 时注入部署包 `window.YRB_ADMIN`；`ADMIN_PHONES = (window.YRB_ADMIN && ...) || []`；**改号码只改 config，别写回源码**（verify 有守卫）；部署产物仍公开 JS，彻底靠 is_admin() RPC
+- 安全文档：`docs/安全基线.md`（GitHub 侧仍需手动开 Secret scanning + Push protection）
 
 ## 域名与部署
 - 育人帮.cn→CF Pages 项目 yurenbang（_worker.js 高级模式）；/yrbapi 同源代理云端（SDK 版本锁定 0.1.4-dev.ca27990）；/api 被占勿改；育人帮.com 301→.cn；部署必须 run_in_background

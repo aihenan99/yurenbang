@@ -61,10 +61,16 @@ E:\育人帮\
 ├── scripts\                ← 新增：工程化脚本
 │   ├── verify.mjs           统一验证入口（npm run verify）
 │   ├── state-audit.mjs      状态边界静态审计
+│   ├── layers-audit.mjs     层登记四处对齐 + 体积预算
+│   ├── csp-rehearsal.mjs    CSP 转强制本地演练（npm run verify:csp，真浏览器零违规才算过）
 │   └── worker-headers.mjs   真的调一次 Worker 核对安全响应头
 │
+├── config\                 ← 私有配置（gitignore，不入库）
+│   └── admin.local.json     管理员手机号，sync 时注入部署包 window.YRB_ADMIN
+│
 ├── .githooks\              ← 提交门禁（pre-commit / pre-push）
-├── .github\workflows\      ← 远端兜底 CI
+├── .github\workflows\      ← 远端兜底 CI（verify.yml 工程验证 / security.yml 依赖+泄密扫描）
+├── .gitleaks.toml          ← 泄密扫描白名单（只放行本就公开的值）
 └── 迁移评估-*.md / 恢复后待办.md    决策文档
 ```
 
@@ -310,9 +316,16 @@ npm run hooks          # = git config core.hooksPath .githooks
 | XSS | 用户内容进 `innerHTML` 前必须过 `esc()`；富文本走白名单清洗 | 全项目 |
 | 响应头 | nosniff / DENY / Referrer / Permissions / **CSP（Report-Only）** / HSTS | `_worker.js` |
 | 限流 | `/yrbtts` 20 次/分、`/yrbapi` 120 次/分（每实例） | `_worker.js` |
+| 依赖/泄密 | `npm audit` + gitleaks 全历史，push/PR/每周一体检 | `.github/workflows/security.yml` |
+| 私有配置 | 管理员手机号不在源码，`config/admin.local.json` → sync 注入 `window.YRB_ADMIN` | `config/` + `sync_deploy.py` |
+| 防回潮 | verify 仓库卫生：受管源码出现管理员手机号即失败 | `scripts/verify.mjs` |
 
-**CSP 现状**：观测模式，不阻断。确认一周控制台无违规后，把 `_worker.js` 里
-`CSP_HEADER` 的值改成 `"content-security-policy"` 即转强制模式（只改一个字符串）。
+**CSP 现状**：观测模式，不阻断。本地已演练过强制模式（`npm run verify:csp`，17 项断言
+零违规）；正式切换按 `docs/CSP转强制预案.md` P1→P4 走，转强制只需改一个字符串。
+
+**管理员识别**：`admin.js` 两行常量——`ADMIN_IDS`（`auth.users.sub`，主判据，公开无害）+
+`ADMIN_PHONES`（读注入值，源码为空）。**前端只决定界面入口**，真正的写权限在数据库
+RLS / `is_admin()`。彻底方案：云端 `is_admin()` RPC，前端不再持有任何号码（待恢复）。
 
 **别忘了**：`protect.css` 里 video 必须保持 `pointer-events: auto`，否则原生播放控件失效（已踩过）。
 
