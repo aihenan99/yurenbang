@@ -50,15 +50,45 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: gitleaks 扫描
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # 个人仓库免费；组织仓库需在仓库 Secrets 配 GITLEAKS_LICENSE
-          # 关掉 PR 评论/产物上传：本工作流只给 contents:read，写操作会因权限不足变红；
-          # 结果看 Actions 日志与 Job Summary 已足够
-          GITLEAKS_ENABLE_COMMENTS: "false"
-          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
+      - name: 安装 gitleaks（固定版本 + 3 次重试）
+        # 为什么不用 gitleaks/gitleaks-action：它在运行时自行去 Releases 拉二进制，
+        # 拉取失败/被限流时只会把整步标红，看不到到底命中了什么。自己装、自己跑，
+        # 日志里能直接看到 RuleID / 文件 / 行号，排查才有依据。
+        run: |
+          set -euo pipefail
+          V=8.18.4
+          file="gitleaks_${V}_linux_x64.tar.gz"
+          for i in 1 2 3; do
+            if curl -fsSL --retry 3 -o "$file" \
+              "https://github.com/gitleaks/gitleaks/releases/download/v${V}/${file}"; then
+              break
+            fi
+            echo "下载失败，$((i*5))s 后重试（第 $i 次）"; sleep $((i*5))
+          done
+          tar -xzf "$file" gitleaks
+          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: 全历史扫描
+        # --log-opts=--all：扫全部历史提交，不只这次改动的 diff（历史里的密钥同样要抓）
+        # --redact：公开仓库，日志里不打印密钥原文，但仍给出 RuleID/文件/行号
+        run: |
+          set +e
+          gitleaks detect --source . --config .gitleaks.toml \
+            --log-opts="--all" --redact --verbose --no-banner 2>&1 | tee /tmp/gitleaks.txt
+          code=${PIPESTATUS[0]}
+          # 把命中项摘出来放到 Job Summary，点开就能看到（不用翻日志）
+          if [ "$code" -ne 0 ]; then
+            {
+              echo "## gitleaks 命中"
+              echo '```'
+              grep -E "Finding:|RuleID:|File:|Line:|Commit:" /tmp/gitleaks.txt | head -60
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## gitleaks 零命中（全历史）" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$code"
 
   # 说明：GitHub 自带的 Secret scanning / Push protection 是仓库设置项，
   # 无法用 workflow 打开。公开仓库默认开启 secret scanning；开启方式见
