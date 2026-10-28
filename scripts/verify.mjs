@@ -8,7 +8,7 @@
  * 分级：
  *   --fast   语法 + 状态边界 + 敏感文件   （几秒，pre-commit 用）
  *   默认     再加部署一致性              （十几秒，pre-push / 手动用）
- *   --e2e    再加浏览器端到端            （需本地服务，CI 或发版前用）
+ *   --e2e    再加浏览器端到端（8 组 / 124 断言，需 8796 与 8793 两个本地服务）
  *
  * 退出码：0 全通过；1 有失败。CI 与 git hook 都靠这个判断。
  * ========================================================================== */
@@ -160,39 +160,69 @@ if (!FAST) {
 
 /* ---------- 5. 端到端（可选）：真实浏览器跑一遍关键流程 ---------- */
 if (E2E) {
-  const URL_BASE = "http://127.0.0.1:8796/yurenbang-app.html";
-  let alive = false;
-  try {
-    const r = await fetch(URL_BASE, { signal: AbortSignal.timeout(2000) });
-    alive = r.ok;
-  } catch (_) { alive = false; }
-
-  step("端到端：图文编辑器全流程", () => {
-    if (!alive) return { ok: true, skipped: true, msg: "未检测到 8796 服务，跳过（npm run serve 可启动）" };
-    const r = spawnSync(process.execPath, [join(ROOT, "temp", "casedit-test.js")], {
-      cwd: join(ROOT, "temp"), encoding: "utf8"
-    });
-    const out = (r.stdout || "") + (r.stderr || "");
-    const line = out.split("\n").filter((l) => l.includes("通过 /")).pop() || "";
-    if (r.status !== 0) throw new Error(line || out.split("\n").slice(-3).join(" "));
-    return { ok: true, msg: line.trim() };
-  });
-
-  step("端到端：状态守卫真的接管了写入", () => {
-    if (!alive) return { ok: true, skipped: true, msg: "未检测到 8796 服务，跳过" };
-    const r = spawnSync(process.execPath, [join(ROOT, "temp", "state-guard-test.js")], {
-      cwd: join(ROOT, "temp"), encoding: "utf8"
-    });
-    const out = (r.stdout || "") + (r.stderr || "");
-    const line = out.split("\n").filter((l) => l.includes("通过 /")).pop() || "";
-    if (r.status !== 0) {
-      const bad = out.split("\n").filter((l) => l.includes("✗")).map((l) => l.trim());
-      throw new Error(bad.slice(0, 3).join(" / ") || line || "失败");
+  /* 两条测试线：8796 跑源码（开发快、能测未打包的层）；
+     8793 跑项目根（/deploy-cn/，验的是「打包产物能不能独立活起来」）。
+     服务没起时整组跳过而不是失败——本机不想开服务也不该拦住提交。 */
+  const LINES = [
+    {
+      port: 8796, base: "http://127.0.0.1:8796/yurenbang-app.html", label: "源码 8796",
+      tests: [
+        ["图文编辑器全流程", "casedit-test.js"],
+        ["状态守卫接管写入", "state-guard-test.js"],
+        ["分享长图生成", "longimg-test.js"]
+      ]
+    },
+    {
+      port: 8793, base: "http://127.0.0.1:8793/deploy-cn/", label: "部署包 8793",
+      tests: [
+        ["部署包冒烟（层完整/无404/无自愈）", "bundle-test.js"],
+        ["首页栏目配置", "chips-test.js"],
+        ["PPT 封面渲染与缓存", "cover-test.js"],
+        ["全局异常兜底", "guard-test.js"],
+        ["云端深度体检", "deepcheck-test.js"]
+      ]
     }
-    return { ok: true, msg: line.trim() };
-  });
+  ];
+
+  const alive = {};
+  for (const line of LINES) {
+    try {
+      const r = await fetch(line.base, { signal: AbortSignal.timeout(2500) });
+      alive[line.port] = r.status < 500;
+    } catch (_) { alive[line.port] = false; }
+  }
+
+  /* 从测试输出里抽「N 通过, M 失败」——各脚本格式统一，一定在最后几行 */
+  const summaryOf = (out) => {
+    const m = [...out.matchAll(/(\d+)\s*通过[^\d]{0,6}(\d+)\s*失败/g)].pop();
+    return m ? { pass: +m[1], fail: +m[2], text: m[1] + " 通过 / " + m[2] + " 失败" } : null;
+  };
+
+  for (const line of LINES) {
+    if (!alive[line.port]) {
+      console.log("  " + C.d + "跳过  " + line.label + " 整组（服务未启动：npm run serve 起 8796，" +
+        "python -m http.server 8793 起根目录）" + C.x);
+      continue;
+    }
+    for (const [name, file] of line.tests) {
+      step("端到端：" + name + "（" + line.label + "）", () => {
+        const t0 = Date.now();
+        const r = spawnSync(process.execPath, [join(ROOT, "temp", file)], {
+          cwd: join(ROOT, "temp"), encoding: "utf8", timeout: 180000
+        });
+        const out = (r.stdout || "") + (r.stderr || "");
+        const s = summaryOf(out);
+        if (r.status !== 0) {
+          const bad = out.split("\n").filter((l) => l.includes("✗")).map((l) => l.trim());
+          const fatal = out.split("\n").filter((l) => /FATAL|Error:/.test(l)).slice(-1)[0] || "";
+          throw new Error((bad.slice(0, 3).join(" / ") || fatal || "退出码 " + r.status).slice(0, 220));
+        }
+        return { ok: true, msg: (s ? s.text : "通过") + C.d + "  " + (Date.now() - t0) + "ms" + C.x };
+      });
+    }
+  }
 } else {
-  console.log("  " + C.d + "跳过  端到端（加 --e2e 且本地 8796 服务已启动时才跑）" + C.x);
+  console.log("  " + C.d + "跳过  端到端 8 项（加 --e2e 且 8796/8793 服务已启动时才跑）" + C.x);
 }
 
 /* ---------- 汇总 ---------- */

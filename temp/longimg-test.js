@@ -96,6 +96,7 @@ async function stubWith(p, override) {
   T("页面零脚本错误", errs.length === 0, errs.slice(0, 3));
 
   await b.close();
-  console.log("\n通过 / 失败：" + pass + " / " + fail);
+  /* 输出格式与其它测试统一，verify.mjs 靠这行抽用例数 */
+  console.log("\n结果: " + pass + " 通过, " + fail + " 失败");
   process.exit(fail ? 1 : 0);
 })().catch(e => { console.error("HARNESS", e); process.exit(1); });
