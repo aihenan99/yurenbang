@@ -31,5 +31,10 @@ jobs:
       - name: 快速检查（语法 / 状态边界 / 仓库卫生）
         run: node scripts/verify.mjs --fast
 
+      # git 里的 deploy-cn 只跟踪 _worker.js + error.html 两个源文件，
+      # 其余都是 sync 产物（已 gitignore）。CI 检出后先补齐，再做一致性校验。
+      - name: 补齐部署包（sync 产物不入库，检出后重建）
+        run: python temp/sync_deploy.py
+
       - name: 完整检查（含部署包一致性）
         run: node scripts/verify.mjs
