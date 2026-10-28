@@ -29,7 +29,7 @@ const ck=(n,c,d)=>{ if(c){pass++;console.log("  ✅",n);} else {fail++;console.l
     const orig = window.YRB_CLOUD || {};
     window.YRB_CLOUD = Object.assign({}, orig, {
       enabled: () => true, signedIn: () => true,
-      who: () => ({ id: "2110319594408247296", phone: "18037345855", name: "管理员" }),
+      who: () => ({ id: "2110319594408247296", phone: "18000005855", name: "管理员" }),
       client: {
         database: {
           from(t) { return q([]); },
@@ -79,7 +79,7 @@ const ck=(n,c,d)=>{ if(c){pass++;console.log("  ✅",n);} else {fail++;console.l
     const orig = window.YRB_CLOUD || {};
     window.YRB_CLOUD = Object.assign({}, orig, {
       enabled: () => true, signedIn: () => true,
-      who: () => ({ id: "2110319594408247296", phone: "18037345855", name: "管理员" }),
+      who: () => ({ id: "2110319594408247296", phone: "18000005855", name: "管理员" }),
       client: { database: { from(t) { return q([]); }, rpc(fn) { return Promise.resolve({ error: { message: "42501: 仅管理员可执行深度体检" } }); } } }
     });
     window.YRB_ADMINGUARD = { needed: () => true, unlocked: () => true, prompt() {} };

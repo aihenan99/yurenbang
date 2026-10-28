@@ -52,7 +52,7 @@ const STUB = (qrValue) => `
   window.YRB_CLOUD = {
     enabled: function(){ return true; },
     signedIn: function(){ return true; },
-    who: function(){ return { id: "2110319594408247296", phone: "18037345855", name: "家长5855" }; },
+    who: function(){ return { id: "2110319594408247296", phone: "18000005855", name: "家长5855" }; },
     openLogin: function(){}, signOut: function(){ return Promise.resolve(); },
     name: function(){ return "家长5855"; },
     client: {

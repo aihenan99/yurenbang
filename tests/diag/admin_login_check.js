@@ -95,7 +95,7 @@ async function openAdminPanel(browser, session) {
 
   /* 用例 2：管理员 + 会话里有手机号 → 额外验证展示 */
   {
-    const { ctx, info } = await openAdminPanel(b, sess(realUser(ADMIN_ID, { phone_number: '+86 18037345855' })));
+    const { ctx, info } = await openAdminPanel(b, sess(realUser(ADMIN_ID, { phone_number: '+86 18000005855' })));
     out.case2_adminWithPhone = { stubOK: info.stubOK, who: info.who, isAdmin: info.isAdmin, hasDataCards: info.hasCards };
     await ctx.close();
   }

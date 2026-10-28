@@ -30,6 +30,27 @@ PROXY_ENDPOINT = CN_HOST + "/yrbapi"
 INDEXNOW_KEY_FILE = "8f3c2a7d94b14e6f9a0c5d2e7b3f18a6.txt"
 INDEXNOW_KEY = "8f3c2a7d94b14e6f9a0c5d2e7b3f18a6"
 
+# 管理员私有配置（config/admin.local.json，已 gitignore，不入库）。
+# 背景：源码 admin.js 不能硬编码管理员手机号（仓库公开 = 号码公开）。
+# 做法：sync 时把 {"phones":[...]} 注入部署包 admin.js 开头的 window.YRB_ADMIN；
+# 源码里 ADMIN_PHONES = (window.YRB_ADMIN && window.YRB_ADMIN.phones) || []。
+# 配置文件缺失时注入空 phones（管理员识别走 ADMIN_IDS 主判据，不受影响）。
+# 注意：部署产物是公开 JS，手机号在浏览器端本质藏不住——彻底方案是云端
+# is_admin() RPC（见 admin.js 头部注释），此注入只为"仓库源码零手机号"。
+ADMIN_CONFIG_PATH = os.path.join(ROOT, "config", "admin.local.json")
+
+
+def admin_config_line():
+    """返回注入 admin.js 开头的一行配置（确定性输出，供漂移检测复用）。"""
+    phones = []
+    try:
+        with io.open(ADMIN_CONFIG_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+        phones = [str(p) for p in (data.get("phones") or []) if str(p).strip()]
+    except Exception:
+        pass  # 无配置文件 / JSON 损坏：按空配置注入，宁可少一个兜底也不发坏包
+    return "window.YRB_ADMIN=%s;\n" % json.dumps({"phones": phones}, ensure_ascii=False)
+
 # 部署包 index.html 对应主应用的 yurenbang-app.html
 RENAME = {"yurenbang-app.html": "index.html"}
 
@@ -133,6 +154,9 @@ def rewrite_text(rel, txt):
     """对文本套用域名适配规则（纯函数，供文件改写与漂移检测复用）。"""
     for pat, rep in REWRITES.get(rel, []):
         txt = re.sub(pat, rep, txt)
+    if rel == "assets/admin.js":
+        # 管理员私有配置注入（见 ADMIN_CONFIG_PATH 注释）：只在部署包，源码保持零手机号
+        txt = admin_config_line() + txt
     return txt
 
 
@@ -364,6 +388,7 @@ def verify():
     idx = read("index.html")
 
     need('APP_URL = "%s"' % CN in admin, "admin.js APP_URL → .cn")
+    need("window.YRB_ADMIN=" in admin, "admin.js 已注入管理员私有配置（window.YRB_ADMIN，源码零手机号）")
     need('LIVE_URL="%s"' % CN in cap, "capture.js LIVE_URL → .cn")
     need('endpoint:"%s"' % PROXY_ENDPOINT in cloud, "cloud.js endpoint → 同源代理 /yrbapi")
     # ---- PWA 完整性（2026-10-23b）：部署包主页是 index.html，manifest/sw 不得残留 yurenbang-app.html ----

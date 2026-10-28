@@ -16,7 +16,9 @@
     "sync": "python temp/sync_deploy.py",
     "sync:check": "python temp/sync_deploy.py --check",
     "deploy": "python temp/release.py",
-    "hooks": "git config core.hooksPath .githooks"
+    "hooks": "git config core.hooksPath .githooks",
+    "verify:csp": "node scripts/csp-rehearsal.mjs",
+    "audit:deps": "npm install --package-lock-only --ignore-scripts && npm audit --audit-level=high"
   },
   "comment": "本文件没有 npm 依赖：所有工具都是 Node 内置模块 + 项目自带 Playwright（temp/pw）。这样不会引入 node_modules，交接时 clone 即可用。",
   "license": "UNLICENSED"

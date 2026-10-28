@@ -1,0 +1,32 @@
+# gitleaks 配置（供 .github/workflows/security.yml 的泄密扫描使用）
+#
+# 默认规则已覆盖 AWS/GCP/GitHub token、私钥、常见 SaaS API key。
+# 这里的 allowlist 只放「确实是公开值」的三类，避免天天误报：
+
+title = "育人帮 · gitleaks"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "IndexNow 站点验证 key：本就是要公开给搜索引擎的文件内容（/8f3c...txt 公网可读）"
+paths = [
+  '''8f3c2a7d94b14e6f9a0c5d2e7b3f18a6\.txt''',
+  '''temp/sync_deploy\.py''',
+  '''deploy-cn/_worker\.js''',
+  '''docs/SEO.*''',
+]
+
+[[allowlists]]
+description = "测试与文档里的示例占位值（假 token / 假手机号 / 假 session）"
+paths = [
+  '''tests/''',
+  '''docs/''',
+]
+
+[[allowlists]]
+description = "构建产物里的公开 SDK / 平台应用标识（anon key 级别的公开值，本就走同源代理）"
+paths = [
+  '''yurenbang-app/assets/cloud\.js''',
+  '''deploy-cn/assets/cloud\.js''',
+]

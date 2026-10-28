@@ -157,8 +157,43 @@ step("仓库卫生：无超大文件 / 无环境变量 / temp 无测试脚本", 
     throw new Error("temp/ 里出现测试脚本，请移到 tests/scenario 或 tests/diag：" + strayTests.slice(0, 5).join(", "));
   }
 
+  /* 敏感信息守卫（2026-10-28）：管理员手机号已移出源码（config/admin.local.json 注入），
+     不许再写回任何受管源码——否则等于在公开仓库重新发布号码。
+     针从私有配置里读，本脚本自身不含号码（否则守卫会把自己扫出来）。
+     范围 = 全部 git 跟踪的源码目录（deploy-cn 只查人工源文件，assets 产物注入属预期）；
+     tests/diag 的真机登录探针属本机工具不在此列。 */
+  const cfgPath = join(ROOT, "config", "admin.local.json");
+  let needles = [];
+  if (existsSync(cfgPath)) {
+    try { needles = (JSON.parse(readFileSync(cfgPath, "utf8")).phones || []).map(String).filter(Boolean); } catch (_) { needles = []; }
+  }
+  const trackedDirs = [SRC, join(ROOT, "scripts"), join(ROOT, "docs")];
+  for (const f of readdirSync(ROOT)) {
+    if (f.endsWith(".md") || f.endsWith(".mjs")) trackedDirs.push(join(ROOT, f));
+  }
+  for (const f of ["deploy-cn/_worker.js", "deploy-cn/error.html"]) {
+    trackedDirs.push(join(ROOT, f));
+  }
+  const leak = [];
+  for (const dir of trackedDirs) {
+    const walkLeaks = (p) => {
+      let st;
+      try { st = statSync(p); } catch (_) { return; }
+      if (st.isDirectory()) { for (const n of readdirSync(p)) walkLeaks(join(p, n)); return; }
+      if (st.size > 8 * 1024 * 1024) return;
+      try {
+        const txt = readFileSync(p, "utf8");
+        if (needles.some((n) => txt.includes(n))) leak.push(relative(ROOT, p));
+      } catch (_) { /* 二进制文件跳过 */ }
+    };
+    walkLeaks(dir);
+  }
+  if (leak.length) {
+    throw new Error("受管源码出现管理员手机号，请改用 config/admin.local.json：" + leak.slice(0, 5).join(", "));
+  }
+
   if (bad.length) throw new Error("请移出版本库或加进 .gitignore：" + bad.slice(0, 5).join(", "));
-  return { ok: true, msg: "temp/ 无游离测试脚本" };
+  return { ok: true, msg: "temp/ 无游离测试脚本 · 源码零管理员手机号" };
 });
 
 /* ---------- 4. 部署一致性：源码与待部署包是否同源 ---------- */

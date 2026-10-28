@@ -1,0 +1,61 @@
+name: 安全扫描
+
+# 定位：与「工程验证」互补的安全哨兵，三条触发线——
+#   1) 每次 push / PR：改了依赖或提交了密钥，当场报
+#   2) 每周一定时：依赖披露是持续事件，代码不动也可能变不安全
+#   3) 手动：workflow_dispatch，排查时可单跑
+#
+# 为什么依赖只有 npm audit：本项目刻意零 npm 依赖（工具全是 Node 内置模块 +
+# 自带 Playwright），所以这条现在几乎必然通过。它的价值是「未来有人加依赖时
+# 自动接上审计」，以及 package-lock.json 让依赖树可复现。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 21 * * 1" # 每周一 05:17（北京时间）体检
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deps-audit:
+    name: 依赖漏洞（npm audit）
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 生成锁文件（项目当前零依赖，为将来加依赖留审计入口）
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: 审计高危及以上漏洞
+        run: npm audit --audit-level=high
+
+  secrets-scan:
+    name: 泄密扫描（gitleaks 全历史）
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: 检出代码（全历史，历史里的密钥同样要抓）
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: gitleaks 扫描
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 个人仓库免费；组织仓库需在仓库 Secrets 配 GITLEAKS_LICENSE
+
+  # 说明：GitHub 自带的 Secret scanning / Push protection 是仓库设置项，
+  # 无法用 workflow 打开。公开仓库默认开启 secret scanning；开启方式见
+  # docs/安全基线.md「GitHub 侧必须手动打开的两项」。

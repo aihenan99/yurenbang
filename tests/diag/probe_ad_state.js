@@ -9,7 +9,7 @@ const { chromium } = require("../../temp/pw/node_modules/playwright-core");
   await p.evaluate(() => {
     window.YRB_CLOUD = {
       enabled(){ return true; }, signedIn(){ return true; },
-      who(){ return { id: "2110319594408247296", phone: "18037345855", name: "家长5855" }; },
+      who(){ return { id: "2110319594408247296", phone: "18000005855", name: "家长5855" }; },
       openLogin(){}, signOut(){ return Promise.resolve(); },
       client: { database: {
         rpc(){ return Promise.resolve({ data: { ok: true, is_set: true, fail_count: 0, locked_until: null }, error: null }); },

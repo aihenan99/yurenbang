@@ -91,7 +91,7 @@ function ck(name, ok, extra) {
     window.YRB_CLOUD = Object.assign({}, orig, {
       enabled: () => true,
       signedIn: () => true,
-      who: () => ({ id: "2110319594408247296", phone: "18037345855", name: "管理员" }),
+      who: () => ({ id: "2110319594408247296", phone: "18000005855", name: "管理员" }),
       client: { database: { from(t) { return q(t === "yb_cases" ? casesData : []); } } },
       deleteCase(id, media) { delCalls.push([id, media]); return Promise.resolve({ ok: true }); },
       loadCases() { /* noop */ }

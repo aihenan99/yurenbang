@@ -36,6 +36,35 @@
 - ✅ 策略写好、Report-Only 上线代码就位、13 项响应头有自动校验
 - ✅ 本文档即基线记录
 
+### P0.5 本地强制演练（2026-10-28 已完成，新增）
+把「切强制会不会打挂」从发版后提前到本地 20 秒可验：
+
+```bash
+npm run verify:csp        # 需本机 Chrome；退出码 0=零违规
+```
+
+做法（`scripts/csp-rehearsal.mjs`，全程不发版、不改生产文件）：
+1. 内存里把 `CSP_HEADER` 改成 `content-security-policy`，写到 `temp/` 临时副本
+2. 按 `worker-headers.mjs` 的办法动态 import 一次，拿到强制模式**真正会下发**的头
+3. 起最小静态服务器，部署包原样服务，每个响应套上这套头
+4. 真浏览器（Playwright + 本机 Chrome）走查首页 / 分享页 / 案例库，
+   用 `securitypolicyviolation` 事件 + console + pageerror 三路收集违规，并验证
+   `unsafe-eval` 通道（PPT 引擎前提）、五个核心层就绪、未触发自愈补载、无本地 404
+5. 临时文件自清理
+
+**演练结果：17 项断言全绿，零违规。** 说明当前策略在强制模式下不会打断现有功能，
+P3 的分路径强制可以按「案例库 → 分享页 → 首页 → 全站」顺序开工。
+
+已知局限（演练覆盖不到、仍需 P1 真机走查的部分）：
+- 云端 402 隔离期首页无真实数据，卡片交互（点赞/收藏/朗读/详情）走不到
+- PPT 只在"eval 通道可用"层面验证，真实 pptx 渲染仍要人工确认
+- 微信内置浏览器内核与桌面 Chrome 有差异，CSP 行为需真机复核
+
+**演练器自身的坑（已修，留作教训）**：初版用 `const CSP_HEADER = "..."` 无锚定匹配，
+先命中了文件顶部注释里「改成这样」的示例行 → 改了个寂寞，真常量仍是 Report-Only。
+现在用 `^...$` 行首锚定 + 打补丁后再断言一次，防同类静默错误。
+
+
 ### P1 观察（恢复发版后第 1 周）
 1. 发版后确认响应头存在：`node scripts/worker-headers.mjs`
 2. 自用机（安卓 Chrome + iPhone Safari + 微信内置）各走一遍主流程：
@@ -95,4 +124,4 @@ function cspHeaderFor(path) {
 - ❌ 不引入 `report-uri` 收集端点（新增公开写入面，收益不抵风险）
 - ❌ 不给 HSTS 加 `includeSubDomains` / `preload`（难回退）
 - ❌ 不为 `style-src` 去 `'unsafe-inline'`（改造成本远大于收益）
-- ❌ 不在云恢复前改 `_worker.js`（冻结期铁律）
+- ❌ 不在云恢复前改 `_worker.js`（冻结期铁律）——本地演练走 `scripts/csp-rehearsal.mjs` 的临时副本，绝不碰源文件

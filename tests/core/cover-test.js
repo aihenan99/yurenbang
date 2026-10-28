@@ -96,12 +96,23 @@ function ck(name, cond, extra) {
     });
     renderCases();
   });
-  await p.waitForTimeout(500);
-  const t6 = await p.evaluate(() => {
-    const card = document.querySelector('#caseGrid .case-card[data-i="0"]');
-    const v = card && card.querySelector("video.c-photo");
-    return { hasV: !!v, preload: v ? v.preload : "", mark: v ? v.dataset.cv : "" };
-  });
+  /* 首帧标记由 MutationObserver → 80ms 防抖 → pass() 异步打上；
+     批量跑（9 组测试连轴转）时机器有负载，固定 500ms 会偶发抢跑。
+     改成轮询最多 3s：既不失严格性（最终必须为 "1"），也不再靠猜时间。 */
+  const t6 = await (async () => {
+    const deadline = Date.now() + 3000;
+    let r = null;
+    while (Date.now() < deadline) {
+      r = await p.evaluate(() => {
+        const card = document.querySelector('#caseGrid .case-card[data-i="0"]');
+        const v = card && card.querySelector("video.c-photo");
+        return { hasV: !!v, preload: v ? v.preload : "", mark: v ? v.dataset.cv : "" };
+      });
+      if (r.hasV && r.mark === "1") return r;
+      await p.waitForTimeout(100);
+    }
+    return r;
+  })();
   ck("视频案例封面 <video> 在位（首帧处理已标记）", t6.hasV && t6.mark === "1", JSON.stringify(t6));
 
   /* 汇总 */

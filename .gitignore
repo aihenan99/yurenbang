@@ -20,6 +20,9 @@ temp/pw/
 temp/pk/
 temp/edgeprofile/
 
+# ---------- 私有配置（管理员手机号等，绝不入库）----------
+config/
+
 # ---------- 与项目无关的大体积素材 ----------
 剪辑软件/
 
@@ -37,6 +40,7 @@ deploy-cn.zip
 temp/*.png
 temp/shots/
 temp/_worker_probe.mjs
+temp/_csp_rehearsal_worker.mjs
 *.log
 
 # ---------- 系统垃圾 ----------

@@ -26,7 +26,7 @@ const STUB = (adminId) => `
   window.YRB_CLOUD = {
     enabled: function(){ return true; },
     signedIn: function(){ return true; },
-    who: function(){ return ${adminId ? '{ id: "2110319594408247296", phone: "18037345855", name: "家长5855" }' : '{ id: "999999", phone: "13900000000", name: "普通家长" }'}; },
+    who: function(){ return ${adminId ? '{ id: "2110319594408247296", phone: "18000005855", name: "家长5855" }' : '{ id: "999999", phone: "13900000000", name: "普通家长" }'}; },
     openLogin: function(){ window.__AG.loginAsked = true; },
     signOut: function(){ return Promise.resolve(); },
     client: { database: { rpc: function(fn, a){

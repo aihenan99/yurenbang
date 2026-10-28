@@ -15,9 +15,14 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&a
 const APP_URL = "https://yurenbang.app.workbuddy.host/";
 /* 管理员识别（与本库 is_admin() 函数保持一致的账号，新增管理员需同步改这里 + 数据库函数）
    ADMIN_IDS：auth.users.sub，最可靠——SDK 会话对象一定带 id，不依赖手机号能否读出来
-   ADMIN_PHONES：库中手机号后 11 位，作为兼容兜底（会话里能取到手机号时生效） */
+   ADMIN_PHONES：库中手机号后 11 位，作为兼容兜底（会话里能取到手机号时生效）。
+     ★ 源码里不再写死手机号（本仓库公开，硬编码等于把号码发布到全世界）。
+       发布时由 temp/sync_deploy.py 从本地私有配置 config/admin.local.json
+       （已 gitignore，不入库）注入 window.YRB_ADMIN.phones；源码/测试环境为空数组，
+       管理员识别仍走 ADMIN_IDS 主判据，功能不受影响。
+       彻底方案：云恢复后改用数据库 is_admin() RPC，前端只看结果。 */
 const ADMIN_IDS = ["2110319594408247296"];
-const ADMIN_PHONES = ["18037345855"];
+const ADMIN_PHONES = (window.YRB_ADMIN && window.YRB_ADMIN.phones) || [];
 
 /* ---------- 工具 ---------- */
 function db() {
