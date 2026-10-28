@@ -174,6 +174,8 @@ def check_drift():
 
 def sync_assets():
     sdir, ddir = os.path.join(SRC, "assets"), os.path.join(DST, "assets")
+    # 干净检出（如 CI）时 deploy-cn/assets 不存在，必须先建目录再复制
+    os.makedirs(ddir, exist_ok=True)
     copied = []
     for name in sorted(os.listdir(sdir)):
         s = os.path.join(sdir, name)
