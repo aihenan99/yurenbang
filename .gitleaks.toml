@@ -1,18 +1,46 @@
 # gitleaks 配置（供 .github/workflows/security.yml 的泄密扫描使用）
 #
 # 默认规则已覆盖 AWS/GCP/GitHub token、私钥、常见 SaaS API key。
-# 这里的 allowlist 只放「确实是公开值」的三类，避免天天误报：
+# allowlist 只放两类：① 确实是公开值的常量；② 已公开且内容审过的路径。
+# **每条都要写清"为什么不是泄密"**，否则半年后就没人敢动了。
+#
+# 扫描范围：`--log-opts=--all` 扫全部历史提交，不只本次 diff。
+# 早先用的 gitleaks-action 只扫本次推送的提交，等于"历史从来没扫过"——
+# 2026-10-28 换成自装 CLI 后第一次真正全历史扫描，下面这些条目就是那次暴露的。
 
 title = "育人帮 · gitleaks"
 
 [extend]
 useDefault = true
 
+# ---------- ① 值级别放行：公开常量，出现在任何文件里都不算泄密 ----------
+
 [[allowlists]]
 description = "IndexNow 站点验证 key：本就是要公开给搜索引擎的文件内容（/8f3c...txt 公网可读）"
+regexTarget = "secret"
+regexes = ['''^8f3c2a7d94b14e6f9a0c5d2e7b3f18a6$''']
+
+[[allowlists]]
+description = "Edge TTS 公共客户端令牌：微软官方客户端的固定值，非本平台凭据（/yrbtts 代理用）"
+regexTarget = "secret"
+regexes = ['''^6A5AA1D4EAFF4E9FB37E23D68491D6F4$''']
+
+[[allowlists]]
+description = "平台 publishable key 与应用 ID：anon 级公开值，本就直接下发到前端并经同源代理；真正的边界是 RLS 与 is_admin()"
+regexTarget = "secret"
+regexes = [
+  '''^wbpk_Lt4Zxzyd4j1x3DZdRFyFF9_[A-Za-z0-9]+$''',
+  '''^wbapp_Lt4Zxzyd4j1x3DZdRFyFF9$''',
+]
+
+# ---------- ② 路径级别放行：只放"内容已审过"的具体文件/目录 ----------
+
+[[allowlists]]
+description = "IndexNow 公开 key 的产物文件与部署脚本"
 paths = [
   '''8f3c2a7d94b14e6f9a0c5d2e7b3f18a6\.txt''',
   '''temp/sync_deploy\.py''',
+  '''temp/indexnow_push\.py''',
   '''deploy-cn/_worker\.js''',
   '''docs/SEO.*''',
 ]
@@ -29,4 +57,18 @@ description = "构建产物里的公开 SDK / 平台应用标识（anon key 级�
 paths = [
   '''yurenbang-app/assets/cloud\.js''',
   '''deploy-cn/assets/cloud\.js''',
+]
+
+[[allowlists]]
+description = "一次性接口探针：只验连通性，令牌是公开 publishable key，密码字段是故意写错的试探值"
+paths = [
+  '''temp/verify_pwd_hash\.py''',
+  '''temp/probe_reset\.py''',
+  '''temp/obs_deploy\.py''',
+]
+
+[[allowlists]]
+description = "内部工作笔记（历史已公开；内容为 localStorage 键名、接口路径等非凭据信息。2026-10-28 起评估停止入库，见 docs/安全基线.md）"
+paths = [
+  '''\.workbuddy/memory/''',
 ]
