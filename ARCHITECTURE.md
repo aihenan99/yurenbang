@@ -319,7 +319,9 @@ npm run hooks          # = git config core.hooksPath .githooks
 | 依赖/泄密 | `npm audit` + gitleaks 全历史，push/PR/每周一体检 | `.github/workflows/security.yml` |
 | 私有配置 | 管理员手机号不在源码，`config/admin.local.json` → sync 注入 `window.YRB_ADMIN` | `config/` + `sync_deploy.py` |
 | 防回潮 | verify 仓库卫生：受管源码出现管理员手机号即失败 | `scripts/verify.mjs` |
-| 隐私合规 | 同意闸门/政策正文/限时签名/脱敏 自动自检；P0 清单见评估报告 | `scripts/privacy-audit.mjs` + `docs/隐私合规/` |
+| 隐私合规 | 10 项回归自检（同意闸门/政策正文/限时签名/脱敏/零虚假状态/零装饰开关/政策条款/版本一致）+ 端到端 16 项 | `scripts/privacy-audit.mjs` + `tests/core/privacy-test.js` |
+| 政策正文 | `LG_DOCS.privacy` = 隐私政策 v2.0（14 节）、`LG_DOCS.child` = 儿童规则；设置页「隐私与个人信息」三个入口共用同一份文案，不重复抄 | `cloud.js` + `app.js` |
+| 阅读模式 | `YRB_CLOUD.openDoc(k,{readOnly:true})`：底部按钮为「关闭」，**不代勾**登录页同意框 | `cloud.js` |
 
 **CSP 现状**：观测模式，不阻断。本地已演练过强制模式（`npm run verify:csp`，17 项断言
 零违规）；正式切换按 `docs/CSP转强制预案.md` P1→P4 走，转强制只需改一个字符串。

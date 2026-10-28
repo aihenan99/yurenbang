@@ -450,7 +450,7 @@ function closeDropdown(){$("#dropdown").classList.remove("open");}
 
 /* ================= 设置下拉内容 ================= */
 const DD=[
-  ["账号",[["acct","🔐","账号与安全"],["privacy","🛡️","隐私设置"],["pay","💳","支付设置"]]],
+  ["账号",[["acct","🔐","账号与安全"],["privacy","🔒","隐私与个人信息"],["pay","💳","支付设置"]]],
   ["通用",[["general","⚙️","通用设置"],["notify","🔔","通知设置"],["chat","💬","聊天与通话设置"],["play","▶️","播放设置"],["bg","🎨","背景设置"],["homeSet","🏠","首页设置"],["elder","👵","长辈设置"],["fonts","🅰️","字体大小"],["cache","🧹","清理缓存"],["perm","🔓","系统权限"]]],
   ["关于",[["about","ℹ️","关于育人帮"],["feedback","📮","反馈与帮助"],["license","📜","资质证照"],["agreement","📄","用户协议"]]]
 ];
@@ -479,8 +479,13 @@ function rowsHTML(rows){
 }
 function spRows(rows){return `<div class="sp-sec">`+rowsHTML(rows)+`</div>`;}
 const SUBPAGES={
-  acct:{t:"账号与安全",html:spRows([{ic:"📱",t:"手机号",sub:"138****8888"},{ic:"💬",t:"微信绑定",chip:"已绑定"},{ic:"🪪",t:"实名认证",chip:"已认证"},{ic:"👶",t:"青少年模式",chip:"未开启",off:1},{ic:"🚪",t:"注销账号",sub:"谨慎操作"}])},
-  privacy:{t:"隐私设置",html:spRows([{ic:"👀",t:"公开我的求助",sw:1},{ic:"💬",t:"允许陌生人评论",sw:1},{ic:"✨",t:"个性化推荐",sw:1},{ic:"📍",t:"同城可见",sw:0},{ic:"🚫",t:"黑名单",sub:"0 人"}])},
+  /* 2026-10-28：删掉了「微信绑定 已绑定」「实名认证 已认证」「青少年模式」——
+     这三项平台并没有对应流程，挂出来就是虚假状态（第三方审核一票否决）。
+     手机号改为「登录后显示」，真实号码由 account.js 注入，未登录不再展示示例号。 */
+  acct:{t:"账号与安全",html:spRows([{ic:"📱",t:"手机号",sub:"登录后显示"}])+`<div class="sp-note">登录后可在上方设置「登录用户名 + 密码」，以后免验证码登录。手机号仅用于登录验证与账号找回，不对外展示。</div>`},
+  /* 隐私页不再有「装饰开关」：个性化推荐、同城可见等能力尚未实现，
+     就不该给用户一个点了没反应的开关。这里只放真实可读的正文入口。 */
+  privacy:{t:"隐私与个人信息",html:`<div class="sp-sec"><button class="sp-row" id="pvPolicy"><span class="ic">📄</span>隐私政策<span class="sub">v2.0 ›</span></button><button class="sp-row" id="pvChild"><span class="ic">👶</span>儿童个人信息处理规则<span class="sub">›</span></button><button class="sp-row" id="pvMine"><span class="ic">🗂️</span>我的数据：删除与注销<span class="sub">›</span></button></div><div class="sp-note">本平台不接入广告、统计、用户画像类第三方 SDK；不收集通讯录、相册全量、精确定位。<br>个性化推荐、同城可见等个性化开关将随版本开放——当前既没有开关，也不做任何个性化处理。</div>`},
   pay:{t:"支付设置",html:spRows([{ic:"🌹",t:"钱包 · 玫瑰",sub:S.roses+" 朵"},{ic:"💳",t:"支付方式",sub:"微信 / 支付宝"},{ic:"⚡",t:"小额免密支付",sw:0},{ic:"🧾",t:"账单明细"}])},
   general:{t:"通用设置",html:spRows([{ic:"🌐",t:"语言",sub:"跟随地区"},{ic:"🌗",t:"深色模式",sub:"跟随系统"},{ic:"▶️",t:"自动播放视频",sw:1},{ic:"📶",t:"省流量模式",sw:0}])},
   chat:{t:"聊天与通话设置",html:spRows([{ic:"📞",t:"语音通话铃声",sub:"温柔提示音"},{ic:"🎬",t:"视频通话美颜",sw:1},{ic:"🤖",t:"忙线自动回复",sw:1},{ic:"🔇",t:"消息免打扰",sw:0}])},
@@ -501,8 +506,34 @@ function openSubpage(k){
     $("#hsSkin").onclick=()=>{closeSubpage();openBgModal();};
     $("#hsReset").onclick=()=>{S.funcs=["foryou","cases"];S.extra=[];S.hotMode=false;renderFuncRow();renderFeed();toast("已恢复默认首页布局");};
   }
+  if(k==="privacy")bindPrivacyPage();
 }
 function closeSubpage(){$("#subpage").classList.remove("open");}
+/* ===== 隐私与个人信息（2026-10-28）=====
+   正文在 cloud.js 的 LG_DOCS 里，而 app.js 早于 cloud.js 加载——
+   所以只能在「点击那一刻」取 window.YRB_CLOUD，不能在加载期缓存
+   （本项目踩过的坑：cloud.js 在 refine23 之后加载）。 */
+function bindPrivacyPage(){
+  const openDoc=(k)=>{
+    const C=window.YRB_CLOUD;
+    if(!C||typeof C.openDoc!=="function"){toast("正文还没加载好，请稍后再试");return;}
+    C.openDoc(k,{readOnly:true});   /* 阅读模式：底部按钮是「关闭」，不代勾登录同意框 */
+  };
+  const p1=$("#pvPolicy"),p2=$("#pvChild"),p3=$("#pvMine");
+  if(p1)p1.onclick=()=>openDoc("privacy");
+  if(p2)p2.onclick=()=>openDoc("child");
+  if(p3)p3.onclick=showMyDataPanel;
+}
+function showMyDataPanel(){
+  modal(`<div style="max-height:64vh;overflow:auto;font-size:13.5px;line-height:1.9;color:var(--ink)">
+    <b style="font-size:15px">我的数据：查看 · 删除 · 注销</b>
+    <p style="margin:10px 0 0"><b>查看</b>：「我的」页可看到你发布的求助与帮忙；昵称与头像效果在「设置—背景设置」中查看。</p>
+    <p><b>删除</b>：自己发布的案例可以随时删除，即时生效。</p>
+    <p><b>删除全部 / 注销账号</b>：当前版本还没有自助入口——不给你一个点了没反应的按钮。请通过「反馈与帮助」提交，我们核实身份后人工处理，15 个工作日内答复。自助注销与数据导出（JSON）随云服务恢复版本上线。</p>
+    <p style="color:var(--muted);font-size:12px">完整规则见《隐私政策》第八节（保存期限）与第十节（你的权利）。</p>
+    <div style="text-align:center;margin-top:16px"><button onclick="closeModal()" style="min-width:180px;min-height:46px;border:none;border-radius:999px;background:var(--gradA,#F0543C);color:#fff;font-weight:800;font-size:14.5px;padding:12px 28px;font-family:inherit;cursor:pointer">我知道了</button></div>
+  </div>`);
+}
 /* 弹窗自愈看护（2026-10-19 用户反馈「标记已解决弹窗卡死、退不出去」）：
    真机上曾出现确认弹窗被更高层的面板盖住（帮忙面板 67 / 上传遮罩 68 / 礼物层 70），
    看得见却点不着，而弹窗自己的遮罩又挡住了下层一切 → 只能强杀程序。

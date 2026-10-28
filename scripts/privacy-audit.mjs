@@ -80,48 +80,80 @@ add(regress, "同意勾选有无障碍语义（role=checkbox）",
 /* 6. 隐私政策必须有一等公民入口（我的-设置 内可见） */
 add(regress, "协议/政策有站内常驻入口", /agreement\s*:\s*\{/.test(app), "app.js SETTINGS.agreement");
 
-/* ═══════════ 二、P0：承诺了但没实现（审核硬伤） ═══════════ */
-
-/* P0-1 注销账号：不能只是静态文案 */
-const hasDeleteImpl = /deleteAccount|yb_account_delete|purgeAccount|delete_my_account/.test(allText);
-const claimsDelete = /注销账号/.test(app);
-add(p0, "注销账号真实可用（非静态文案）", !claimsDelete || hasDeleteImpl,
-  claimsDelete && !hasDeleteImpl
-    ? "app.js:" + findLine(app, "注销账号") + " 写了「注销账号」，全项目无删除逻辑——政策承诺 15 工作日删除"
-    : hasDeleteImpl ? "已实现" : "未出现注销入口");
-
-/* P0-2 设置页不得展示虚假状态 */
-const fakeStatus = [];
-for (const pat of ["138****8888", "已认证", "已绑定"]) {
-  if (app.includes(pat)) fakeStatus.push(pat + " @app.js:" + findLine(app, pat));
+/* 7. 设置页不得出现虚假状态（2026-10-28 整改后锁死，防回潮）
+   只认 UI 文案，不认注释——注释里写「删掉了已实名标签」是事实描述，不是虚假状态 */
+const FAKE_UI = [
+  ["示例手机号", "138****8888"],
+  ["微信绑定", 'chip:"已绑定"'],
+  ["实名认证", 't:"实名认证"'],
+  ["已认证标签", 'chip:"已认证"'],
+  ["已实名标签", ">已实名<"],
+];
+const fakeHits = [];
+for (const [f, t] of Object.entries(allAssets)) {
+  for (const [name, pat] of FAKE_UI) {
+    if (t.includes(pat)) fakeHits.push(name + " @" + f + ":" + findLine(t, pat));
+  }
 }
-add(p0, "设置页无虚假状态（手机号/微信/实名）", fakeStatus.length === 0, fakeStatus.join(" / "));
+for (const [name, pat] of FAKE_UI) {
+  if (idx.includes(pat)) fakeHits.push(name + " @yurenbang-app.html:" + findLine(idx, pat));
+}
+add(regress, "设置页零虚假状态（手机号 / 微信绑定 / 实名）", fakeHits.length === 0, fakeHits.join(" / "));
 
-/* P0-3 隐私开关必须落地（有字段/有读写），否则就是装饰 */
-const privacyRow = (app.match(/privacy\s*:\s*\{[\s\S]*?\}\]\)\}/) || [""])[0];
+/* 8. 隐私页不得有装饰开关：没有真实字段支撑，就不该给用户一个点了没反应的开关 */
+const privacyRow = (() => {
+  const s = app.indexOf('privacy:{t:"隐私与个人信息"');
+  const e = app.indexOf("\n  pay:{", s);
+  return s >= 0 && e > s ? app.slice(s, e) : "";
+})();
 const swCount = (privacyRow.match(/sw\s*:/g) || []).length;
-const backed = ["public", "comments_open", "personalized", "tongcheng"].some((k) => schema.includes(k) || allText.includes("privacy_prefs"));
-add(p0, "隐私设置开关有真实效果", swCount === 0 || backed,
-  swCount ? swCount + " 个开关，契约/存储中无对应字段" : "已移除装饰开关");
+add(regress, "隐私页无装饰开关（只放真实正文入口）", swCount === 0,
+  swCount ? swCount + " 个开关仍无字段支撑" : "0 个开关");
 
-/* P0-4 隐私政策必备条款（PIPL 17/31/52/57 + 审核口径） */
-const policyText = (cloud.match(/privacy\s*:\s*\{t:[\s\S]*?\}\s*\}\s*;/) || [cloud])[0];
+/* 9. 政策必备条款（PIPL 17/31/52/57 + 审核口径）——v2 已补齐，此后不许再缺 */
+const pStart = cloud.indexOf('privacy:{t:"育人帮隐私政策"');
+const pEnd = cloud.indexOf('child:{t:"儿童个人信息处理规则"');
+const policyText = pStart >= 0 && pEnd > pStart ? cloud.slice(pStart, pEnd) : "";
 const required = [
   ["处理者身份", /运营主体|公司名称|处理者/],
-  ["联系方式非示例", /support@|@yurenbang\.example/],
+  ["联系方式非示例邮箱", null],   // 反向：不得出现 example 邮箱
   ["保护负责人", /保护负责人|个人信息保护负责人/],
   ["第三方 SDK 清单", /SDK/],
   ["敏感信息单独同意", /单独同意/],
   ["跨境传输", /跨境|境外/],
   ["安全事件通知", /泄露|安全事件/],
   ["生效日期/版本", /生效日期|版本|v\d\.\d/],
-  ["投诉渠道", /投诉|12377/]
+  ["投诉渠道", /投诉|12377/],
+  ["未成年人专节", /不满 14 周岁|儿童个人信息/]
 ];
-const missing = required.filter(([n, re]) => !re.test(policyText)).map(([n]) => n);
-add(p0, "隐私政策含 PIPL 必备条款", missing.length === 0,
-  missing.length ? "缺：" + missing.join("、") : "齐全");
+const missing = required.filter(([n, re]) =>
+  re ? !re.test(policyText) : (/support@|@yurenbang\.example/.test(policyText))
+).map(([n]) => n);
+add(regress, "隐私政策含 PIPL 必备条款", !!policyText && missing.length === 0,
+  !policyText ? "未找到政策正文" : (missing.length ? "缺：" + missing.join("、") : required.length + " 项齐全"));
 
-/* P0-5 不得从境外 CDN 加载脚本（IP/UA 出境 + 可用性） */
+/* 10. 政策版本与设置页入口一致（改了正文要同步版本号，否则用户看到的版本是假的） */
+const pTag = (policyText.match(/tag:"(v[\d.]+)"/) || [])[1] || "";
+add(regress, "政策版本号与设置页一致", !!pTag && app.includes("隐私政策") && new RegExp(pTag.replace(/\./g, "\\.") + " ›").test(app),
+  pTag ? "正文 " + pTag : "正文缺版本号");
+
+/* ═══════════ 二、P0：承诺了但还没实现（审核硬伤） ═══════════ */
+
+/* P0-1 注销账号：不能只是文案，必须有真实删除实现（恢复后第一批做） */
+const hasDeleteImpl = /deleteAccount|yb_account_delete|purgeAccount|delete_my_account/.test(allText);
+add(p0, "注销账号 / 自助删除账号", hasDeleteImpl,
+  hasDeleteImpl ? "已实现" : "未实现；政策第十节已如实标注「过渡期经反馈渠道人工处理」，云恢复后第一批补");
+
+/* P0-2 儿童信息：必须有监护人同意留痕机制 */
+const childConsent = /监护人|guardian/i.test(allText) && /consent|同意记录|consented_at/.test(allText);
+add(p0, "儿童信息监护人同意留痕", childConsent,
+  childConsent ? "" : "仅提示文案，无同意记录字段（PIPL 31 单独同意）");
+
+/* P0-3 数据导出（可携带权）：只认代码实现，政策里写「即将上线」不算 */
+const canExport = /exportData|data_export|exportMyData|downloadMyData/.test(allText);
+add(p0, "个人信息导出（可携带权）", canExport, canExport ? "" : "当前仅人工渠道，结构化导出待恢复后上线");
+
+/* P0-4 不得从境外 CDN 加载脚本（IP/UA 出境 + 可用性） */
 const foreign = [];
 for (const [f, t] of Object.entries(allAssets)) {
   for (const m of t.matchAll(/https:\/\/(unpkg\.com|cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|ajax\.googleapis\.com)/g)) {
@@ -129,15 +161,6 @@ for (const [f, t] of Object.entries(allAssets)) {
   }
 }
 add(p0, "零境外 CDN 加载", foreign.length === 0, foreign.slice(0, 4).join(", "));
-
-/* P0-6 儿童信息：必须有监护人同意留痕机制 */
-const childConsent = /监护人|guardian/i.test(allText) && /consent|同意记录|consented_at/.test(allText);
-add(p0, "儿童信息监护人同意留痕", childConsent,
-  childConsent ? "" : "仅有文案提示，无同意记录字段（PIPL 31 单独同意）");
-
-/* P0-7 数据导出（可携带权） */
-const canExport = /exportData|导出.*数据|data_export/.test(allText);
-add(p0, "个人信息导出（可携带权）", canExport, canExport ? "" : "仅「反馈与帮助」人工处理");
 
 /* ═══════════ 输出 ═══════════ */
 let bad = 0;
