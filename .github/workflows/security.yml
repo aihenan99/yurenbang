@@ -55,6 +55,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # 个人仓库免费；组织仓库需在仓库 Secrets 配 GITLEAKS_LICENSE
+          # 关掉 PR 评论/产物上传：本工作流只给 contents:read，写操作会因权限不足变红；
+          # 结果看 Actions 日志与 Job Summary 已足够
+          GITLEAKS_ENABLE_COMMENTS: "false"
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
   # 说明：GitHub 自带的 Secret scanning / Push protection 是仓库设置项，
   # 无法用 workflow 打开。公开仓库默认开启 secret scanning；开启方式见
