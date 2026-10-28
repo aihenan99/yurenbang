@@ -254,7 +254,9 @@ def inject_worker_anli():
             paths.append("/anli/" + f[:-5])
     txt = io.open(wp, encoding="utf-8").read()
     payload = "const ANLI = new Set(%s); /* __ANLI_INJECTED__ */" % json.dumps(paths, ensure_ascii=False)
-    txt2, n = re.subn(r"const ANLI = new Set\(.*?\);", payload, txt, count=1, flags=re.S)
+    # 旧标记一并吞掉：此前每跑一次 sync 都会追加一个标记，越积越多
+    txt2, n = re.subn(r"const ANLI = new Set\(.*?\);(?: /\* __ANLI_INJECTED__ \*/)*",
+                      payload, txt, count=1, flags=re.S)
     if n and txt2 != txt:
         io.open(wp, "w", encoding="utf-8", newline="").write(txt2)
         return len(paths)
