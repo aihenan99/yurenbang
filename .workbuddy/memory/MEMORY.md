@@ -56,3 +56,4 @@
 - 激励体系：四维称号（玫瑰/帮忙/连续到访/语音视频）各 5 级
 - 隐私合规（2026-10-28）：`docs/隐私与数据安全评估.md` + `docs/隐私合规/` 七件套（政策v2/儿童规则/收集清单/留存删除/应急预案/审核清单/README）；`npm run privacy:audit` 回归 6 项已进 verify，P0 7 项待整改（注销假入口、设置页虚假认证、4 个装饰开关、政策缺项、境内存储表述、儿童同意、数据导出）；**过审硬门槛=CF 境外托管无法 ICP 备案**
 - 隐私整改第一批（10-28 晚）：政策 v2.0+儿童规则已入 cloud.js（LG_DOCS.privacy/child，openDoc(k,{readOnly:true})）；设置页假状态与 4 个装饰开关全清，隐私页=3 个真实入口；privacy-audit 回归 10 项+privacy-test.js 16 项进 verify；P0 剩 4 项（注销/儿童留痕/导出/境外CDN）待云恢复；政策里主体/邮箱/备案号/负责人/机房区域标「待补充」待用户回填
+- CI 泄密扫描（10-28 定稿）：**gitleaks-action 只扫本次推送提交**，要全历史必须自装 CLI（固定 8.24.3）+ `--log-opts=--all`；白名单用单数 `[allowlist]`（多张 `[[allowlists]]` 在 8.24 只存在于 rule 内，写错=静默失效）；命中项经 scripts/gitleaks-report.py 转 `::error` 注解，公开仓库不登录也能看；`/check-runs/{id}/annotations` 可匿名读，排障首选
