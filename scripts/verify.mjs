@@ -131,7 +131,7 @@ step("层登记一致性（html / sw / health / build.json）", () => {
 });
 
 /* ---------- 4. 仓库卫生：不该进版本库的东西 ---------- */
-step("仓库卫生：无超大文件 / 无环境变量文件", () => {
+step("仓库卫生：无超大文件 / 无环境变量 / temp 无测试脚本", () => {
   const bad = [];
   const walk = (dir) => {
     for (const name of readdirSync(dir)) {
@@ -146,8 +146,19 @@ step("仓库卫生：无超大文件 / 无环境变量文件", () => {
   };
   walk(SRC);
   walk(join(ROOT, "scripts"));
+
+  /* 目录边界守卫（2026-10-28 迁移后新增）：
+     temp/ 只放构建发布工具与素材，测试脚本一律在 tests/。
+     少了这条，过几个月又会有人把调试脚本丢回 temp/。 */
+  const strayTests = readdirSync(join(ROOT, "temp"))
+    .filter((f) => f.endsWith(".js"))
+    .map((f) => "temp/" + f);
+  if (strayTests.length) {
+    throw new Error("temp/ 里出现测试脚本，请移到 tests/scenario 或 tests/diag：" + strayTests.slice(0, 5).join(", "));
+  }
+
   if (bad.length) throw new Error("请移出版本库或加进 .gitignore：" + bad.slice(0, 5).join(", "));
-  return { ok: true };
+  return { ok: true, msg: "temp/ 无游离测试脚本" };
 });
 
 /* ---------- 4. 部署一致性：源码与待部署包是否同源 ---------- */

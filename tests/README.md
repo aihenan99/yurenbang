@@ -1,6 +1,6 @@
 # tests/ —— 测试脚本目录
 
-> 2026-10-28 从 `temp/` 迁入。`temp/` 从此只放**构建发布工具与素材**（sync_deploy.py、release.py、ppt 样本、playwright 运行时等），
+> 2026-10-28 从 `temp/` 迁入。`temp/` 从此只放**构建发布工具与素材**（说明见 `temp/README.md`：sync_deploy.py、release.py、ppt 样本、playwright 运行时等），
 > 所有**测试脚本**都住在这里。
 
 ## 一、五个分类
@@ -10,7 +10,7 @@
 | `core/` | 门禁内，必须绿 | 每次 `npm run verify:e2e` | 8 个，132 断言 |
 | `scenario/` | 功能专项回归（有明确断言） | 改到相关功能时手动跑 | 31 个 |
 | `live/` | 直连**生产域名**的冒烟/校验 | **云隔离期禁跑**；发版后手动 | 12 个 |
-| `diag/` | 一次性诊断探针（probe/dbg/_check） | 遇疑难时当参考手册翻 | 103 个 |
+| `diag/` | 一次性诊断探针（probe/dbg/_check） | 遇疑难时当参考手册翻 | 103 个 + `sdk-debug/` 子目录 |
 | `tools/` | 非测试：SDK 试验、截图、TTS 令牌生成 | 按需 | 7 个 |
 
 旧迭代版本（`mf-dbg2..6`、`verify2..5` 这类被新版取代的）**不在库里**，归档在
