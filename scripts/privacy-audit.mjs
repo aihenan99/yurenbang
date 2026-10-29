@@ -9,11 +9,15 @@
  *   [回归] 已经做到、绝不允许退化的（同意闸门 / 政策正文 / 限时签名 / 脱敏）
  *          → 失败即 exit 1，接进 verify
  *   [P0]   承诺了但还没实现的（注销 / 虚假状态 / 假开关 / 政策缺项 / 境外 CDN）
- *          → 默认只报告，加 --strict 才失败（整改完成后开严格模式，从此锁死）
+ *          → 默认只报告；**到 P0_DEADLINE 自动转严格模式**，或手动加 --strict
+ *
+ * 为什么要期限（2026-10-29 审核 M14）：只提示不拦截的检查等于没有期限的欠条，
+ * 云恢复后很容易「忘了开 strict」，P0 就永远挂着。到期自动收紧，逼一次明确决定：
+ * 要么把 P0 清零，要么改日期并在提交信息里写清为什么还不行。
  *
  * 用法：
  *   node scripts/privacy-audit.mjs            报告 + 回归项门禁
- *   node scripts/privacy-audit.mjs --strict   连 P0 一起拦（整改完成后启用）
+ *   node scripts/privacy-audit.mjs --strict   连 P0 一起拦（不等期限，立即严格）
  * ========================================================================== */
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, dirname, relative } from "node:path";
@@ -21,7 +25,15 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(ROOT, "yurenbang-app");
-const STRICT = process.argv.includes("--strict");
+
+/* P0 整改期限（M14）：到这天起自动按严格模式跑，P0 未清零即失败。
+ * 依据：云额度预计 2026-11-01 恢复，留一个月做注销/导出/儿童留痕。
+ * 要改日期，请在提交信息里写明原因——这条是提醒，不是枷锁，但必须是有意识的决定。 */
+const P0_DEADLINE = "2026-12-01";
+const TODAY = new Date().toISOString().slice(0, 10);
+const P0_EXPIRED = TODAY >= P0_DEADLINE;
+const STRICT_ARG = process.argv.includes("--strict");
+const STRICT = STRICT_ARG || P0_EXPIRED;
 
 const C = process.stdout.isTTY
   ? { g: "\x1b[32m", r: "\x1b[31m", y: "\x1b[33m", b: "\x1b[1m", d: "\x1b[90m", x: "\x1b[0m" }
@@ -172,9 +184,13 @@ const print = (bucket, tag, color) => {
   }
 };
 
-console.log(C.b + "\n育人帮 · 隐私合规自检" + C.x + C.d + (STRICT ? "（严格模式）" : "") + C.x + "\n");
+console.log(C.b + "\n育人帮 · 隐私合规自检" + C.x + C.d +
+  (STRICT ? (STRICT_ARG ? "（严格模式）" : "（严格模式 · P0 期限 " + P0_DEADLINE + " 已到，自动收紧）") : "") + C.x + "\n");
 print(regress, "回归", C.r);
 print(p0, "P0", C.y);
+if (!STRICT) {
+  console.log(C.d + "  P0 整改期限 " + P0_DEADLINE + "：到期自动转严格模式（未清零即失败）" + C.x);
+}
 
 const regressBad = regress.filter((r) => !r.ok).length;
 const p0Bad = p0.filter((r) => !r.ok).length;

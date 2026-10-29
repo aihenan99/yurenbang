@@ -16,9 +16,33 @@
   "use strict";
 
   var W = 750;            /* 逻辑宽度 */
-  var SCALE = 2;          /* 输出倍率（清晰度），输出 1500px 宽 */
+  var SCALE = 2;          /* 期望输出倍率（清晰度），输出 1500px 宽 */
   var MAX_H = 6800;       /* 逻辑高度上限（*scale 后仍在安全区） */
   var PAD = 30;
+  /* 2026-10-29 审核 H6：750×2 × 6800×2 = 2040 万像素、单边 13600px。
+     现代浏览器（Chrome/Android/iOS 13+）上限约 16384 单边、2.68 亿像素，没问题；
+     但 iOS 12 及更早的画布上限只有 4096 单边 / 约 1670 万像素，
+     超了不会报错，toDataURL 静默返回**空白图**（用户以为分享成功，其实是白板）。
+     所以只在老设备上降级：倍率降到 1、高度截到 4000。 */
+  var SIDE_MAX = 16384;
+  var AREA_MAX = 32000000;
+  (function detectOldCanvas() {
+    try {
+      var ua = String((navigator && navigator.userAgent) || "");
+      var m = ua.match(/OS (\d+)_/);
+      if (/iP(hone|ad|od)/.test(ua) && m && parseInt(m[1], 10) < 13) {
+        SIDE_MAX = 4096; AREA_MAX = 16700000; MAX_H = 4000;
+      }
+    } catch (_) { }
+  })();
+  function fitScale(h) {
+    var cand = [SCALE, 1.5, 1];
+    for (var i = 0; i < cand.length; i++) {
+      var s = cand[i];
+      if (W * s <= SIDE_MAX && h * s <= SIDE_MAX && W * s * h * s <= AREA_MAX) return s;
+    }
+    return 1;
+  }
 
   /* ---------- 案例卡注入（案例广场的卡片结构不同，单独一套） ---------- */
   function decorateCases() {
@@ -150,10 +174,11 @@ function drawFooter(ctx, y) {
 }
 
 /* 统一收尾：裁到实际高度 + 输出 jpeg */
-function exportCanvas(c, y) {
+function exportCanvas(c, y, sc) {
+  var s = sc || SCALE;
   var outH = Math.min(Math.ceil(y + 60), MAX_H);
   var out = document.createElement("canvas");
-  out.width = W * SCALE; out.height = outH * SCALE;
+  out.width = W * s; out.height = outH * s;
   var octx = out.getContext("2d");
   octx.fillStyle = "#FFF9F3"; octx.fillRect(0, 0, out.width, out.height);
   octx.drawImage(c, 0, 0);
@@ -162,10 +187,11 @@ function exportCanvas(c, y) {
 
 /* ---------- 画长图（帖子） ---------- */
   function draw(p) {
+    var sc = fitScale(MAX_H);
     var c = document.createElement("canvas");
-    c.width = W * SCALE; c.height = MAX_H * SCALE;
+    c.width = W * sc; c.height = MAX_H * sc;
     var ctx = c.getContext("2d");
-    ctx.scale(SCALE, SCALE);
+    ctx.scale(sc, sc);
     ctx.textBaseline = "alphabetic";
 
     /* 纸面 */
@@ -247,7 +273,7 @@ function exportCanvas(c, y) {
 
     /* 底部：引导 + 二维码 + 水印 */
     y = drawFooter(ctx, y);
-    return exportCanvas(c, y);
+    return exportCanvas(c, y, sc);
   }
 
   /* ---------- 富文本转纯文本（案例正文是 content_html） ----------
@@ -273,10 +299,11 @@ function htmlToText(html) {
 
 /* ---------- 画长图（案例） ---------- */
 function drawCase(c) {
+  var sc = fitScale(MAX_H);
   var canvas = document.createElement("canvas");
-  canvas.width = W * SCALE; canvas.height = MAX_H * SCALE;
+  canvas.width = W * sc; canvas.height = MAX_H * sc;
   var ctx = canvas.getContext("2d");
-  ctx.scale(SCALE, SCALE);
+  ctx.scale(sc, sc);
   ctx.textBaseline = "alphabetic";
 
   ctx.fillStyle = "#FFF9F3";
@@ -361,7 +388,7 @@ function drawCase(c) {
 
   y += cardH + 26;
   y = drawFooter(ctx, y);
-  return exportCanvas(canvas, y);
+  return exportCanvas(canvas, y, sc);
 }
 
 /* ---------- 二维码预载（同源资源，不会污染画布） ---------- */

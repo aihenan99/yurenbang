@@ -200,15 +200,25 @@ function onSubmit() {
     freq: (val("freq")[0] || ""), teachers: teachers.join("、"),
     online: online[0], goals: goals.join("、"), at: new Date().toLocaleString("zh-CN")
   };
-  /* 本机存档（永远成功） */
+  /* 本机存档（永远成功）。2026-10-29 审核 M15：只存脱敏摘要——
+     联系方式明文只该留在云端（功能必需），不该在每台设备的 localStorage 里长期躺着。 */
   try {
     const arr = JSON.parse(localStorage.getItem(KEY) || "[]");
-    arr.push(rec); localStorage.setItem(KEY, JSON.stringify(arr));
+    arr.push(Object.assign({}, rec, { contact: maskContact(rec.contact) }));
+    localStorage.setItem(KEY, JSON.stringify(arr));
   } catch (e) {}
   /* 云端入库（尽力而为：RLS 只许登录用户写入、客户端读不走） */
   cloudSave(rec);
   showDone(rec);
 }
+/* 联系方式脱敏：手机号保 3+4，微信号保首尾；本机存档与界面回显一律用它 */
+function maskContact(v) {
+  const s = String(v || "").trim();
+  if (/^1[3-9]\d{9}$/.test(s)) return s.slice(0, 3) + "****" + s.slice(-4);
+  if (s.length > 5) return s.slice(0, 2) + "***" + s.slice(-2);
+  return s ? "***" : "";
+}
+
 function cloudSave(rec) {
   try {
     const C = window.YRB_CLOUD;
