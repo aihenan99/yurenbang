@@ -60,13 +60,24 @@ jobs:
         with:
           python-version: "3.11"
 
-      # 版本与本地 temp/pw 的 playwright-core 保持一致（1.64.1），协议才对得上
+      # 版本与本地 temp/pw 的 playwright-core 保持一致（1.64.1），协议才对得上。
+      # 路径用 playwright 自己的 executablePath() 取（目录命名随版本变过：
+      # chrome-linux / chrome-linux64，靠 glob 猜会落空）。
       - name: 安装 playwright-core 与 chromium
         run: |
           set -euo pipefail
           npm i --no-save playwright-core@1.64.1
           npx playwright-core install --with-deps chromium
-          CHROME=$(ls -d "$HOME"/.cache/ms-playwright/chromium-*/chrome-linux/chrome | head -1)
+          CHROME=$(node -e "process.stdout.write(require('playwright-core').chromium.executablePath())")
+          if [ ! -x "$CHROME" ]; then
+            echo "executablePath 不存在，重试一次安装：$CHROME"
+            npx playwright-core install chromium
+          fi
+          if [ ! -x "$CHROME" ]; then
+            echo "仍不存在。ms-playwright 目录内容："
+            find "$HOME/.cache/ms-playwright" -maxdepth 3 2>/dev/null || true
+            exit 1
+          fi
           echo "YRB_CHROME=$CHROME" >> "$GITHUB_ENV"
           echo "浏览器：$CHROME"
 
