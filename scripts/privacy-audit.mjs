@@ -122,6 +122,16 @@ const swCount = (privacyRow.match(/sw\s*:/g) || []).length;
 add(regress, "隐私页无装饰开关（只放真实正文入口）", swCount === 0,
   swCount ? swCount + " 个开关仍无字段支撑" : "0 个开关");
 
+/* 8b. 全站设置子页也不许挂装饰开关（2026-10-29 审核：支付/通用/聊天/播放四页已清干净，锁死不许回潮） */
+const swAll = (app.match(/sw\s*:\s*[01]/g) || []).length;
+add(regress, "设置子页无装饰开关（全站 sw: 清零）", swAll === 0,
+  swAll ? swAll + " 处仍挂点了没反应的开关" : "0 处");
+
+/* 8c. 不得编造容量数字（"已清理 236 MB" 这类假进度条文案）——
+   只匹配字符串字面量，注释里提到历史写法不算。 */
+const fakeNum = /["'`]已清理\s*\d+\s*(?:MB|GB)|["'`]已释放\s*\d+\s*(?:MB|GB)/.test(app);
+add(regress, "无编造的清理容量数字", !fakeNum, fakeNum ? "存在硬编码容量文案" : "");
+
 /* 9. 政策必备条款（PIPL 17/31/52/57 + 审核口径）——v2 已补齐，此后不许再缺 */
 const pStart = cloud.indexOf('privacy:{t:"育人帮隐私政策"');
 const pEnd = cloud.indexOf('child:{t:"儿童个人信息处理规则"');

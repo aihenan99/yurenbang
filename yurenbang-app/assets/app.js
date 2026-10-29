@@ -486,14 +486,14 @@ const SUBPAGES={
   /* 隐私页不再有「装饰开关」：个性化推荐、同城可见等能力尚未实现，
      就不该给用户一个点了没反应的开关。这里只放真实可读的正文入口。 */
   privacy:{t:"隐私与个人信息",html:`<div class="sp-sec"><button class="sp-row" id="pvPolicy"><span class="ic">📄</span>隐私政策<span class="sub">v2.0 ›</span></button><button class="sp-row" id="pvChild"><span class="ic">👶</span>儿童个人信息处理规则<span class="sub">›</span></button><button class="sp-row" id="pvMine"><span class="ic">🗂️</span>我的数据：删除与注销<span class="sub">›</span></button></div><div class="sp-note">本平台不接入广告、统计、用户画像类第三方 SDK；不收集通讯录、相册全量、精确定位。<br>个性化推荐、同城可见等个性化开关将随版本开放——当前既没有开关，也不做任何个性化处理。</div>`},
-  pay:{t:"支付设置",html:spRows([{ic:"🌹",t:"钱包 · 玫瑰",sub:S.roses+" 朵"},{ic:"💳",t:"支付方式",sub:"微信 / 支付宝"},{ic:"⚡",t:"小额免密支付",sw:0},{ic:"🧾",t:"账单明细"}])},
-  general:{t:"通用设置",html:spRows([{ic:"🌐",t:"语言",sub:"跟随地区"},{ic:"🌗",t:"深色模式",sub:"跟随系统"},{ic:"▶️",t:"自动播放视频",sw:1},{ic:"📶",t:"省流量模式",sw:0}])},
-  chat:{t:"聊天与通话设置",html:spRows([{ic:"📞",t:"语音通话铃声",sub:"温柔提示音"},{ic:"🎬",t:"视频通话美颜",sw:1},{ic:"🤖",t:"忙线自动回复",sw:1},{ic:"🔇",t:"消息免打扰",sw:0}])},
-  play:{t:"播放设置",html:spRows([{ic:"▶️",t:"自动播放",sw:1},{ic:"🔇",t:"静音播放",sw:1},{ic:"📶",t:"清晰度",sub:"自动"},{ic:"🔁",t:"循环播放微视频",sw:0}])},
+  pay:{t:"支付设置",html:spRows([{ic:"🌹",t:"钱包 · 玫瑰",sub:S.roses+" 朵"},{ic:"💳",t:"支付方式",sub:"暂未开放"}])+`<div class="sp-note">当前站内不涉及任何付费：玫瑰来自社区互助与答谢，不需要充值。真有付费能力时才会出现「支付方式 / 免密 / 账单」这类设置。</div>`},
+  general:{t:"通用设置",html:spRows([{ic:"🌐",t:"语言",sub:"跟随地区"},{ic:"🌗",t:"深色模式",sub:"在「背景设置」里换"},{ic:"▶️",t:"自动播放视频",sub:"暂未开放"},{ic:"📶",t:"省流量模式",sub:"暂未开放"}])+`<div class="sp-note">微视频默认<b>需要你点了才播</b>，不会自动播放耗流量。</div>`},
+  chat:{t:"聊天与通话设置",html:`<div class="sp-note">本站<b>不提供一对一聊天与语音/视频通话</b>：求助与帮忙都在帖子下公开留言，方便留痕与审核。因此铃声、美颜、忙线自动回复这些设置无从谈起，不摆出来。</div>`},
+  play:{t:"播放设置",html:spRows([{ic:"▶️",t:"自动播放",sub:"关闭（点了才播）"},{ic:"🔇",t:"静音播放",sub:"暂未开放"},{ic:"📶",t:"清晰度",sub:"跟随源文件"}])+`<div class="sp-note">为省流量与照顾长辈，微视频与语音始终在你点击后才开始播放。</div>`},
   homeSet:{t:"首页设置",html:`<div class="sp-sec"><button class="sp-row" id="hsEdit"><span class="ic">🧩</span>编辑功能拓展区<span class="sub">›</span></button><button class="sp-row" id="hsSkin"><span class="ic">🎨</span>背景换肤<span class="sub">›</span></button><button class="sp-row" id="hsReset"><span class="ic">♻️</span>恢复默认布局<span class="sub">›</span></button></div><div class="sp-note">首页第一排功能拓展区支持随时添加：爆火、案例、成长录、名师课堂等</div>`},
-  about:{t:"关于育人帮",html:`<div style="text-align:center;padding:22px 0 14px"><div style="width:70px;height:70px;margin:0 auto 10px;border-radius:22px;background:var(--gradA);display:flex;align-items:center;justify-content:center;font-size:36px">🌱</div><b style="font-size:18px">育人帮</b><div style="color:var(--muted);font-size:12px;margin-top:4px">v1.0.0 · 正式运营版</div><div style="color:var(--accent);font-size:13px;margin-top:10px;font-weight:700">关心下一代 · 呵护成长</div></div>`+`<div class="sp-sec"><button class="sp-row"><span class="ic">🔄</span>检查更新<span class="sub">已是最新</span></button><button class="sp-row" id="spLic"><span class="ic">📜</span>资质证照<span class="sub">›</span></button><button class="sp-row" id="spAgr"><span class="ic">📄</span>用户协议<span class="sub">›</span></button></div>`+`<div class="sp-note">让每一份求助都被温柔以待，让每一份善意都被看见。</div>`},
+  about:{t:"关于育人帮",html:`<div style="text-align:center;padding:22px 0 14px"><div style="width:70px;height:70px;margin:0 auto 10px;border-radius:22px;background:var(--gradA);display:flex;align-items:center;justify-content:center;font-size:36px">🌱</div><b style="font-size:18px">育人帮</b><div style="color:var(--muted);font-size:12px;margin-top:4px">v1.0.0 · 正式运营版</div><div style="color:var(--accent);font-size:13px;margin-top:10px;font-weight:700">关心下一代 · 呵护成长</div></div>`+`<div class="sp-sec"><button class="sp-row" id="spChkUpd"><span class="ic">🔄</span>检查更新<span class="sub">点一下检查</span></button><button class="sp-row" id="spLic"><span class="ic">📜</span>资质证照<span class="sub">›</span></button><button class="sp-row" id="spAgr"><span class="ic">📄</span>用户协议<span class="sub">›</span></button></div>`+`<div class="sp-note">让每一份求助都被温柔以待，让每一份善意都被看见。</div>`},
   feedback:{t:"反馈与帮助",html:spRows([{ic:"❓",t:"常见问题"},{ic:"✍️",t:"意见反馈"},{ic:"💬",t:"联系在线客服",chip:"9:00-21:00"}])+`<div class="sp-note">你的每一条建议都会被产品团队认真阅读</div>`},
-  license:{t:"资质证照",html:spRows([{ic:"🏢",t:"营业执照",chip:"查看"},{ic:"🌐",t:"ICP 备案",chip:"查看"},{ic:"📡",t:"EDI 许可证",chip:"查看"},{ic:"🎭",t:"网络文化经营许可证",chip:"查看"},{ic:"©️",t:"软件著作权",chip:"查看"}])+`<div class="sp-note">证照信息以实际备案为准，如需查看请联系客服</div>`},
+  license:{t:"资质证照",html:`<div class="sp-note">营业执照、ICP 备案、EDI 许可证等正在办理中，取得后会在此公示证照编号与扫描件。<br><b>当前暂无已取得的证照可展示</b>，所以不放「查看」按钮——不给你点了没反应的入口。需要核验请通过「反馈与帮助」联系。</div>`},
   agreement:{t:"用户协议",html:`<div class="sp-sec" style="padding:16px;font-size:13.5px;line-height:1.9"><b>育人帮用户协议（摘要）</b><br>1. 本平台致力于关心下一代、呵护成长，倡导善意互助；<br>2. 求助与帮忙内容需遵守法律法规，禁止任何危害未成年人的行为；<br>3. 平台对图片 / PPT / 微视频（≤30s）与帮忙评论（文字 / 语音 / 微视频 ≤20s）进行安全审核；<br>4. 头像效果（小动物 / 马赛克 / 变形）用于保护用户隐私；<br>5. 「赠人玫瑰，手留余香」——你的每次帮忙被点赞，都会收到社区的玫瑰感谢。</div>`},
   mini:{t:"常用小程序",html:`<div class="sp-sec">`+MINIS.map(([ic,t])=>`<button class="sp-row"><span class="ic">${ic}</span>${t}<span class="sub">›</span></button>`).join("")+`</div><div class="sp-note">🚧 小程序平台为预留升级架构，开放能力持续接入中</div>`}
 };
@@ -507,8 +507,39 @@ function openSubpage(k){
     $("#hsReset").onclick=()=>{S.funcs=["foryou","cases"];S.extra=[];S.hotMode=false;renderFuncRow();renderFeed();toast("已恢复默认首页布局");};
   }
   if(k==="privacy")bindPrivacyPage();
+  if(k==="about")bindAboutPage();
 }
 function closeSubpage(){$("#subpage").classList.remove("open");}
+/* ===== 关于页（2026-10-29 审核）=====
+   原来「检查更新 · 已是最新」是写死的文案——没真查过服务器就说「最新」，
+   和「已清理 236 MB」是同一类虚假状态。现在真读 /build.json 比对当前构建号：
+   一致才说「已是最新」，不一致就说「发现新版本」。 */
+function bindAboutPage(){
+  const btn=$("#spChkUpd");
+  if(!btn)return;
+  btn.onclick=async()=>{
+    const sub=btn.querySelector(".sub");
+    const meta=document.querySelector('meta[name="yrb-build"]');
+    const cur=(meta&&meta.content)||"";
+    if(sub)sub.textContent="检查中…";
+    try{
+      const r=await fetch("build.json?t="+Date.now(),{cache:"no-store"});
+      if(!r.ok){
+        /* 404 = 这个环境根本没有版本文件（本地预览/部署包早期），不是网络问题，分开说 */
+        if(sub)sub.textContent = r.status===404 ? "当前环境无版本文件（本地预览）" : ("检查失败（HTTP "+r.status+"）");
+        return;
+      }
+      const j=await r.json();
+      const srv=String(j.build||"");
+      if(sub)sub.textContent = (srv&&cur&&srv!==cur) ? ("发现新版本 "+srv+" · 刷新即可更新")
+                                                     : ("已是最新" + (cur? "（"+cur+"）" : ""));
+      if(srv&&cur&&srv!==cur)toast("有新版本，刷新一下就好 🔄");
+    }catch(_){
+      if(sub)sub.textContent="检查失败，请检查网络后再试";
+    }
+  };
+}
+
 /* ===== 隐私与个人信息（2026-10-28）=====
    正文在 cloud.js 的 LG_DOCS 里，而 app.js 早于 cloud.js 加载——
    所以只能在「点击那一刻」取 window.YRB_CLOUD，不能在加载期缓存
@@ -595,24 +626,60 @@ function openBgModal(){
   </div><div class="md-acts"><button class="btn-a" data-x="close">完成</button></div>`);
   $("#swBox").onclick=e=>{const b=e.target.closest(".swatch");if(!b)return;$$("#swBox .swatch").forEach(x=>x.classList.remove("on"));b.classList.add("on");S.theme=b.dataset.v;$("#phone").dataset.theme=S.theme;};
 }
+/* 清理缓存：过去这里是随机数进度条 + 编造「已清理 236 MB」——纯虚假状态，
+   违背本项目「不挂虚假状态」的铁律（第三方审核一票否决项）。
+   2026-10-29 审核修正：改为读取浏览器真实用量（navigator.storage.estimate），
+   点「清理」真实清 SW 缓存与本机日志键，结束时显示**实测**释放量。
+   不支持 estimate 的浏览器如实说「不提供用量数据」，绝不编数字。 */
 function openCacheModal(){
-  modal(`<div class="md-title">🧹 清理缓存</div><div class="prog"><i id="pgI"></i></div><div style="text-align:center;font-size:12px;color:var(--muted)" id="pgT">正在扫描…</div>`);
-  let v=0;const tm=setInterval(()=>{
-    v+=Math.random()*22;$("#pgI").style.width=Math.min(v,100)+"%";
-    $("#pgT").textContent=v<100?"正在清理…":"已清理 236 MB 空间 ✨";
-    if(v>=100){clearInterval(tm);setTimeout(closeModal,900);}
-  },180);
+  modal(`<div class="md-title">🧹 缓存与存储</div>
+  <div class="sp-note" id="cchInfo" style="margin:4px 0 10px">正在读取站点占用…</div>
+  <div class="sp-note" style="margin-bottom:12px">清理会删除本机缓存的图片与脚本副本、以及诊断日志；<b>不影响你的账号、发布内容和收藏</b>，登录状态会保留。</div>
+  <div class="md-acts"><button class="btn-g" data-x="close">关闭</button><button class="btn-a" id="cchClear">立即清理</button></div>`);
+  const fmt=n=>n>=1048576?(n/1048576).toFixed(1)+" MB":(n>=1024?Math.round(n/1024)+" KB":n+" B");
+  const usage=async()=>{try{const e=await navigator.storage.estimate();return typeof e.usage==="number"?e.usage:-1;}catch(_){return -1;}};
+  const say=t=>{const el=$("#cchInfo");if(el)el.textContent=t;};
+  usage().then(u=>say(u<0?"当前浏览器不提供用量数据，清理后无法显示释放量":("当前站点占用约 "+fmt(u))));
+  $("#cchClear").onclick=async()=>{
+    const btn=$("#cchClear");if(btn){btn.disabled=true;btn.textContent="清理中…";}
+    const before=await usage();
+    /* 1) Service Worker 缓存的资源副本（图片、脚本、样式） */
+    try{const keys=await caches.keys();for(const k of keys){await caches.delete(k);}}catch(_){}
+    /* 2) 本机诊断日志（只清自家日志键，绝不碰登录态与偏好） */
+    try{Object.keys(localStorage).forEach(k=>{if(/^yrb_health_log|^yrb_diag|^yrb_perf/.test(k))localStorage.removeItem(k);});}catch(_){}
+    /* 3) 让 SW 立刻重新预热（否则清完第一次打开要全量走网络） */
+    try{if(navigator.serviceWorker&&navigator.serviceWorker.controller)navigator.serviceWorker.controller.postMessage({type:"PREFETCH"});}catch(_){}
+    const after=await usage();
+    if(before<0||after<0)say("已清理本机缓存与诊断日志（浏览器未提供用量数据，无法显示释放量）");
+    else say("已清理完成，释放约 "+fmt(Math.max(0,before-after))+"（清理前 "+fmt(before)+" → 现在 "+fmt(after)+"）");
+    if(btn){btn.disabled=false;btn.textContent="再清理一次";}
+  };
 }
+/* 通知设置：原来的 4 个开关（帮忙提醒/点赞收藏/礼物玫瑰/夜间免打扰）点了没有任何效果——
+   本项目没有推送通道，挂开关就是虚假状态。2026-10-29 审核整项下线，
+   改为如实说明「当前不提供系统推送」，把真实存在的能力（站内消息、系统权限申请）指清楚。 */
 function openNotifyModal(){
-  modal(`<div class="md-title">🔔 通知设置</div>
-  <div class="sp-sec">`+rowsHTML([{ic:"🤝",t:"帮忙提醒",sw:1},{ic:"❤️",t:"点赞与收藏提醒",sw:1},{ic:"🌹",t:"礼物与玫瑰提醒",sw:1},{ic:"🌙",t:"夜间免打扰",sw:0}])+`</div>
-  <div class="md-acts"><button class="btn-a" data-x="close">完成</button></div>`);
+  modal(`<div class="md-title">🔔 通知</div>
+  <div class="sp-note" style="margin:4px 0 10px">本平台<b>当前不发送系统推送</b>：没有开关注定无效，所以不摆开关。</div>
+  <div class="sp-note" style="margin-bottom:12px">你要知道的事，都在站内可见——<b>帮忙回应、点赞与玫瑰</b>会出现在「我的」页的互动记录里；需要提醒时请自行留意站内页面。</div>
+  <div class="md-acts"><button class="btn-a" data-x="close">我知道了</button></div>`);
 }
+/* 系统权限：原来给 5 个权限标「已开启/未开启」并可点击切换——浏览器不允许网页
+   读改摄像头/麦克风/相册/位置/通知的授权状态，那些 chip 全是编的。
+   2026-10-29 审核修正：只保留**能真实查到**的通知权限（Notification.permission），
+   其余改成如实说明「到系统/浏览器设置里改」，不显示任何猜测状态。 */
 function openPermModal(){
-  modal(`<div class="md-title">🔓 系统权限</div>
-  <div class="sp-sec" id="permBox">`+["📷 相机","🎤 麦克风","🖼 相册","📍 位置","🔔 通知"].map((t,i)=>`<button class="sp-row"><span class="ic">${t.split(" ")[0]}</span>${t.split(" ")[1]}<span class="sub"><span class="chip ${i>3?"off":""}" data-perm>${i>3?"未开启":"已开启"}</span></span></button>`).join("")+`</div>
-  <div class="md-acts"><button class="btn-a" data-x="close">完成</button></div>`);
-  $("#permBox").onclick=e=>{const c=e.target.closest("[data-perm]");if(!c)return;c.classList.toggle("off");c.textContent=c.classList.contains("off")?"未开启":"已开启";};
+  let nf = "浏览器不支持查询";
+  try {
+    if (typeof Notification !== "undefined" && Notification.permission) {
+      nf = { granted: "已允许", denied: "已拒绝", default: "尚未询问" }[Notification.permission] || "未知";
+    }
+  } catch (_) {}
+  modal(`<div class="md-title">🔓 权限</div>
+  <div class="sp-note" style="margin:4px 0 10px">相机、麦克风、相册的授权由<b>系统与浏览器</b>管理，网页只能在使用时向你申请，不能读取或修改当前状态。</div>
+  <div class="sp-sec"><div class="sp-row"><span class="ic">🔔</span>通知权限<span class="sub">${nf}</span></div></div>
+  <div class="sp-note" style="margin-bottom:12px">想改相机/麦克风/相册权限：手机「设置 → 浏览器（或本站 App）→ 权限」；电脑点地址栏左侧的锁形图标。发布时若被拒绝，页面会给出重新授权的提示。</div>
+  <div class="md-acts"><button class="btn-a" data-x="close">我知道了</button></div>`);
 }
 function openEffectModal(){
   modal(`<div class="md-title">🎭 头像效果</div>
@@ -812,7 +879,9 @@ $("#feed").addEventListener("click",e=>{
 });
 /* 卡片 ⋯ 菜单：转发链接 / 举报（复用详情页举报浮层，处理函数 refine23 已在启动时绑定） */
 function cardMore(p){
-  const title=esc(p.title||p.text||"求助").slice(0,24);
+  /* 2026-10-29 审核：原来先 esc 再 slice(0,24)，会把 &amp; 截成 &am 露出半截实体。
+     正确顺序是先按原文截断、再转义。 */
+  const title=esc(String(p.title||p.text||"求助").slice(0,24));
   modal(`<h3 style="margin:0 0 4px;font-size:17px">这条求助</h3>
     <div style="color:var(--muted);font-size:13px;margin-bottom:14px">${title}…</div>
     <button class="btn-a big" id="cmShare" style="margin-bottom:10px">🔗 转发给朋友（复制链接）</button>

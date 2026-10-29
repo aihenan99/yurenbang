@@ -47,28 +47,35 @@ const CORE = [
 /* 2026-10-23：不再 install 后立刻 skipWaiting 抢班。
    新版 SW 先进入 waiting，由页面上的「平稳升级」提示征得用户同意后
    再 postMessage 放行——避免用户正在填表/看案例时被强制换版导致错层。 */
+/* 预缓存：install 与「清空缓存后重新预热」共用（消息 PREFETCH 触发）。
+   逐文件容错：单个文件失败不拖垮整批（旧写法 addAll 是原子的，一次失败等于零缓存）。 */
+async function precacheAll() {
+  const cache = await caches.open(CACHE);
+  const urls = CORE.map(u => u + (CORE_V ? (u.includes('?') ? '&' : '?') + 'v=' + CORE_V : ''));
+  const res = await Promise.allSettled(urls.map(async u => {
+    const r = await fetch(u, { cache: 'reload' });
+    if (!r || !r.ok) throw new Error(u + ' → ' + (r ? r.status : '无响应'));
+    await cache.put(u, r);
+  }));
+  const fails = res.map((x, i) => x.status === 'rejected' ? urls[i] : null).filter(Boolean);
+  if (fails.length) {
+    console.warn('[yrb-sw] 预缓存失败 ' + fails.length + '/' + urls.length + '：', fails);
+    try {
+      const cs = await self.clients.matchAll({ includeUncontrolled: true });
+      cs.forEach(c => c.postMessage({ type: 'YRB_SW_PRECACHE_FAIL', urls: fails }));
+    } catch (_) { /* 无页面在场就只留 console */ }
+  }
+  return { total: urls.length, fails: fails.length };
+}
+
 self.addEventListener('install', e => {
-  e.waitUntil((async () => {
-    const cache = await caches.open(CACHE);
-    const urls = CORE.map(u => u + (CORE_V ? (u.includes('?') ? '&' : '?') + 'v=' + CORE_V : ''));
-    const res = await Promise.allSettled(urls.map(async u => {
-      const r = await fetch(u, { cache: 'reload' });
-      if (!r || !r.ok) throw new Error(u + ' → ' + (r ? r.status : '无响应'));
-      await cache.put(u, r);
-    }));
-    const fails = res.map((x, i) => x.status === 'rejected' ? urls[i] : null).filter(Boolean);
-    if (fails.length) {
-      console.warn('[yrb-sw] 预缓存失败 ' + fails.length + '/' + urls.length + '：', fails);
-      try {
-        const cs = await self.clients.matchAll({ includeUncontrolled: true });
-        cs.forEach(c => c.postMessage({ type: 'YRB_SW_PRECACHE_FAIL', urls: fails }));
-      } catch (_) { /* 无页面在场就只留 console */ }
-    }
-  })());
+  e.waitUntil(precacheAll());
 });
 
 self.addEventListener('message', e => {
   if (e.data && e.data.type === 'SKIP_WAITING') { self.skipWaiting(); }
+  /* 用户在本页「清理缓存」后请求重新预热：否则清完第一次打开要全量走网络 */
+  if (e.data && e.data.type === 'PREFETCH') { e.waitUntil(precacheAll()); }
 });
 
 self.addEventListener('activate', e => {
