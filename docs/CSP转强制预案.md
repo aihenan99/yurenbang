@@ -78,7 +78,7 @@ P3 的分路径强制可以按「案例库 → 分享页 → 首页 → 全站�
 
 | 步骤 | 改什么 | 怎么改 | 风险 |
 |------|--------|--------|------|
-| 2.1 | `script-src` 去 `'unsafe-inline'` | 3 段内联脚本外置为小文件（自愈脚本必须保留 fail-safe 语义：外置后失败要能重试）；或由 `sync_deploy.py` 计算 SHA-256 写入 `'sha256-...'` | 中：自愈脚本失效会导致弱网无法补载 |
+| 2.1 | `script-src` 去 `'unsafe-inline'` | ✅ **已完成（2026-10-29）**：`sync_deploy.py` 的 `inject_csp_hashes()` 对 index/share/error 三页的 4 段内联块实算 SHA-256 注入 `script-src`，同时去 `'unsafe-inline'`；verify 断言 hash 与 html 实算一致、无过期 hash；`npm run verify:csp` 强制模式演练 17 项零违规。**新加内联块必须重跑 sync**，否则 Report-Only 立即报违规（有意的报警） | 中：自愈脚本失效会导致弱网无法补载 |
 | 2.2 | 增加 `'strict-dynamic'` | 配合 2.1，允许脚本动态插入的脚本执行（health 自动补载依赖此能力） | 中 |
 | 2.3 | `script-src` 保留 `'unsafe-eval'` | **不去**：PPT 引擎需要，删除即 PPT 打不开；在注释里写明原因 | 低（维持现状） |
 | 2.4 | `style-src` 保留 `'unsafe-inline'` | **不去**：6 处内联 style + 各层大量 `style.cssText`（CSSOM 写入虽多不被拦，但 setAttribute 会被拦） | 低（维持现状） |

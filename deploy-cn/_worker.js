@@ -292,7 +292,7 @@ async function notFound(url, env) {
 const CSP_HEADER = "content-security-policy-report-only";
 const CSP_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "script-src 'self' 'unsafe-eval' 'sha256-WSR3JsBOi1ku91HBvFogs6slXsjcLEp2xrq2WzB/6Mg=' 'sha256-MsIHKWwAkOqHuy+fS8Dh6+h8aIJ9trABD9s34o3VFi0=' 'sha256-4Af4t/iEQUgw37MgnPKy3KbnTbaaP0NhuLE9rncYZGM=' 'sha256-PwOZ9r7SB3z+7SEQtn2TQ4eugxNK+o6fhQ6J7lzc8n4='",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "media-src 'self' data: blob: https:",

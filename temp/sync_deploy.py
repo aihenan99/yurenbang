@@ -177,8 +177,29 @@ def check_drift():
 
     这是最容易被忽略的一类事故：本地改好、测试通过，但部署包里还是旧代码，
     发上去等于没改。--check 时一并报出来。
+    2026-10-29 补 index.html：内联块改动会让 CSP hash 一起漂（P2.1），
+    html 恰恰是最容易「改了忘同步」的文件。
     """
     bad = []
+    # 顶层关键文件：index.html 不做全文比对——build_bundles 会把逐文件引用
+    # 替换成 bundle 引用（结构性改写，非漂移）。改比对**内联脚本块指纹**：
+    # 这是 CSP hash（P2.1）的输入，改了内联块忘 sync 才是真事故。
+    import base64 as _b64
+    import hashlib as _hl
+
+    def _ih(text):
+        return sorted(
+            _b64.b64encode(_hl.sha256(m.group(1).encode("utf-8")).digest()).decode()
+            for m in re.finditer(r"<script>(.*?)</script>", text, re.S)
+        )
+    for pair in (("yurenbang-app.html", "index.html"), ("share.html", "share.html")):
+        sp = os.path.join(SRC, pair[0])
+        dp = os.path.join(DST, pair[1])
+        if os.path.exists(sp) and os.path.exists(dp):
+            # 部署包是 rewrite 后的形态（域名适配可能落在内联块里），必须 rewrite 后再比
+            src = rewrite_text(pair[1], io.open(sp, encoding="utf-8").read())
+            if _ih(src) != _ih(io.open(dp, encoding="utf-8").read()):
+                bad.append(pair[1] + "（内联脚本块与源码不一致）")
     sdir, ddir = os.path.join(SRC, "assets"), os.path.join(DST, "assets")
     if not os.path.isdir(sdir):
         return bad
@@ -285,6 +306,49 @@ def inject_worker_anli():
     if n and txt2 != txt:
         io.open(wp, "w", encoding="utf-8", newline="").write(txt2)
         return len(paths)
+    return 0
+
+
+def inject_csp_hashes():
+    """把 index.html 静态内联 <script> 块的 SHA-256 注入 _worker.js 的 script-src，
+    同时去掉 'unsafe-inline'（CSP 转强制预案 P2.1，2026-10-29）。
+
+    背景：三段内联脚本里真正可执行的只有 2 段（SW 注册、启动屏自救），
+    自愈/基础引导早已外置为 guard.js/health.js；JSON-LD（type 属性标签）不可
+    执行，浏览器不拦。hash 由部署包 index.html 实算（脚本内容逐字节，
+    含首尾换行），每次 sync 重算重写整个 script-src 值段，天然幂等，
+    html 改了内联块而忘记 sync 时漂移会在 verify 一致性断言上现形。
+    注意：新加内联块后必须重跑 sync，否则 Report-Only 立即报违规——
+    这是有意为之的报警，比转强制后才发现要好。"""
+    import base64
+    import hashlib
+    # hash 必须覆盖所有会被 Worker 下发 CSP 的用户可达页（index/share/error），
+    # 只扫 index 会在分享落地页漏掉它自己的内联脚本（演练器抓到过）
+    ipath = os.path.join(DST, "index.html")
+    wp = os.path.join(DST, "_worker.js")
+    pages = [p for p in ("index.html", "share.html", "error.html")
+             if os.path.exists(os.path.join(DST, p))]
+    if not (ipath and os.path.exists(wp)) or not pages:
+        return 0
+    hashes = []
+    for p in pages:
+        html = io.open(os.path.join(DST, p), encoding="utf-8").read()
+        for m in re.finditer(r"<script>(.*?)</script>", html, re.S):
+            d = hashlib.sha256(m.group(1).encode("utf-8")).digest()
+            hashes.append("'sha256-" + base64.b64encode(d).decode() + "'")
+    if not hashes:
+        return 0
+    txt = io.open(wp, encoding="utf-8").read()
+    # CSP_POLICY 是数组 join("; ") 形态：script-src 是独立字符串元素（整行一个字面量）。
+    # 必须按 "script-src ..." 引号内整段匹配——若按 "script-src [^;]*;" 跨引号匹配，
+    # 会把数组后半段吞进替换里，worker 直接语法报错（2026-10-29 实测踩坑）。
+    # 整段重写：旧 hash 一并清掉，幂等且集合自动跟随 html。
+    txt2, n = re.subn(r'"script-src [^"]*"',
+                      '"script-src \'self\' \'unsafe-eval\' ' + " ".join(hashes) + '"',
+                      txt, count=1)
+    if n and txt2 != txt:
+        io.open(wp, "w", encoding="utf-8", newline="").write(txt2)
+        return len(hashes)
     return 0
 
 
@@ -430,6 +494,24 @@ def verify():
     need(os.path.exists(os.path.join(DST, "error.html")), "404 页面 error.html 存在")
     worker = read("_worker.js")
     need("x-yrb-edge" in worker and "notFound" in worker, "_worker.js 已启用严格 404（软 404 修复）")
+    # ---- CSP 内联脚本 hash（预案 P2.1）：script-src 去 unsafe-inline，hash 与 html 实算一致 ----
+    import base64 as _b64
+    import hashlib as _hl
+    live = set()
+    for p in ("index.html", "share.html", "error.html"):
+        pp = os.path.join(DST, p)
+        if not os.path.exists(pp):
+            continue
+        for m in re.finditer(r"<script>(.*?)</script>", io.open(pp, encoding="utf-8").read(), re.S):
+            live.add("'sha256-" + _b64.b64encode(_hl.sha256(m.group(1).encode("utf-8")).digest()).decode() + "'")
+    ms = re.search(r'"script-src ([^"]*)"', worker)
+    need(ms is not None, "_worker.js 含 script-src 指令")
+    if ms:
+        got = set(ms.group(1).split())
+        need("'unsafe-inline'" not in got, "script-src 已去 unsafe-inline（P2.1 收紧）")
+        need(live and live <= got, "CSP hash 与 index.html 内联块实算一致（%d 个）" % len(live))
+        stale = got - live - {"'self'", "'unsafe-eval'"}
+        need(not stale, "CSP 无过期 hash（html 改了内联块必须重跑 sync）")
     need("baidu_verify_" in worker, "_worker.js 已放行搜索引擎文件验证")
     swjs = read("sw.js")
     need(re.search(r"yrb-cache-v[34]" , swjs) and "isNav" in swjs, "sw.js 缓存清单 + isNav 兜底（v3/v4）")
@@ -507,8 +589,10 @@ def main():
         na = rewrite_anli()
         nw = inject_worker_anli()
         nb = build_bundles(bld)
+        nh = inject_csp_hashes()
         print("[性能] 资源打包: %s" % nb)
         print("[适配] _worker.js 案例库白名单: %d 条页面路径" % nw if nw else "[适配] _worker.js 白名单已是最新")
+        print("[安全] CSP 内联脚本 hash: %s" % ("注入 %d 个（script-src 去 unsafe-inline）" % nh if nh else "已是最新"))
         print("[适配] 重新套用域名规则: %s；案例库页 %d 个已换域名"
               % (", ".join(fixed) if fixed else "(无需改动)", na))
         st = stamp_assets(bld)
