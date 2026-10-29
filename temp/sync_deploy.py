@@ -514,6 +514,17 @@ def verify():
         stale = got - live - {"'self'", "'unsafe-eval'"}
         need(not stale, "CSP 无过期 hash（html 改了内联块必须重跑 sync）")
     need("baidu_verify_" in worker, "_worker.js 已放行搜索引擎文件验证")
+    # ---- 审核 M13（2026-10-29）：BUILD_TAG 版本戳与构建号一致 ----
+    mtw = re.search(r'const BUILD_TAG = "([^"]*)"', worker)
+    need(mtw is not None, "_worker.js 含 BUILD_TAG 版本戳")
+    if mtw:
+        try:
+            bld2 = str(json.load(io.open(os.path.join(DST, "build.json"), encoding="utf-8")).get("build", ""))
+        except Exception:
+            bld2 = ""
+        if bld2:  # 新检出且未跑过 sync 时 build.json 尚不存在，此时不判（CI 顺序保证先 sync）
+            need(mtw.group(1) == bld2 + "-build",
+                 "BUILD_TAG == 构建号+『-build』（worker=%s / build=%s）" % (mtw.group(1), bld2))
     swjs = read("sw.js")
     need(re.search(r"yrb-cache-v[34]" , swjs) and "isNav" in swjs, "sw.js 缓存清单 + isNav 兜底（v3/v4）")
     # ---- 审核 H8（2026-10-29）：预缓存容错与版本戳 ----
@@ -607,6 +618,21 @@ def stamp_sw(build):
     return want in txt
 
 
+def stamp_worker_tag(build):
+    """审核 M13（2026-10-29）：BUILD_TAG 过去写死 20261022 从未更新，
+    x-yrb-edge 版本核对用途失效。sync 时重写为「构建号-build」。"""
+    p = os.path.join(DST, "_worker.js")
+    if not os.path.exists(p):
+        return False
+    txt = io.open(p, encoding="utf-8").read()
+    want = 'const BUILD_TAG = "%s-build";' % build
+    txt2 = re.sub(r'const BUILD_TAG = "[^"]*";', want, txt)
+    if txt2 != txt:
+        io.open(p, "w", encoding="utf-8", newline="").write(txt2)
+        return True
+    return want in txt
+
+
 def main():
     if not CHECK_ONLY:
         bld = current_build()
@@ -628,6 +654,7 @@ def main():
               % (", ".join(fixed) if fixed else "(无需改动)", na))
         st = stamp_assets(bld)
         stamp_sw(st)
+        stamp_worker_tag(st)
         write_build_json(st)
         print("[版本] 构建号: %s（meta / bundle / build.json / 资源戳 四处一致）" % st)
 

@@ -110,8 +110,16 @@ function speak(text, btn, compact, ctx) {
   var slow = (function () { try { var s = getS(); return s && s.elder === "1"; } catch (e) { return false; } })();
   var chunks = splitChunks(t), i = 0, fetches = {};
   function getChunk(idx) {
-    if (!fetches[idx]) fetches[idx] = fetch("/yrbtts?t=" + encodeURIComponent(chunks[idx]) + "&r=" + (slow ? "slow" : "norm"))
-      .then(function (r) { if (!r.ok) throw new Error("tts " + r.status); return r.blob(); });
+    if (!fetches[idx]) {
+      /* 审核 M7（2026-10-29）：无超时则边缘挂起时朗读链永久卡死——9s 取不到响应头就放弃，
+         由调用方的 catch 走 fallbackFrom 降级本机朗读 */
+      var ctl = window.AbortController ? new AbortController() : null;
+      var tm = ctl ? setTimeout(function () { try { ctl.abort(); } catch (e) {} }, 9000) : 0;
+      fetches[idx] = fetch("/yrbtts?t=" + encodeURIComponent(chunks[idx]) + "&r=" + (slow ? "slow" : "norm"),
+          ctl ? { signal: ctl.signal } : undefined)
+        .then(function (r) { clearTimeout(tm); if (!r.ok) throw new Error("tts " + r.status); return r.blob(); },
+              function (err) { clearTimeout(tm); throw err; });
+    }
     return fetches[idx];
   }
   function fallbackFrom(idx) {

@@ -16,7 +16,7 @@
  */
 const UPSTREAM = "https://yurenbang.app.workbuddy.host";
 const PREFIX = "/yrbapi";
-const BUILD_TAG = "20261022-soft404";
+const BUILD_TAG = "202610291950-build";
 
 /* ============================================================
    /yrbtts —— AI 真人语音合成代理（2026-10-24）
@@ -216,7 +216,8 @@ async function handleTts(request, url){
     try{ await cache.put(request,resp.clone()); }catch(e){}
     return resp;
   }catch(err){
-    return new Response(JSON.stringify({error:"tts_failed",message:String(err&&err.message||err).slice(0,120)}),{status:502,headers:{"content-type":"application/json","access-control-allow-origin":url.origin}});
+    console.error("[yrbtts] error:", String(err&&err.message||err).slice(0,200)); /* 审核 M12：原文进日志，对外固定文案 */
+    return new Response(JSON.stringify({error:"tts_failed",message:"语音合成暂时不可用，将改用本机朗读"}),{status:502,headers:{"content-type":"application/json","access-control-allow-origin":url.origin}});
   }
 }
 
@@ -343,6 +344,29 @@ function tooMany(url, msg) {
 }
 const OK_METHODS = new Set(["GET", "HEAD", "OPTIONS", "POST", "PUT", "DELETE", "PATCH"]);
 
+/* 审核 H3（2026-10-29）：同源校验。
+ * 本代理对任何调用方都会把 Origin 改写成上游白名单值——不校验请求来源的话，
+ * 任何脚本都能借道 /yrbapi 打上游（刷验证码短信轰炸、耗上游配额），
+ * 部署包里还有可被针对的管理员号。规则：
+ *   有 Origin → 必须是本站 host（"null" 拒）
+ *   无 Origin → 看 Referer（同源 GET fetch 不带 Origin 但带 Referer）
+ *   都没有   → 拒（浏览器内同源请求必带其一；curl/脚本直连就此打不通）
+ * 适用 /yrbapi 与 /yrbtts 两条代理线。 */
+function sameOriginOk(request, url) {
+  const origin = request.headers.get("origin");
+  const referer = request.headers.get("referer");
+  const hostOk = (h) => { try { return new URL(h).host === url.host; } catch (_) { return false; } };
+  if (origin) return origin !== "null" && hostOk(origin);
+  if (referer) return hostOk(referer);
+  return false;
+}
+function forbiddenOrigin(url) {
+  return new Response(JSON.stringify({ error: "forbidden_origin", message: "请从育人帮站点内使用" }), {
+    status: 403,
+    headers: secure(new Headers({ "content-type": "application/json", "access-control-allow-origin": url.origin })),
+  });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -358,6 +382,7 @@ export default {
       if (request.method !== "GET" && request.method !== "HEAD") {
         return new Response(JSON.stringify({ error: "method_not_allowed" }), { status: 405, headers: secure(new Headers({ "content-type": "application/json" })) });
       }
+      if (!sameOriginOk(request, url)) return forbiddenOrigin(url); /* 审核 H3：防盗刷朗读配额 */
       if (!rateLimit(ip + "|tts", 20, 60000)) return tooMany(url, "朗读请求太频繁，请稍后再试");
       const r = await handleTts(request, url);
       const h = secure(new Headers(r.headers));
@@ -367,6 +392,8 @@ export default {
     if (url.pathname === PREFIX || url.pathname.startsWith(PREFIX + "/")) {
       /* 云端 API 限流：120 次/分/IP（正常页面交互每分钟几十次以内） */
       if (!rateLimit(ip + "|api", 120, 60000)) return tooMany(url, "请求太频繁，请稍后再试");
+      /* 审核 H3：同源校验——本代理是唯一 Origin 改写点，不校验来源＝开放中继 */
+      if (!sameOriginOk(request, url)) return forbiddenOrigin(url);
       const sub = url.pathname.slice(PREFIX.length) || "/";
       const target = UPSTREAM + sub + url.search;
 
@@ -388,7 +415,10 @@ export default {
         out.set("x-yrb-proxy", "1");
         return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers: secure(out) });
       } catch (err) {
-        return new Response(JSON.stringify({ error: "upstream_error", message: String(err) }), {
+        /* 审核 M12：对外只给固定文案——原错误串可能带上游主机名/栈细节；
+           原文进边缘日志（wrangler tail / Pages 控制台可查） */
+        console.error("[yrbapi] upstream error:", String(err));
+        return new Response(JSON.stringify({ error: "upstream_error", message: "云端服务暂时不可用，请稍后再试" }), {
           status: 502,
           headers: secure(new Headers({ "content-type": "application/json", "access-control-allow-origin": url.origin })),
         });

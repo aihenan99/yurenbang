@@ -252,12 +252,9 @@ function compressAll(files){
   return chain.then(function(){return out;});
 }
 
-/* ---------- 粘贴 ---------- */
-function handlePaste(e){
-  if(!active)return;
-  var dt=e.clipboardData||window.clipboardData;if(!dt)return;
-  var p=paper();if(!p||!p.contains(e.target))return;
-  e.preventDefault();
+/* ---------- 粘贴 / 拖入（审核 M8：drop 过去完全没接，浏览器默认把来源 HTML
+   原样插进 contenteditable——live DOM 自 XSS 面；现在统一走 pasteRich 白名单清洗） ---------- */
+function transferIn(dt){
   var files=[];try{files=[].slice.call(dt.files||[]);}catch(_){}
   var pics=[];each(files,function(f){if(f&&/^image\//.test(f.type||""))pics.push(f);});
   var html="";try{html=dt.getData("text/html")||"";}catch(_){}
@@ -273,6 +270,20 @@ function handlePaste(e){
     if(html)pasteRich(html,blobs,plain);
     else insertImages(blobs);
   },function(){insertImages(pics);});
+}
+function handlePaste(e){
+  if(!active)return;
+  var dt=e.clipboardData||window.clipboardData;if(!dt)return;
+  var p=paper();if(!p||!p.contains(e.target))return;
+  e.preventDefault();
+  transferIn(dt);
+}
+function handleDrop(e){
+  if(!active)return;
+  var dt=e.dataTransfer;if(!dt)return;
+  var p=paper();if(!p||!p.contains(e.target))return;
+  e.preventDefault();
+  transferIn(dt);
 }
 function pasteRich(html,blobs,plain){
   var box=document.createElement("div");
@@ -643,6 +654,11 @@ function wire(){
   });
   /* 粘贴 + 输入 */
   document.addEventListener("paste",handlePaste,true);
+  document.addEventListener("drop",handleDrop,true); /* 审核 M8：拖入与粘贴同一条白名单管道 */
+  document.addEventListener("dragover",function(e){
+    if(!active)return;var p=paper();
+    if(p&&p.contains(e.target))e.preventDefault(); /* 允许 drop 且屏蔽浏览器默认打开文件 */
+  },true);
   document.addEventListener("input",function(e){
     if(e.target&&e.target.id==="cePaper"){setEmptyTip();updateMeta();scheduleSave();}
   });

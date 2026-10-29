@@ -219,6 +219,28 @@ def deploy():
 
 
 def main():
+    # 审核 M11（2026-10-29）：并发发布锁——两个发布进程并行会互相污染备份/lastgood。
+    # O_CREAT|O_EXCL 是原子的「存在即失败」，进程退出 finally 里删除。
+    lock_path = os.path.join(TEMP, ".release.lock")
+    try:
+        fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        os.write(fd, str(os.getpid()).encode())
+        os.close(fd)
+    except FileExistsError:
+        try:
+            other = io.open(lock_path, encoding="utf-8").read().strip()
+        except Exception:
+            other = "?"
+        print("[锁] 已有发布进程在跑（PID %s）。若是残留锁，确认没在发布后手动删 temp/.release.lock" % other)
+        return 2
+    try:
+        return _main_unlocked()
+    finally:
+        try: os.remove(lock_path)
+        except OSError: pass
+
+
+def _main_unlocked():
     t0 = time.time()
 
     if CHECK_ONLY:
