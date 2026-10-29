@@ -83,7 +83,35 @@ const BASE = process.env.YRB_BASE || "http://127.0.0.1:8796/yurenbang-app.html";
   });
   T("类型不符会被记录", typeCheck.includes("type"), JSON.stringify(typeCheck));
 
-  /* 6. 免疫系统认得这一层 */
+  /* 6. M5 回归：晚建字段（reward 层启动后才挂到 S 上的 points/rank）必须被接管，
+        未登记字段能被点名，_bypass 私有化后外部改不到、绕不过检查 */
+  await page.waitForTimeout(1200);            /* 等 load 后的延迟重装跑过 */
+  const late = await page.evaluate(() => {
+    const d = Object.getOwnPropertyDescriptor(S, "points");
+    return { exists: "points" in S, hasGetter: !!(d && d.get), controlled: !!d && !!d.set };
+  });
+  T("晚建字段 points 已被接管（有访问器）", !late.exists || (late.hasGetter && late.controlled), JSON.stringify(late));
+
+  const unknown = await page.evaluate(() => {
+    window.YRB_STATE.clear();
+    S.__probeUnknown = 1;
+    const list = window.YRB_STATE.scan();
+    try { delete S.__probeUnknown; } catch (_) {}
+    return list.some((r) => r["字段"] === "__probeUnknown" && r["类型"] === "unknown");
+  });
+  T("未登记字段会被点名（unknown）", unknown);
+
+  const bypass = await page.evaluate(() => {
+    window.YRB_STATE.clear();
+    try { window.YRB_STATE._bypass = { field: "lang" }; } catch (_) {}
+    S.lang = "en";
+    const n = window.YRB_STATE.report().length;
+    S.lang = "zh";
+    return n;
+  });
+  T("_bypass 私有化：外部设了也绕不过检查", bypass >= 1, "记录 " + bypass + " 条");
+
+  /* 7. 免疫系统认得这一层 */
   const health = await page.evaluate(() => {
     if (!window.YRB_HEALTH) return { ok: false, why: "YRB_HEALTH 未加载" };
     const r = window.YRB_HEALTH.sweep ? window.YRB_HEALTH.sweep("test") : null;
@@ -91,7 +119,7 @@ const BASE = process.env.YRB_BASE || "http://127.0.0.1:8796/yurenbang-app.html";
   });
   T("health 免疫系统可用", health.ok, health.why);
 
-  /* 7. 重置页面状态，避免影响后续手动检查 */
+  /* 8. 重置页面状态，避免影响后续手动检查 */
   await page.evaluate(() => { try { S.lang = "zh"; } catch (_) {} });
 
   console.log("\n---- 状态守卫实测：" + pass + " 通过 / " + fail + " 失败 ----");

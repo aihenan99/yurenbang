@@ -5,8 +5,9 @@
 xn--gmqq09al6z.cn / 同源代理，直接复制会被覆盖（历史上踩过 4 次）。所以
 复制之后统一重写这几处，并做断言，让"被覆盖"这件事再也发生不了。
 
-用法： python temp/sync_deploy.py            # 同步 + 校验
+用法： python temp/sync_deploy.py            # 同步 + 校验（只报告残留文件，不删）
       python temp/sync_deploy.py --check    # 只校验，不复制
+      python temp/sync_deploy.py --prune    # 同步 + 真删源里已删的残留文件（删前备份到 .cache/）
 """
 import io
 import os
@@ -20,6 +21,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "yurenbang-app")
 DST = os.path.join(ROOT, "deploy-cn")
 CHECK_ONLY = "--check" in sys.argv
+# --prune：删除对账时真删残留文件（默认只报告）。--check 时不说删就不删。
+PRUNE = ("--prune" in sys.argv) and not CHECK_ONLY
 
 CN = "https://xn--gmqq09al6z.cn/"
 CN_HOST = "https://xn--gmqq09al6z.cn"
@@ -633,6 +636,91 @@ def stamp_worker_tag(build):
     return want in txt
 
 
+def expected_outputs():
+    """部署包里「应该有」的相对路径集合——由源目录按同步规则推导。
+
+    规则必须与 sync_assets / sync_top / sync_anli 保持一致，否则对账会误判。
+    """
+    want = set()
+    for name in TOP_FILES:
+        if os.path.exists(os.path.join(SRC, name)):
+            want.add(RENAME.get(name, name))
+    sdir = os.path.join(SRC, "assets")
+    if os.path.isdir(sdir):
+        for name in sorted(os.listdir(sdir)):
+            p = os.path.join(sdir, name)
+            if os.path.isdir(p):
+                # gifts 只发压缩后的 .webp（原始 PNG 不上部署包）
+                if name == "gifts":
+                    for f in os.listdir(p):
+                        if f.lower().endswith(".webp"):
+                            want.add("assets/gifts/" + f)
+                # vendor 整目录同步（第三方引擎）
+                elif name == "vendor":
+                    for f in os.listdir(p):
+                        if os.path.isfile(os.path.join(p, f)):
+                            want.add("assets/vendor/" + f)
+                # 其余子目录不同步
+            else:
+                want.add("assets/" + name)
+    adir = os.path.join(SRC, "anli")
+    if os.path.isdir(adir):
+        for f in os.listdir(adir):
+            if f.endswith(".html"):
+                want.add("anli/" + f)
+    return want
+
+
+# 部署包里由人工维护或由构建产出的文件：不对应任何源文件，对账时必须放过
+PRUNE_KEEP = {
+    "_worker.js",          # 人工源（Worker 高级模式）
+    "error.html",          # 人工源（Pages 错误页）
+    "build.json",          # 构建号产物
+    "assets/bundle.css",   # build_bundles 产物
+    "assets/bundle.js",    # build_bundles 产物
+}
+
+
+def reconcile(prune=False):
+    """删除对账（2026-10-29 审核 M10）：找出「源里已删、部署包还留着」的文件。
+
+    sync 历来只拷不删，于是源里删掉的东西会在生产上永久残留、仍可被访问
+    （旧 JS、废弃图标、下线的案例页都踩过；案例广场改版时 /anli/ 死链就是这么来的）。
+    默认**只报告**（删不删由人定，构建脚本不擅自删文件）；
+    加 --prune 才真删，删前整份备份到 .cache/prune-<时间戳>/，可原样撤回。
+    """
+    want = expected_outputs()
+    drift = []
+    for root, _dirs, files in os.walk(DST):
+        for f in files:
+            rel = os.path.relpath(os.path.join(root, f), DST).replace("\\", "/")
+            if rel in PRUNE_KEEP or rel in want:
+                continue
+            drift.append(rel)
+    drift.sort()
+    if not drift:
+        print("[对账] 部署包与源一致，无残留文件 ✅")
+        return []
+    if not prune:
+        print("[对账] 发现 %d 个残留文件（源里已删、部署包还在，生产上仍可访问）：" % len(drift))
+        for rel in drift[:30]:
+            print("   · " + rel)
+        if len(drift) > 30:
+            print("   … 另有 %d 个" % (len(drift) - 30))
+        print("[对账] 确认无误后执行：python temp/sync_deploy.py --prune")
+        return drift
+    bak = os.path.join(ROOT, ".cache", "prune-" + time.strftime("%Y%m%d-%H%M%S"))
+    for rel in drift:
+        src = os.path.join(DST, rel)
+        dst = os.path.join(bak, rel)
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        shutil.move(src, dst)
+        print("   - 已移除 " + rel)
+    print("[对账] 已移除 %d 个残留文件；备份在 %s（需要恢复就原样拷回）"
+          % (len(drift), os.path.relpath(bak, ROOT)))
+    return drift
+
+
 def main():
     if not CHECK_ONLY:
         bld = current_build()
@@ -642,6 +730,9 @@ def main():
         print("[同步] assets: %d 个文件更新 %s" % (len(a), ("→ " + ", ".join(a)) if a else "(无变化)"))
         print("[同步] 顶层: %d 个文件更新 %s" % (len(t), ("→ " + ", ".join(t)) if t else "(无变化)"))
         print("[同步] 案例库: %d 个静态页更新 %s" % (len(n), ("→ " + ", ".join(n)) if n else "(无变化)"))
+        # 删除对账（M10）必须在 CSP hash 注入之前：残留 html 一带删掉，
+        # 注入的 hash 集合才不会包含已消失页面的内联块（否则 verify 报「过期 hash」）
+        reconcile(PRUNE)
         fixed = [rel for rel in REWRITES if apply_rewrites(rel)]
         na = rewrite_anli()
         nw = inject_worker_anli()
@@ -657,6 +748,9 @@ def main():
         stamp_worker_tag(st)
         write_build_json(st)
         print("[版本] 构建号: %s（meta / bundle / build.json / 资源戳 四处一致）" % st)
+
+    if CHECK_ONLY:
+        reconcile(False)          # 只校验模式：只报告残留，绝不删文件
 
     ok, bad = verify()
     print("\n[校验] 通过 %d 项" % len(ok))

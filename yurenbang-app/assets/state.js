@@ -13,6 +13,14 @@
  *
  * 已知局限（见契约 limits）：只能捕获顶层赋值；数组原地 push 不可见，
  * 靠长度快照提示；对象深层字段需显式走 YRB_STATE.set。
+ *
+ * 2026-10-29 审核 M5 补齐三处盲区：
+ *   1) 晚建字段（reward 层启动后才挂到 S 上的 points/rank）——load 后分 0/0.8s/3s
+ *      三个时间点幂等重装访问器，只补新出现的字段；
+ *   2) 未登记字段——启动与每次重装时扫一遍 S 的自有键，凡契约里没有的点名（unknown），
+ *      并可随时手动 YRB_STATE.scan()；
+ *   3) 绕过面——原来「正在经 API.set 写入」的标记挂在公开属性 API._bypass 上，
+ *      任何代码先设它再写 S 就能免检；现改为闭包私有变量，外部改不到。
  * ========================================================================== */
 (function () {
   "use strict";
@@ -91,10 +99,18 @@
   }
 
   /* ---------- 装访问器：S.x = v 都会被看见 ---------- */
+  /* installed 记录已接管的键：install() 因此可重复执行（幂等），
+     供「晚建字段」补齐用——见 M5 修复说明。 */
+  var installed = {};
+  /* 仅 YRB_STATE.set 执行期间非空，且**闭包私有**：
+     原先挂在 API._bypass 上，任何代码都能先设它再绕过检查（M5 之二）。 */
+  var bypassField = null;
+
   function install() {
-    var list = Object.keys(schema.fields), n = 0;
+    var list = Object.keys(schema.fields), n = 0, added = [];
     for (var i = 0; i < list.length; i++) {
       var k = list[i];
+      if (installed[k]) continue;              /* 已接管，跳过（幂等） */
       if (!(k in ST)) continue;                /* 尚未创建的字段不接管，避免凭空造出属性 */
       var d = Object.getOwnPropertyDescriptor(ST, k);
       if (d && d.configurable === false) continue;
@@ -105,7 +121,7 @@
           enumerable: true,
           get: function () { return box.v; },
           set: function (nv) {
-            if (API._bypass && API._bypass.field === key) {
+            if (bypassField === key) {
               /* 经 YRB_STATE.set 写入：来源可信，只做类型校验 */
               var def = schema.fields[key];
               if (def && def.type !== "any" && nv !== null && typeOf(nv) !== def.type) {
@@ -119,19 +135,36 @@
           }
         });
       })(k);
-      n++;
+      installed[k] = 1; n++; added.push(k);
     }
-    return n;
+    return { n: n, added: added };
+  }
+
+  /* 未登记字段点名：动态挂到 S 上的键静态审计永远看不见（M5 之三）。
+     原先 check() 里的 !def 分支只有在「字段被接管」时才可能进入，
+     而接管又要求字段先登记 —— 那条分支实际不可达，改成启动时扫一遍更诚实。 */
+  function scanUnknown() {
+    var keys;
+    try { keys = Object.keys(ST); } catch (_) { return; }
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      if (schema.fields[k] || installed[k]) continue;
+      var v;
+      try { v = ST[k]; } catch (_) { continue; }
+      if (typeof v === "function") continue;     /* S 上不会有函数，保险起见 */
+      record(k, "unknown", "state", 0, "运行时挂到 S 上但契约未登记");
+    }
   }
 
   /* ---------- 数组原地变更：只能靠长度快照发现 ---------- */
   var lens = null;
-  function snapLen() {
-    lens = {};
+  function snapLen(keep) {
+    if (!lens || !keep) lens = {};
     var list = Object.keys(schema.fields);
     for (var i = 0; i < list.length; i++) {
       var k = list[i];
       if (schema.fields[k].type !== "array" || !(k in ST)) continue;
+      if (keep && (k in lens)) continue;       /* 增量快照：只补新接管的字段 */
       lens[k] = Array.isArray(ST[k]) ? ST[k].length : -1;
     }
   }
@@ -188,11 +221,14 @@
       try { console.warn("[状态边界] " + writer + " 无权写 " + field); } catch (_) { }
       return false;
     }
-    API._bypass = { field: field };
-    try { ST[field] = value; } finally { API._bypass = null; markSet(field); }
+    bypassField = field;      /* 闭包私有：外部代码改不到，绕不过检查 */
+    try { ST[field] = value; } finally { bypassField = null; markSet(field); }
     return true;
   };
   API.get = function (field) { return ST ? ST[field] : undefined; };
+  /* 立即扫一遍未登记字段（启动/reinstall 时也会自动扫）：
+     动态挂到 S 上的键静态审查看不见，只能运行时点名。 */
+  API.scan = function () { if (ST) scanUnknown(); return API.report(); };
 
   /* ---------- 启动 ---------- */
   function boot() {
@@ -207,9 +243,36 @@
     API.enabled = true;
     if (!isDev()) return;                 /* 生产：只留 API，不装拦截，零开销 */
 
-    var n = install();
+    var n = install().n;
     snapLen();
+    scanUnknown();
     try { setInterval(diffLen, 3000); } catch (_) { }
+
+    /* 晚建字段补齐（M5 之一）：reward 层在 state 之后才把 points/rank 挂到 S 上，
+       一次性 install 永远漏掉它们。load 后分几个时间点幂等重装，只补新出现的字段。 */
+    function reinstall(tag) {
+      try {
+        var r = install();
+        if (r.n) {
+          snapLen(true);
+          scanUnknown();
+          try {
+            console.log("[状态边界] " + tag + " 新接管 " + r.n + " 个晚建字段（" + r.added.join(", ") + "）");
+          } catch (_) { }
+        }
+      } catch (_) { }
+    }
+    function scheduleReinstall() {
+      var pts = [[0, "load 后"], [800, "load+0.8s"], [3000, "load+3s"]];
+      for (var i = 0; i < pts.length; i++) {
+        (function (t, tag) { try { setTimeout(function () { reinstall(tag); }, t); } catch (_) { } })(pts[i][0], pts[i][1]);
+      }
+    }
+    try {
+      if (document.readyState === "complete") scheduleReinstall();
+      else window.addEventListener("load", scheduleReinstall);
+    } catch (_) { }
+
     try {
       console.log("%c[状态边界] 守卫已启用 · 已接管 " + n + " 个字段 · 契约 v" + schema.version,
         "color:#2b7a4b");

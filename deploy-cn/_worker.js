@@ -16,7 +16,7 @@
  */
 const UPSTREAM = "https://yurenbang.app.workbuddy.host";
 const PREFIX = "/yrbapi";
-const BUILD_TAG = "202610291950-build";
+const BUILD_TAG = "202610292008-build";
 
 /* ============================================================
    /yrbtts —— AI 真人语音合成代理（2026-10-24）
