@@ -202,6 +202,21 @@
     </div>
   </div>
 
+  <div class="step">
+    <label class="box"><input type="checkbox" id="c7"><span class="mk"></span></label>
+    <div class="body">
+      <div class="t"><span class="n">7</span>收尾：开发动作回归（上面 1–6 与备份三件套全部完成后才做）</div>
+      <div class="d">顺序照《恢复后待办.md》，当天做不完可顺延：</div>
+      <div class="d" style="margin-top:1.5mm;line-height:1.7">
+        ① 发版 <code>python temp/release.py</code> —— 带上隔离期全部积压（隐私合规第一批、SDK 同源化、CSP hash、Word 图文编辑器）<br>
+        ② 数据库迁移 <code>temp/casedit_migrate.sql</code> —— 图文案例正文列（编辑器上线的前提）<br>
+        ③ 隐私 RPC 三件 + <code>is_admin()</code> —— 注销 / 儿童留痕 / 数据导出（P0 最后三项）<br>
+        ④ CSP 首页转强制 —— 发版满 3 天无异常报告后再动
+      </div>
+      <div class="hint">发版必须 run_in_background；自检不过会自动回滚，别手动干预。</div>
+    </div>
+  </div>
+
   <div class="warn">
     <h2>当天不要做这三件事</h2>
     <ol>
