@@ -1,13 +1,13 @@
 /* 状态边界守卫 · 浏览器实测
    目的：确认 state.js 真的接管了 S 的写入，且没有破坏页面。
    运行前先起服务： python -m http.server 8796 --directory yurenbang-app */
-const { chromium } = require("../../temp/pw/node_modules/playwright-core");
+const { chromium } = require("../helpers/pw.js").loadPlaywright();
 
 const BASE = process.env.YRB_BASE || "http://127.0.0.1:8796/yurenbang-app.html";
 
 (async () => {
   const browser = await chromium.launch({
-    executablePath: "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
+    executablePath: require("../helpers/pw.js").chromePath(),
     headless: true
   });
   const page = await browser.newPage({

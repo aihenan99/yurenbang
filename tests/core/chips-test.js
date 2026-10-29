@@ -9,7 +9,7 @@
    6) 离线缓存：localStorage 有配置时刷新即生效
    7) 全程无 pageerror
 */
-const { chromium } = require("../../temp/pw/node_modules/playwright-core");
+const { chromium } = require("../helpers/pw.js").loadPlaywright();
 
 const URL = "http://127.0.0.1:8793/deploy-cn/?tc=" + Date.now();
 let pass = 0, fail = 0;
@@ -20,7 +20,7 @@ function ck(name, cond, info) {
 const has = (arr, kw) => arr.some((x) => x.indexOf(kw) >= 0);
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe" });
+  const b = await chromium.launch({ executablePath: require("../helpers/pw.js").chromePath() });
   const p = await b.newPage({ viewport: { width: 412, height: 900 } });
   const errs = [];
   p.on("pageerror", (e) => errs.push(e.message));

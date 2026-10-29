@@ -38,3 +38,46 @@ jobs:
 
       - name: 完整检查（含部署包一致性）
         run: node scripts/verify.mjs
+
+  # 审核 H7（2026-10-29）：e2e 过去只在本机跑且服务没起就静默跳过，CI 根本跑不到
+  # ——门禁系统性假绿。这个 job 把 10 个 e2e 测试放进 CI 强制真跑：
+  # verify.mjs --e2e 现在对「服务未起」直接报错，跳过≠通过。
+  e2e:
+    name: 端到端（真浏览器 10 项）
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 准备 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # 版本与本地 temp/pw 的 playwright-core 保持一致（1.64.1），协议才对得上
+      - name: 安装 playwright-core 与 chromium
+        run: |
+          set -euo pipefail
+          npm i --no-save playwright-core@1.64.1
+          npx playwright-core install --with-deps chromium
+          CHROME=$(ls -d "$HOME"/.cache/ms-playwright/chromium-*/chrome-linux/chrome | head -1)
+          echo "YRB_CHROME=$CHROME" >> "$GITHUB_ENV"
+          echo "浏览器：$CHROME"
+
+      - name: 补齐部署包（sync 产物不入库，检出后重建）
+        run: python3 temp/sync_deploy.py
+
+      - name: 起两条测试服务（8796 源码 / 8793 部署包）
+        run: |
+          python3 -m http.server 8796 --bind 127.0.0.1 --directory yurenbang-app &
+          python3 -m http.server 8793 --bind 127.0.0.1 &
+          sleep 3
+
+      - name: 端到端门禁（--e2e，服务未起即红）
+        run: node scripts/verify.mjs --e2e

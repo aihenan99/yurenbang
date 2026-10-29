@@ -797,8 +797,15 @@ $("#feed").addEventListener("click",e=>{
   if(!act||!card)return;
   const p=S.posts.find(x=>x.id===+card.dataset.id);if(!p)return;
   const a=act.dataset.act;
-  if(a==="like"){p.liked=!p.liked;renderFeed();}
-  else if(a==="fav"){p.faved=!p.faved;renderFeed();if(p.faved)toast("已收藏到「我的收藏」⭐");}
+  if(a==="like"||a==="fav"){
+    /* 审核 M3（2026-10-29）：只更新本卡按钮与计数，不再 renderFeed 整流重建
+       （全量重建+各层观察者风暴曾致主线程假死，是老病根） */
+    if(a==="like")p.liked=!p.liked;else p.faved=!p.faved;
+    act.classList.toggle("on",a==="like"?p.liked:p.faved);
+    const nEl=act.querySelector(".n");
+    if(nEl)nEl.textContent=a==="like"?(p.likes+(p.liked?1:0)):(p.favs+(p.faved?1:0));
+    if(a==="fav"&&p.faved)toast("已收藏到「我的收藏」⭐");
+  }
   else if(a==="cm"){S.curPost=p.id;renderComments();openSheet("commentSheet");}
   else if(a==="needlogin"){if(window.YRB_CLOUD&&YRB_CLOUD.openLogin)YRB_CLOUD.openLogin();}
   else if(a==="more")cardMore(p);

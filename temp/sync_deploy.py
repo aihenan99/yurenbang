@@ -516,6 +516,19 @@ def verify():
     need("baidu_verify_" in worker, "_worker.js 已放行搜索引擎文件验证")
     swjs = read("sw.js")
     need(re.search(r"yrb-cache-v[34]" , swjs) and "isNav" in swjs, "sw.js 缓存清单 + isNav 兜底（v3/v4）")
+    # ---- 审核 H8（2026-10-29）：预缓存容错与版本戳 ----
+    need("allSettled" in swjs and "cache: 'reload'" in swjs,
+         "sw.js 预缓存逐文件容错 + 绕 HTTP 缓存（防零缓存上线/旧 bundle 入缓存）")
+    msw = re.search(r"const CORE_V = '(\d*)'", swjs)
+    need(msw is not None, "sw.js 含 CORE_V 版本戳占位（源码里应有空字符串占位）")
+    if msw:
+        try:
+            bjson = json.load(io.open(os.path.join(DST, "build.json"), encoding="utf-8"))
+            bld = str(bjson.get("build", ""))
+        except Exception:
+            bld = ""
+        need(bld != "" and msw.group(1) == bld,
+             "sw.js CORE_V 版本戳 == build.json 构建号（sw=%s / build=%s）" % (msw.group(1) or "空", bld or "空"))
     need("YRB_HEALTH" in idx and "heal=" in idx, "内联自愈兜底（免疫系统拉不起来时补载）已内置")
     need("yrbSplashRescue" in idx, "启动屏自救（点按无反应自动刷新）已内置")
 
@@ -577,6 +590,23 @@ def verify():
     return ok, bad
 
 
+def stamp_sw(build):
+    """审核 H8（2026-10-29）：sw.js 预缓存版本戳。
+    源码里 CORE_V 留空；部署包注入构建号，预缓存请求带 ?v=构建号，
+    避开 Pages 4h 资产缓存把旧 bundle 写进新版本缓存。
+    返回 True=已注入/已是该值，False=占位缺失（verify 会拦）。"""
+    p = os.path.join(DST, "sw.js")
+    if not os.path.exists(p):
+        return False
+    txt = io.open(p, encoding="utf-8").read()
+    want = "const CORE_V = '%s'" % build
+    txt2 = re.sub(r"const CORE_V\s*=\s*'[^']*'", want, txt)
+    if txt2 != txt:
+        io.open(p, "w", encoding="utf-8", newline="").write(txt2)
+        return True
+    return want in txt
+
+
 def main():
     if not CHECK_ONLY:
         bld = current_build()
@@ -597,6 +627,7 @@ def main():
         print("[适配] 重新套用域名规则: %s；案例库页 %d 个已换域名"
               % (", ".join(fixed) if fixed else "(无需改动)", na))
         st = stamp_assets(bld)
+        stamp_sw(st)
         write_build_json(st)
         print("[版本] 构建号: %s（meta / bundle / build.json / 资源戳 四处一致）" % st)
 

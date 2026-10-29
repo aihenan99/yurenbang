@@ -1,9 +1,9 @@
 /* guard-test：错误监控守护层（guard.js）——捕获/去重/云端限频上报 */
-const { chromium } = require("../../temp/pw/node_modules/playwright-core");
+const { chromium } = require("../helpers/pw.js").loadPlaywright();
 let pass=0,fail=0;
 const ck=(n,c,d)=>{ if(c){pass++;console.log("  ✅",n);} else {fail++;console.log("  ✗",n,d||"");} };
 (async () => {
-  const b = await chromium.launch({ executablePath: "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe" });
+  const b = await chromium.launch({ executablePath: require("../helpers/pw.js").chromePath() });
   const ctx = await b.newContext({ viewport: { width: 412, height: 900 }, serviceWorkers: "block" });
   const p = await ctx.newPage();
   const errs = [];

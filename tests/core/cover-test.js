@@ -2,7 +2,7 @@
    用真实 sample_fixed.pptx 验证：第一页渲染为封面 / localStorage 缓存 /
    失败降级为 📄 占位 / 视频首帧处理。
    页面从 8793（项目根）加载 /deploy-cn/，PPT 用同源 /temp/ppt-test/sample_fixed.pptx。 */
-const { chromium } = require("../../temp/pw/node_modules/playwright-core");
+const { chromium } = require("../helpers/pw.js").loadPlaywright();
 const URL = "http://127.0.0.1:8793/deploy-cn/?cv=" + Date.now();
 const PPT = "http://127.0.0.1:8793/temp/ppt-test/sample_fixed.pptx";
 
@@ -13,7 +13,7 @@ function ck(name, cond, extra) {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe" });
+  const b = await chromium.launch({ executablePath: require("../helpers/pw.js").chromePath() });
   const p = await b.newPage({ viewport: { width: 412, height: 900 } });
   const errs = [];
   p.on("pageerror", e => errs.push(String(e.message).slice(0, 140)));

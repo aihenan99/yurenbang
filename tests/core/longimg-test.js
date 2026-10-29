@@ -2,8 +2,8 @@
    覆盖：侧栏按钮注入（幂等）/ 浮层开合 / canvas 出图与尺寸 / 超长截断 /
          保存按钮存在 / 关闭 / 页面零报错 / health 探针可见
    运行前：python -m http.server 8796 --bind 127.0.0.1 --directory yurenbang-app */
-const { chromium } = require("../../temp/pw/node_modules/playwright-core");
-const CHROME = "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe";
+const { chromium } = require("../helpers/pw.js").loadPlaywright();
+const CHROME = require("../helpers/pw.js").chromePath();
 const BASE = process.env.YRB_BASE || "http://127.0.0.1:8796/yurenbang-app.html";
 let pass = 0, fail = 0;
 function T(name, ok, extra) {

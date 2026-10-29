@@ -310,9 +310,10 @@ if (E2E) {
 
   for (const line of LINES) {
     if (!alive[line.port]) {
-      console.log("  " + C.d + "跳过  " + line.label + " 整组（服务未启动：npm run serve 起 8796，" +
-        "python -m http.server 8793 起根目录）" + C.x);
-      continue;
+      /* 审核 H7（2026-10-29）：--e2e 是明确要求，服务没起就该报错而不是静默跳过——
+         「跳过」在 CI 汇总里长得跟「通过」一样，假绿就是这么来的。 */
+      throw new Error("e2e 要求服务在线但 " + line.port + " 未响应（8796：npm run serve；" +
+        "8793：python -m http.server 8793 --bind 127.0.0.1）。先起服务再跑 --e2e。");
     }
     for (const [name, file] of line.tests) {
       step("端到端：" + name + "（" + line.label + "）", () => {

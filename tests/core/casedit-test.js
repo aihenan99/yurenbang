@@ -2,8 +2,8 @@
    覆盖：层注入 / 面板切换 / 粘贴白名单 / 图文混排保序 / 工具条 / 草稿 / 字数提示
          / 发布三态（有列·无列降级·空内容）/ 查看端正文渲染
    运行前：python -m http.server 8796 --bind 127.0.0.1 --directory yurenbang-app  */
-const { chromium } = require("../../temp/pw/node_modules/playwright-core");
-const CHROME = "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe";
+const { chromium } = require("../helpers/pw.js").loadPlaywright();
+const CHROME = require("../helpers/pw.js").chromePath();
 const BASE = process.env.YRB_BASE || "http://127.0.0.1:8796/yurenbang-app.html";
 let pass = 0, fail = 0;
 function T(name, ok, extra) {

@@ -7,7 +7,15 @@
    - 缓存名升级 v3，激活时自动清掉旧版本
    - 2026-10-23b：部署包主页文件名是 index.html（源码为 yurenbang-app.html），
      清单与离线兜底统一改用 '/'，避免指向不存在的文件（曾致 PWA 安装失败 / 离线打不开） */
+/* 2026-10-29 审核 H8 三处加固：
+   1) install 不再用 addAll（原子失败=一个文件挂全部丢弃，空 catch 吞掉后可能「零缓存上线」），
+      改逐文件 allSettled 容错，失败清单 console + postMessage 上报；
+   2) 预缓存请求带 cache:'reload' 绕过 HTTP 缓存，CORE_V 版本戳（sync 时注入构建号）双保险，
+      避开 Cloudflare Pages 默认 4h 资产缓存把旧 bundle 写进新版本缓存；
+   3) activate 只在新缓存基本建满（≥ CORE-3）时才删旧缓存——预缓存大面积失败时
+      保留旧版本兜底，绝不把用户从「有缓存」变成「零缓存」。 */
 const CACHE = 'yrb-cache-v4';
+const CORE_V = ''; /* sync 时替换为构建号；源码线留空=不带版本戳 */
 const CORE = [
   '/', '/share.html',
   '/assets/bundle.css', '/assets/bundle.js',
@@ -40,7 +48,23 @@ const CORE = [
    新版 SW 先进入 waiting，由页面上的「平稳升级」提示征得用户同意后
    再 postMessage 放行——避免用户正在填表/看案例时被强制换版导致错层。 */
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE).catch(() => {})));
+  e.waitUntil((async () => {
+    const cache = await caches.open(CACHE);
+    const urls = CORE.map(u => u + (CORE_V ? (u.includes('?') ? '&' : '?') + 'v=' + CORE_V : ''));
+    const res = await Promise.allSettled(urls.map(async u => {
+      const r = await fetch(u, { cache: 'reload' });
+      if (!r || !r.ok) throw new Error(u + ' → ' + (r ? r.status : '无响应'));
+      await cache.put(u, r);
+    }));
+    const fails = res.map((x, i) => x.status === 'rejected' ? urls[i] : null).filter(Boolean);
+    if (fails.length) {
+      console.warn('[yrb-sw] 预缓存失败 ' + fails.length + '/' + urls.length + '：', fails);
+      try {
+        const cs = await self.clients.matchAll({ includeUncontrolled: true });
+        cs.forEach(c => c.postMessage({ type: 'YRB_SW_PRECACHE_FAIL', urls: fails }));
+      } catch (_) { /* 无页面在场就只留 console */ }
+    }
+  })());
 });
 
 self.addEventListener('message', e => {
@@ -48,9 +72,17 @@ self.addEventListener('message', e => {
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())
-  );
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    const have = (await (await caches.open(CACHE)).keys()).length;
+    if (have >= CORE.length - 3) {
+      await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+    } else {
+      /* 预缓存大面积失败：保留旧版本缓存兜底，零缓存比旧缓存更危险 */
+      console.warn('[yrb-sw] 新缓存仅 ' + have + '/' + CORE.length + '，保留旧缓存兜底');
+    }
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener('fetch', e => {

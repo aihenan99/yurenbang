@@ -18,8 +18,13 @@ function save(){
       /* 浏览历史 / 收藏：跨会话保留（只存 id 轻量字段，云端帖不落库） */
       history:(S.history||[]).filter(h=>h&&h.id!=null).slice(0,60),
       favIds:(S.posts||[]).filter(p=>p&&p.faved).map(p=>p.id),
-      /* 云端帖子不入本地库：由 loadCloudPosts 统一恢复，避免刷新后出现重复卡片 */
-      myPosts:S.posts.filter(p=>p.mine&&!p.__cloud)
+      /* 云端帖子不入本地库：由 loadCloudPosts 统一恢复，避免刷新后出现重复卡片。
+         审核 M4（2026-10-29）：blob: URL 只在本会话有效，持久化后刷新必裂图——
+         存档前剥掉 blob 媒体（帖子正文保留，媒体等云端恢复或重新上传） */
+      myPosts:S.posts.filter(p=>p.mine&&!p.__cloud).map(p=>
+        (p.media||[]).some(m=>/^blob:/i.test(m&&m.url||""))
+          ?Object.assign({},p,{media:p.media.filter(m=>!/^blob:/i.test(m&&m.url||""))})
+          :p)
     }));
   }catch(e){}
 }

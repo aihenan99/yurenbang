@@ -3,8 +3,8 @@
    覆盖：浮层可达 / 必填校验 / 云端可用真入库 / 后端报错如实失败（不假装成功）/
          未登录拦下 / 断网入队 / 登录后自动补发并补归属 / 字段完整性
    运行前：python -m http.server 8796 --bind 127.0.0.1 --directory yurenbang-app */
-const { chromium } = require("../../temp/pw/node_modules/playwright-core");
-const CHROME = "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe";
+const { chromium } = require("../helpers/pw.js").loadPlaywright();
+const CHROME = require("../helpers/pw.js").chromePath();
 const BASE = process.env.YRB_BASE || "http://127.0.0.1:8796/yurenbang-app.html";
 const QKEY = "yrb_report_queue_v1";
 let pass = 0, fail = 0;

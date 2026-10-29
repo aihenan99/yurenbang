@@ -11,7 +11,7 @@
    注意：云端额度耗尽期间 /yrbapi 请求必然失败（402），属环境噪声，
    本测试只判本地同源资源，不把云端失败算作缺陷。
 */
-const { chromium } = require("../../temp/pw/node_modules/playwright-core");
+const { chromium } = require("../helpers/pw.js").loadPlaywright();
 const fs = require("node:fs");
 const DEPLOY = "E:/育人帮/deploy-cn";
 
@@ -29,7 +29,7 @@ function ck(name, cond, info) {
 }
 
 (async () => {
-  const b = await chromium.launch({ executablePath: "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe" });
+  const b = await chromium.launch({ executablePath: require("../helpers/pw.js").chromePath() });
   const p = await b.newPage({ viewport: { width: 412, height: 900 } });
 
   const errs = [];

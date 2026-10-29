@@ -1,9 +1,10 @@
 /* deepcheck-test：后台「🩺 系统健康」云端深度体检 + 用户端错误日志 */
-const { chromium } = require("../../temp/pw/node_modules/playwright-core");
+const { chromium } = require("../helpers/pw.js").loadPlaywright();
+const CHROME = require("../helpers/pw.js").chromePath();
 let pass=0,fail=0;
 const ck=(n,c,d)=>{ if(c){pass++;console.log("  ✅",n);} else {fail++;console.log("  ✗",n,d||"");} };
 (async () => {
-  const b = await chromium.launch({ executablePath: "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe" });
+  const b = await chromium.launch({ executablePath: CHROME });
   const ctx = await b.newContext({ viewport: { width: 412, height: 900 }, serviceWorkers: "block" });
   const p = await ctx.newPage();
   const errs = [];

@@ -54,14 +54,16 @@
       document.documentElement.dataset.yrbBuild = PAGE_BUILD;
       return;
     }
-    /* 命中混载。只纠正一次，避免死循环（若第二次还不一致，说明源站本身有问题） */
-    if (ls(FIX_KEY) === PAGE_BUILD + "|" + PKG_BUILD) {
-      console.warn("[升级] 版本仍不一致，已停止自动纠正，等待下次部署修复");
+    /* 命中混载。审核 M9（2026-10-29）：旧实现只记「一对组合」，A|B↔B|A 交替仍可无限 reload；
+       改连续纠正计数器，同一会话内连纠 2 次仍不一致就停（说明源站本身有问题）。 */
+    var fixN = +(ls(FIX_KEY) || 0);
+    if (fixN >= 2) {
+      console.warn("[升级] 已自动纠正 " + fixN + " 次仍不一致，停止刷新等待下次部署修复");
       document.documentElement.dataset.yrbBuild = PAGE_BUILD;
       document.documentElement.dataset.yrbMixed = "1";
       return;
     }
-    ls(FIX_KEY, PAGE_BUILD + "|" + PKG_BUILD);
+    ls(FIX_KEY, fixN + 1);
     console.warn("[升级] 检测到新旧版本混载 页面=" + PAGE_BUILD + " 资源=" + PKG_BUILD + "，正在纠正");
     ss(DONE_KEY, PAGE_BUILD);
     location.reload();

@@ -8,8 +8,8 @@
    覆盖：入口可达 / 零开关 / 三个入口齐全 / 政策正文关键条款 / 阅读模式不代勾同意 /
          儿童规则正文 / 我的数据说明 / 账号页与我的页零虚假状态
    运行前：python -m http.server 8796 --bind 127.0.0.1 --directory yurenbang-app */
-const { chromium } = require("../../temp/pw/node_modules/playwright-core");
-const CHROME = "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe";
+const { chromium } = require("../helpers/pw.js").loadPlaywright();
+const CHROME = require("../helpers/pw.js").chromePath();
 const BASE = process.env.YRB_BASE || "http://127.0.0.1:8796/yurenbang-app.html";
 let pass = 0, fail = 0;
 function T(name, ok, extra) {
