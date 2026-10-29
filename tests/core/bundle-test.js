@@ -13,7 +13,9 @@
 */
 const { chromium } = require("../helpers/pw.js").loadPlaywright();
 const fs = require("node:fs");
-const DEPLOY = "E:/育人帮/deploy-cn";
+/* 审核 H7（2026-10-29）：不能硬编码盘符路径（E:/...）——CI 是 Linux，
+   existsSync 恒 false，SW 预缓存的根绝对路径 404 会被误判成部署包缺文件 */
+const DEPLOY = require("node:path").resolve(__dirname, "..", "..", "deploy-cn");
 
 /* 注意：这里不能叫 URL——会遮蔽全局 URL 构造函数（与项目里 var S 遮蔽词法 S 同类坑） */
 const PAGE = "http://127.0.0.1:8793/deploy-cn/index.html?bt=" + Date.now();
