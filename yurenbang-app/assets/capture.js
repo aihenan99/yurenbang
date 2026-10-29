@@ -586,9 +586,10 @@ async function videoAct(act){
     try{rec.start(200);}catch(e){toast("录制启动失败");stopVideoStream();state.vState="idle";refresh();return;}
     refresh();
     state.vTimer=setInterval(()=>{
-      const el=$("[data-cap-clock]");const el2=$("[data-cap-clock]");
+      /* 2026-10-29 择机档：原来重复查询两次同一选择器（el/el2 恒等），合并为一次 */
+      const node=$("[data-cap-clock]");
       const t=(performance.now()-state.vStart)/1000;
-      const node=el||el2;if(node)node.textContent=fmt(t);
+      if(node)node.textContent=fmt(t);
       if(t>=MAX_VID)stopVideo();
     },200);
     return;

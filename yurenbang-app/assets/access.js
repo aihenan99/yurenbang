@@ -53,9 +53,17 @@ function load(){
   }catch(e){}
 }
 load();
+/* 长辈模式标记同时落两处（2026-10-29 三层适配）：
+   #phone 供既有全部适老 CSS 使用；html 供**挂在 body 下的全屏层**使用
+   （pptview 的 #vpFull 由 document.body.appendChild 创建，不在 #phone 内，
+   仅靠 #phone[data-elder="1"] 前缀选不中，长辈模式在这些层等于没开） */
+function syncElderDom(){
+  document.documentElement.dataset.elder=S.elder;
+  const ph=$("#phone");if(ph)ph.dataset.elder=S.elder;
+}
+syncElderDom();
 $("#phone").dataset.theme=S.theme;
 $("#phone").dataset.fs=S.fs;
-$("#phone").dataset.elder=S.elder;
 /* 保险：overflow:clip 的旧浏览器回退 —— 手机框架一旦被滚动立即归位，避免整层错位 */
 (function(){
   const ph=$("#phone");
@@ -68,6 +76,8 @@ document.addEventListener("visibilitychange",()=>{if(document.visibilityState===
 /* ============ 2. 长辈模式联动（开启长辈=字号交给长辈档；关闭恢复原字号） ============ */
 let prevFs=null;
 function applyElderLink(){
+  /* html 标记以 S.elder 为准（幂等重设，不触发 #phone 的 observer） */
+  document.documentElement.dataset.elder=S.elder;
   const ball=$("#a11yBall");if(ball)ball.classList.toggle("elder",S.elder==="1");
   if(S.elder==="1"&&S.fs){prevFs=S.fs;S.fs="";$("#phone").dataset.fs="";}
   else if(S.elder!=="1"&&prevFs){S.fs=prevFs;prevFs=null;$("#phone").dataset.fs=S.fs;}
@@ -375,7 +385,7 @@ function openA11yModal(){
   $("#abElder").onclick=function(){
     this.classList.toggle("on");
     S.elder=this.classList.contains("on")?"1":"0";
-    $("#phone").dataset.elder=S.elder;
+    syncElderDom();
     toast(S.elder==="1"?"长辈模式已开启：大字大按钮、可朗读":"长辈模式已关闭");
   };
   $("#abFs").onclick=e=>{

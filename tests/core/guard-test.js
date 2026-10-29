@@ -58,8 +58,9 @@ const ck=(n,c,d)=>{ if(c){pass++;console.log("  ✅",n);} else {fail++;console.l
   });
   ck("同指纹 90s 内去重（第二条被拒）", t4.r1 === true && t4.r2 === false, JSON.stringify(t4));
 
-  /* T5 全局捕获真的在工作：抛一个未捕获错误 → recent 出现 js-error */
-  await p.evaluate(() => { setTimeout(() => { try { null.__x.y(); } catch (e) { /* 触发 window error 需异步未捕获 */ } }, 0); });
+  /* T5 全局捕获真的在工作：抛一个未捕获错误 → recent 出现 js-error
+     （2026-10-29 择机档：原第 62 行 try{null.__x.y()}catch{} 自行吞掉异常，
+      永远不会产生 window error，是不起作用的空断言，已删；下列才是真实触发） */
   await p.evaluate(() => { setTimeout(() => { window.__uncaught = () => { throw new Error("guard捕获测试E"); }; window.__uncaught(); }, 0); });
   await p.waitForTimeout(600);
   const t5 = await p.evaluate(() => (YRB_GUARD.recent().map(x => x.msg)).join("||"));

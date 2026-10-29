@@ -65,3 +65,19 @@ html.yrb-guard .vw-imgs img { pointer-events: auto; -webkit-touch-callout: none;
 /* 信息流卡片视频：一点即全屏（抖音式） */
 #feed .m-realvideo video { cursor: pointer; display: block; width: 100%; background: #000; }
 #feed .m-realvideo .v-play { pointer-events: none; }   /* 点击穿透到视频本身，处理器统一接管 */
+
+/* ---------- 长辈模式（2026-10-29 补齐「mediafull 零适配」） ----------
+   本层注入的两个按钮都在 #phone 内，用既有 #phone[data-elder="1"] 前缀即可；
+   放大到「不用瞄准也能点中」：朗读胶囊 ≥42px 高、全屏圆钮 48px */
+#phone[data-elder="1"] .mf-tts {
+  font-size: 15px;
+  padding: 9px 16px;
+  min-height: 42px;
+  border-width: 2px;
+}
+#phone[data-elder="1"] .r23-dhead .mf-tts { margin-left: 10px; }
+#phone[data-elder="1"] .vw-head .mf-tts { margin-right: 10px; }
+#phone[data-elder="1"] .mf-vbtn { width: 48px; height: 48px; right: 14px; bottom: 14px; }
+#phone[data-elder="1"] .mf-vbtn svg { width: 24px; height: 24px; }
+/* 大图查看器的关闭按钮同步放大（长辈常找不到小 ✕；元素是 #r23Vx.vx，见 refine23.js） */
+#phone[data-elder="1"] #r23Viewer .vx { width: 46px; height: 46px; font-size: 20px; }

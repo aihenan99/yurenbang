@@ -58,3 +58,21 @@
   padding:7px 14px;white-space:nowrap;pointer-events:none;animation:vftip 4s ease 1.2s both}
 @keyframes vftip{0%,72%{opacity:1}100%{opacity:0}}
 @media (orientation:landscape){.vf-tip{display:none}}
+
+/* ---------- 长辈模式（2026-10-29 补齐「pptview 零适配」） ----------
+   关键：全屏阅读层 #vpFull 由 document.body.appendChild 创建，**不在 #phone 内**，
+   用 #phone[data-elder="1"] 前缀会全部失效。改以 html 为锚（access.js 的 syncElderDom()
+   把 S.elder 同步到 document.documentElement.dataset.elder），两条路径都命中。
+   同时加大翻页按钮与页码——长辈最怕点不中「下一页」。 */
+html[data-elder="1"] .vp-btn{font-size:17px;padding:15px 0}
+html[data-elder="1"] .vp-num{font-size:14.5px;min-width:104px}
+html[data-elder="1"] .vp-tool{font-size:15px}
+html[data-elder="1"] .vp-load{font-size:15px}
+html[data-elder="1"] .vp-fail>span{font-size:16px}
+html[data-elder="1"] .vp-fail i{font-size:13.5px}
+html[data-elder="1"] .vf-name{font-size:16.5px}
+html[data-elder="1"] .vf-x{width:54px;height:54px;font-size:22px}
+html[data-elder="1"] .vf-btn{font-size:18px;padding:16px 26px}
+html[data-elder="1"] .vf-num{font-size:15.5px;min-width:112px}
+html[data-elder="1"] .vf-load{font-size:16px}
+html[data-elder="1"] .vf-tip{font-size:14px;padding:9px 16px}

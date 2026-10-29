@@ -332,52 +332,6 @@ function doPublish(){
 }
 /* autoHelp 模拟帮忙已随模板假数据一并下线（2026-10-25）：真实帮忙来自云端 yb_comments */
 
-/* ================= 烟火 + 哨声 ================= */
-function fireworks(){
-  const TM=()=>{};
-  TM("fw-start");
-  const cv=$("#fxCv"),fx=$("#fx"),ctx=cv.getContext("2d");
-  const r=$("#phone").getBoundingClientRect();
-  /* 零视口（如 headless 0x0）下不启动绘制，直接收尾，避免空转 */
-  if(!r.width||!r.height){TM("fw-end");return;}
-  cv.width=r.width*2;cv.height=r.height*2;ctx.scale(2,2);
-  fx.style.display="block";
-  const W=r.width,H=r.height,parts=[];let t0=performance.now();
-  fx.dataset.fw=String(Date.now());
-  const burst=(x,y,hue)=>{for(let i=0;i<64;i++){const a=Math.random()*Math.PI*2,v=2+Math.random()*4.4;parts.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,hue:hue+Math.random()*36,life:1});}};
-  [0,420,880].forEach((d,k)=>setTimeout(()=>burst(W*(0.3+Math.random()*0.4),H*(0.22+Math.random()*0.2),[18,340,155][k]),d));
-  (function loop(now){
-    const el=now-t0;ctx.clearRect(0,0,W,H);
-    parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.05;p.vx*=0.985;p.vy*=0.985;p.life-=0.012;
-      ctx.globalAlpha=Math.max(p.life,0);ctx.fillStyle=`hsl(${p.hue},95%,${58+p.life*12}%)`;
-      ctx.beginPath();ctx.arc(p.x,p.y,2.1,0,7);ctx.fill();});
-    ctx.globalAlpha=1;
-    /* 修复：首帧由同步调用进入，此时 parts 尚为空（粒子要等 setTimeout 0/420/880ms 才注入），
-       旧条件 parts.length 会让动画在第 0ms 自我终止，烟花永不显示。改为仅以时长为终止条件。 */
-    if(el<2900){requestAnimationFrame(loop);}
-    else{ctx.clearRect(0,0,W,H);fx.style.display="none";TM("fw-end");}
-  })(t0);
-}
-let AC=null;
-function whistle(){
-  const TM=()=>{};
-  TM("whistle-start");
-  try{
-    AC=AC||new (window.AudioContext||window.webkitAudioContext)();
-    if(AC.state==="suspended")AC.resume();
-    const c=AC,t=c.currentTime;
-    [[0,0.34],[0.5,0.52]].forEach(([d,len],i)=>{
-      const o=c.createOscillator(),g=c.createGain(),l=c.createOscillator(),lg=c.createGain();
-      o.type="sine";o.frequency.setValueAtTime(1450,t+d);o.frequency.linearRampToValueAtTime(i?2350:2100,t+d+len);
-      l.frequency.value=26;lg.gain.value=110;l.connect(lg);lg.connect(o.frequency);
-      g.gain.setValueAtTime(0.0001,t+d);g.gain.exponentialRampToValueAtTime(0.16,t+d+0.05);g.gain.exponentialRampToValueAtTime(0.0001,t+d+len);
-      o.connect(g);g.connect(c.destination);
-      o.start(t+d);o.stop(t+d+len+0.05);l.start(t+d);l.stop(t+d+len+0.05);
-    });
-    TM("whistle-end");
-  }catch(e){TM("whistle-err");}
-}
-
 /* ================= 礼物满屏感谢 ================= */
 function openGift(title,sub){
   $("#gTitle").textContent=title;$("#gSub").textContent=sub;

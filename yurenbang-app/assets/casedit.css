@@ -65,3 +65,19 @@
   margin:10px 0;padding:10px 12px;border-radius:12px;
   background:var(--bg,#f5f6f8);color:#8a929b;font-size:14px;text-align:center;
 }
+
+/* ---------- 长辈模式（2026-10-29 补齐「casedit 零适配」） ----------
+   本层基线已是 17.5px / 44px 触点，长辈档再上一档：正文 19.5px、行高 1.95、
+   工具条 48px 触点；写长文时行距更大不串行，读案例时也更省力 */
+#phone[data-elder="1"] .ce-bar{gap:10px}
+#phone[data-elder="1"] .ce-bar button,
+#phone[data-elder="1"] .ce-bar label.ce-img-btn{
+  font-size:18px;padding:12px 18px;min-height:48px;border-radius:14px;border-width:2px;
+}
+#phone[data-elder="1"] .ce-bar .ce-b{font-size:20px;min-width:50px}
+#phone[data-elder="1"] .ce-paper{font-size:19.5px;line-height:1.95;padding:16px 18px;border-width:2px}
+#phone[data-elder="1"] .ce-paper h3{font-size:22px}
+#phone[data-elder="1"] .ce-tip{font-size:15px;line-height:1.7}
+#phone[data-elder="1"] .yrb-doc-body{font-size:19.5px;line-height:1.95;padding:16px 18px;border-width:2px}
+#phone[data-elder="1"] .yrb-doc-body h3{font-size:22px}
+#phone[data-elder="1"] .yrb-doc-lock{font-size:16px}

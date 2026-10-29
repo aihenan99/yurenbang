@@ -51,6 +51,17 @@ const ck=(n,c,d)=>{ if(c){pass++;console.log("  ✅",n);} else {fail++;console.l
   const clickMic = () => p.evaluate(sel => document.querySelector(sel).click(), btn);
   const pubVal = () => p.evaluate(() => document.getElementById("pubText").value);
   const toastTxt = () => p.evaluate(() => (document.getElementById("toast")||{}).textContent || "");
+  /* toast 文案会被后续提示覆盖（成功写入会再弹一条），单点快照断言不了「重试提示出现过」。
+     这里挂一个记录器，保留全部历史文案（2026-10-29 择机档：原断言 `... || true` 恒真） */
+  const hookToast = () => p.evaluate(() => {
+    if (window.__toastLog) return;
+    window.__toastLog = [];
+    const el = document.getElementById("toast");
+    if (!el) return;
+    new MutationObserver(() => { const t = el.textContent || ""; if (t) window.__toastLog.push(t); })
+      .observe(el, { childList: true, characterData: true, subtree: true });
+  });
+  const toastLog = () => p.evaluate(() => window.__toastLog || []);
   const btnTxt = () => p.evaluate(sel => document.querySelector(sel).textContent, btn);
 
   /* 打开发布面板 */
@@ -58,6 +69,7 @@ const ck=(n,c,d)=>{ if(c){pass++;console.log("  ✅",n);} else {fail++;console.l
   await p.waitForTimeout(700);
 
   /* T1 no-speech → 自动重试 1 次 → 成功写入，无重复 */
+  await hookToast();
   await p.evaluate(() => { document.getElementById("pubText").value = ""; });
   await setScen("nospeech-then-ok");
   await clickMic();
@@ -65,7 +77,9 @@ const ck=(n,c,d)=>{ if(c){pass++;console.log("  ✅",n);} else {fail++;console.l
   const t1 = await pubVal();
   ck("no-speech 自动重试后成功写入", t1 === "孩子不爱吃饭怎么办", "值=" + t1);
   ck("写入无重复", (t1.match(/孩子不爱吃饭怎么办/g)||[]).length === 1);
-  ck("重试过程有提示", (await toastTxt()).length > 0 || true);
+  const tl1 = await toastLog();
+  ck("重试过程有提示（提示历史含「没听清/再听」）",
+     tl1.some(x => /没听清|再听|自动重试/.test(x)), "历史=" + JSON.stringify(tl1).slice(0, 160));
 
   /* T2 只有 interim 没有 final → 半截话兜底写入 */
   await p.evaluate(() => { document.getElementById("pubText").value = ""; });

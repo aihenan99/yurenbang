@@ -472,7 +472,11 @@ def verify():
          and os.path.exists(os.path.join(DST, "assets/icon-maskable-512.png")),
          "PWA 三个图标齐全（安装弹窗要求）")
     need(os.path.exists(os.path.join(DST, "_worker.js")), "同源代理 _worker.js 存在")
-    need("_worker.js" in read("_worker.js") or True, "_worker.js 可读")
+    # 恒真断言修正（2026-10-29 择机档）：read() 缺文件返回 ""，原写法 "in ... or True" 永远为真、
+    # 等于没校验。改为实质检查「非空 + 含构建标记 + 含边缘标记头」
+    _wjs = read("_worker.js")
+    need(len(_wjs) > 1000 and "const BUILD_TAG" in _wjs and "x-yrb-edge" in _wjs,
+         "_worker.js 内容完整（含 BUILD_TAG 与 x-yrb-edge 标记头）")
     need(re.search(r'src="assets/adminguard\.js(\?v=\d+)?"', idx) or "YRB_ADMINGUARD" in read("assets/bundle.js"),
          "adminguard 层已进入部署包（bundle 或单文件）")
     need(re.search(r'href="assets/adminguard\.css(\?v=\d+)?"', idx) or "adminguard" in read("assets/bundle.css"),
