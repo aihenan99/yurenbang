@@ -64,9 +64,18 @@ for (const file of files) {
 const unknown = [];
 const illegal = [];
 const legal = [];
+
+/* 2026-10-29 审核修复（铁律机器化）：云投影数组是「整体替换」铁律管辖的字段——
+   无论哪一层有 writable 权，都不许用 push/unshift/splice 这类原地方法改。
+   （schema 里 note 写了铁律，但此前只是散文；这里让它真正拦得住，见审核报告 H1/H2） */
+const METHOD_BAN = new Set(["posts", "cases"]);
+
 for (const f of findings) {
   const def = schema.fields[f.field];
   if (!def) { unknown.push(f); continue; }
+  if (METHOD_BAN.has(f.field) && /\.\s*(?:push|splice|unshift|pop|shift|sort|reverse|fill|copyWithin)\s*\(/.test(f.code)) {
+    illegal.push({ ...f, allow: ["<整体替换>"], ban: true }); continue;
+  }
   if (!(def.writable || []).includes(f.layer)) { illegal.push({ ...f, allow: def.writable }); continue; }
   legal.push(f);
 }
@@ -126,7 +135,7 @@ if (unknown.length) {
 if (illegal.length) {
   bad += illegal.length;
   console.log("\n✗ 越界写入 " + illegal.length + " 处（该字段只允许 " +
-    [...new Set(illegal.map((f) => f.allow.join("/")))].join(" ; ") + " 写）：");
+    [...new Set(illegal.map((f) => f.ban ? "<整体替换>（禁原地方法）" : (f.allow.join("/"))) )].join(" ; ") + " 写）：");
   for (const f of illegal) console.log("   " + f.file + ":" + f.line + "  S." + f.field + "   " + f.code);
 }
 

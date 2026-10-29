@@ -452,7 +452,7 @@ async function finishPublish(skipAi){
   if(t==="img"){p.kinds=["study","garden","heart"].slice(0,Math.max(1,Math.min(3,media.length)));}
   if(t==="video"){p.kind="heart";p.dur=capDur||"00:03";}
   if(t==="voice"){p.dur=capDur||"00:03";}
-  S.posts.unshift(p);S.published++;
+  S.posts=[p,...S.posts];S.published++; /* 铁律：整体替换（2026-10-29 审核 H1 修复，原 unshift） */
   $("#pubText").value="";
   if(window.YRB_CAPTURE)YRB_CAPTURE.reset();
   switchTab("home");S.hotMode=false;renderFuncRow();renderFeed();

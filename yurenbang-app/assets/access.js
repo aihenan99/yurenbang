@@ -38,7 +38,7 @@ function load(){
         if(p.r23Status==="reviewing")p.r23Status="open"; /* 审核流程不可跨会话悬置 */
         if(p.time==="刚刚")p.time="今天";
       });
-      S.posts.unshift(...d.myPosts.filter(p=>!p.__cloud)); /* 双保险：云端帖不本地恢复 */
+      S.posts=[...d.myPosts.filter(p=>!p.__cloud),...S.posts]; /* 双保险：云端帖不本地恢复；铁律整体替换（2026-10-29 审核 H1 修复，原 unshift） */
       const kept=d.myPosts.filter(p=>!p.__cloud);
       if(kept.length){
         const mx=Math.max(100,...kept.map(p=>+p.id||0));

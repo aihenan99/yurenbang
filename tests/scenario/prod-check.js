@@ -1,5 +1,5 @@
 /* 生产环境发布自检（发布守卫的执行体）
-   跑法：node temp/prod-check.js [--json]
+   跑法：node tests/scenario/prod-check.js [--json]（release.py 调它，2026-10-29 修正路径）
    退出码：0 = 线上健康；1 = 有问题（供 release.py 决定是否回滚）
    检查的是"用户视角能不能用"，不是"文件在不在"。 */
 const { chromium } = require("../../temp/pw/node_modules/playwright-core");

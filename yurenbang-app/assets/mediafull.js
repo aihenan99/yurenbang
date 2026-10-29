@@ -282,7 +282,13 @@ document.addEventListener("click", function (e) {
   e.stopPropagation();
   var big = $("#r23Big"), vw = $("#r23Viewer");
   if (!big || !vw) return;
-  big.innerHTML = '<img src="' + im.getAttribute("src") + '" alt="查看大图" style="width:100%;display:block">';
+  /* 2026-10-29 审核 M6：src 值来自云端 media url，改 createElement 消除属性逃逸注入面 */
+  var img = document.createElement("img");
+  img.src = im.getAttribute("src");
+  img.alt = "查看大图";
+  img.style.cssText = "width:100%;display:block";
+  big.innerHTML = "";
+  big.appendChild(img);
   vw.classList.add("open");
 }, true);
 

@@ -64,6 +64,13 @@ html.yrb-guard #adQrImg {
   -webkit-touch-callout: default;
 }
 
+/* 分享长图：生成物就是要被长按保存转发的（2026-10-29 审核修复 H5——
+   白名单此前漏了长图层，微信内长按保存完全失效，分享链路断在最后一米） */
+html.yrb-guard .lg-scroll img {
+  pointer-events: auto;
+  -webkit-touch-callout: default;
+}
+
 /* 4) 视频原生控件里的下载按钮隐藏 */
 html.yrb-guard video::-internal-media-controls-download-button { display: none; }
 html.yrb-guard video::-webkit-media-controls-enclosure { overflow: hidden; }

@@ -238,7 +238,7 @@ $("#caseGrid").addEventListener("click",e=>{
 });
 function renderGrowth(){
   $("#tlList").innerHTML=S.growth.length?S.growth.map(g=>`<div class="tl-item"><span class="tl-dot"></span>
-    <div class="tl-card"><div class="tl-date">${g.d}</div><div class="tl-t">${g.e} ${g.t}</div><div class="tl-d">${g.d2}</div></div></div>`).join("")
+    <div class="tl-card"><div class="tl-date">${esc(g.d)}</div><div class="tl-t">${esc(g.e)} ${esc(g.t)}</div><div class="tl-d">${esc(g.d2)}</div></div></div>`).join("")
     :`<div class="empty">🌱 还没有成长记录，记下孩子的每一个第一次吧</div>`;
 }
 /* 社交「朋友」页已按要求移除（renderFriends 不再需要） */
@@ -247,10 +247,10 @@ function renderMsgs(){
   let html="";
   g.forEach(([t,fn])=>{
     const items=S.msgs.filter(fn);if(!items.length)return;
-    html+=`<div class="mg-group">${t}</div>`+items.map(m=>`<button class="msg-item" data-act="msg" data-i="${S.msgs.indexOf(m)}">
-      <span class="mg-ic ${m.rose?"rose":""}">${m.ic}</span>
-      <span class="mg-main"><span class="mg-t">${m.t}</span><span class="mg-s">${m.s}</span></span>
-      <span class="mg-time">${m.time}</span>${m.unread?'<span class="mg-dot"></span>':""}
+    html+=`<div class="mg-group">${esc(t)}</div>`+items.map(m=>`<button class="msg-item" data-act="msg" data-i="${S.msgs.indexOf(m)}">
+      <span class="mg-ic ${m.rose?"rose":""}">${esc(m.ic)}</span>
+      <span class="mg-main"><span class="mg-t">${esc(m.t)}</span><span class="mg-s">${esc(m.s)}</span></span>
+      <span class="mg-time">${esc(m.time)}</span>${m.unread?'<span class="mg-dot"></span>':""}
     </button>`).join("");
   });
   $("#msgList").innerHTML=html||`<div class="empty">🔔 还没有消息，帮别人一次就会收到感谢啦</div>`;
@@ -1018,10 +1018,11 @@ $("#cuGo").addEventListener("click",async ()=>{
         return;
       }
       const first=res.media&&res.media[0];
-      S.cases.unshift({t:t,by:(typeof myName==="function"?myName():"家长")||"家长",ava:"rabbit",
+      /* 铁律：云投影数组只许整体替换（2026-10-29 审核 H1 修复，原 unshift） */
+      S.cases=[{t:t,by:(typeof myName==="function"?myName():"家长")||"家长",ava:"rabbit",
         type:S.cuType,kind:"study",dur:(first&&first.dur)||"0:28",
         media:res.media.map(m=>({kind:m.kind,url:m.url,path:m.path,dur:m.dur||""})),
-        __cloud:true,cloudId:res.cloudId,helps:0,likes:0,favs:0});
+        __cloud:true,cloudId:res.cloudId,helps:0,likes:0,favs:0},...S.cases];
       toast("案例已发布到广场 🎉");
     }catch(err){
       console.warn("[案例发布]",err);
@@ -1051,9 +1052,10 @@ $("#cuGo").addEventListener("click",async ()=>{
         toast("发布没成功："+((res&&res.message)||"请检查网络后再试一次"));
         return;
       }
-      S.cases.unshift({t:t,by:(typeof myName==="function"?myName():"家长")||"家长",ava:"rabbit",
+      /* 铁律：云投影数组只许整体替换（2026-10-29 审核 H1 修复，原 unshift） */
+      S.cases=[{t:t,by:(typeof myName==="function"?myName():"家长")||"家长",ava:"rabbit",
         type:S.cuType,kind:"study",dur:"",media:[],
-        __cloud:true,cloudId:res.cloudId,helps:0,likes:0,favs:0});
+        __cloud:true,cloudId:res.cloudId,helps:0,likes:0,favs:0},...S.cases];
       toast("案例已发布到广场 🎉（这次没有配内容，下次记得选内容哦）");
     }catch(err){
       console.warn("[案例发布]",err);

@@ -47,6 +47,12 @@ def say(msg):
 
 def run(cmd, timeout=900):
     """执行子进程，实时透传输出。返回 (ok, 输出文本)。"""
+    # 2026-10-29 审核修复（C1）：脚本型命令先查文件在不在，缺失当场失败并说清，
+    # 避免重演 prod-check.js 迁移后断链、部署成功后误回滚的事故
+    if len(cmd) > 1 and cmd[0] in (NODE, PY, getattr(sys, "executable", "")) and os.path.splitext(cmd[1])[1]:
+        if not os.path.exists(cmd[1]):
+            print("[断链] 脚本不存在：%s（发布中止，别等部署后再炸）" % cmd[1], flush=True)
+            return False, "[断链] 脚本不存在: " + cmd[1]
     print("$ " + " ".join(cmd), flush=True)
     p = subprocess.Popen(cmd, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     lines = []
@@ -182,7 +188,7 @@ def wait_for_build(expected, timeout=150):
 
 
 def prod_check():
-    ok, out = run([NODE, os.path.join(TEMP, "prod-check.js"), "--json"], timeout=180)
+    ok, out = run([NODE, os.path.join(ROOT, "tests", "scenario", "prod-check.js"), "--json"], timeout=180)
     data = {}
     for line in out.splitlines():
         line = line.strip()

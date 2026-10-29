@@ -48,7 +48,7 @@
 
       /* ---------- 激励数值：只由 app 初始化、由对应层递增 ---------- */
       published: { type: "number", owner: "app", writable: ["app", "refine23"], note: "发布计数" },
-      roses: { type: "number", owner: "app", writable: ["app", "reward"], note: "玫瑰余额；reward 层负责加减" },
+      roses: { type: "number", owner: "app", writable: ["app", "reward", "access"], note: "玫瑰余额；app 发玫瑰时递增，access 是本地存档的恢复通道（2026-10-29 审核正名，原 H2）" },
       badge: { type: "number", owner: "app", writable: ["app"], note: "徽章等级" },
 
       /* ---------- 云端数据投影：只许整体替换，禁止跨层改单条 ---------- */
@@ -79,8 +79,9 @@
      *   - 生产环境（bundle.js）默认不拦截，只在 ?stateaudit=1 时开启。 */
     limits: [
       "顶层赋值可精确捕获（含来源文件名与行号）",
-      "数组原地变更只能靠长度快照发现，无法定位到具体层",
-      "对象深层字段（region.city）改动不触发，需显式走 YRB_STATE.set"
+      "数组原地变更只能靠长度快照发现，无法定位到具体层（静态审计已对 posts/cases 加方法黑名单兜底）",
+      "对象深层字段（region.city）改动不触发，需显式走 YRB_STATE.set",
+      "动态写法 S[k]=value 静态审计不可见（2026-10-29 审核记录）：合法用途必须先在 writable 里正名该层"
     ]
   };
   g.YRB_STATE_SCHEMA = schema;
