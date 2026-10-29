@@ -37,7 +37,7 @@
 - 交接文档：`ARCHITECTURE.md`。加新层要同时改四处：html 的 script / sw.js 的 CORE / health.js 的 LAYERS / sync_deploy.py 的 layers
 - `sync_deploy.py` 的 ROOT 已改为按脚本位置推导（不再硬编码 E:\育人帮），并新增漂移检测
 - 安全基线（2026-10-28）：`.github/workflows/security.yml`（npm audit + gitleaks 全历史，push/PR/每周一）+ `.gitleaks.toml` 白名单；`npm run audit:deps` 本地跑
-- CSP 演练：`npm run verify:csp`（scripts/csp-rehearsal.mjs）——内存切强制 + 真浏览器三页走查零违规，17 项断言；**演练器匹配常量必须行首锚定**（注释里有同字面量示例行）
+- CSP 演练：`npm run verify:csp`（scripts/csp-rehearsal.mjs）——内存切强制 + 真浏览器三页走查零违规，17 项断言；**演练器匹配常量必须行首锚定**（注释里有同字面量示例行）；**P2.1 已落地（10-29）**：sync_deploy.py inject_csp_hashes() 对 index/share/error 三页 4 段内联块算 SHA-256 注入 script-src、去 unsafe-inline——新加内联块必须重跑 sync 否则 Report-Only 即报违规；CSP_POLICY 是数组 join 形态，改它必须按单字符串字面量匹配（跨引号正则会吞数组）
 - 管理员手机号：源码零号码，`config/admin.local.json`（gitignore）→ sync 时注入部署包 `window.YRB_ADMIN`；`ADMIN_PHONES = (window.YRB_ADMIN && ...) || []`；**改号码只改 config，别写回源码**（verify 有守卫）；部署产物仍公开 JS，彻底靠 is_admin() RPC
 - 安全文档：`docs/安全基线.md`（GitHub 侧仍需手动开 Secret scanning + Push protection）
 
