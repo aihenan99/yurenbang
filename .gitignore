@@ -48,3 +48,9 @@ nul
 Thumbs.db
 .DS_Store
 desktop.ini
+
+# ---------- Agent 工作目录（2026-10-29 移出跟踪） ----------
+# .workbuddy/ 是本地工作笔记与技能配置（含手机号），属个人工作台，不入公开库。
+# 历史提交里仍有旧版本（gitleaks 已按路径放行并登记 docs/安全基线.md「已知暴露面」）；
+# 本地文件原样保留，只是 git 不再跟踪。
+.workbuddy/
