@@ -322,20 +322,21 @@ def inject_csp_hashes():
     这是有意为之的报警，比转强制后才发现要好。"""
     import base64
     import hashlib
-    # hash 必须覆盖所有会被 Worker 下发 CSP 的用户可达页（index/share/error），
-    # 只扫 index 会在分享落地页漏掉它自己的内联脚本（演练器抓到过）
     ipath = os.path.join(DST, "index.html")
     wp = os.path.join(DST, "_worker.js")
-    pages = [p for p in ("index.html", "share.html", "error.html")
-             if os.path.exists(os.path.join(DST, p))]
-    if not (ipath and os.path.exists(wp)) or not pages:
+    if not (ipath and os.path.exists(wp)):
         return 0
+    # hash 覆盖部署包**全部** html 的静态内联块（index/share/error + anli/*）：
+    # 强制 CSP 的路径集合会扩大，任何页面将来冒出内联脚本都必须已被 hash 覆盖。
     hashes = []
-    for p in pages:
-        html = io.open(os.path.join(DST, p), encoding="utf-8").read()
-        for m in re.finditer(r"<script>(.*?)</script>", html, re.S):
-            d = hashlib.sha256(m.group(1).encode("utf-8")).digest()
-            hashes.append("'sha256-" + base64.b64encode(d).decode() + "'")
+    for root, _dirs, files in os.walk(DST):
+        for f in files:
+            if not f.endswith(".html"):
+                continue
+            html = io.open(os.path.join(root, f), encoding="utf-8").read()
+            for m in re.finditer(r"<script>(.*?)</script>", html, re.S):
+                d = hashlib.sha256(m.group(1).encode("utf-8")).digest()
+                hashes.append("'sha256-" + base64.b64encode(d).decode() + "'")
     if not hashes:
         return 0
     txt = io.open(wp, encoding="utf-8").read()
@@ -498,12 +499,12 @@ def verify():
     import base64 as _b64
     import hashlib as _hl
     live = set()
-    for p in ("index.html", "share.html", "error.html"):
-        pp = os.path.join(DST, p)
-        if not os.path.exists(pp):
-            continue
-        for m in re.finditer(r"<script>(.*?)</script>", io.open(pp, encoding="utf-8").read(), re.S):
-            live.add("'sha256-" + _b64.b64encode(_hl.sha256(m.group(1).encode("utf-8")).digest()).decode() + "'")
+    for root, _dirs, files in os.walk(DST):
+        for f in files:
+            if not f.endswith(".html"):
+                continue
+            for m in re.finditer(r"<script>(.*?)</script>", io.open(os.path.join(root, f), encoding="utf-8").read(), re.S):
+                live.add("'sha256-" + _b64.b64encode(_hl.sha256(m.group(1).encode("utf-8")).digest()).decode() + "'")
     ms = re.search(r'"script-src ([^"]*)"', worker)
     need(ms is not None, "_worker.js 含 script-src 指令")
     if ms:

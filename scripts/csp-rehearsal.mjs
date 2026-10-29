@@ -56,7 +56,35 @@ if (!/^const CSP_HEADER = "content-security-policy";/m.test(patched)) {
 writeFileSync(TMP_WORKER, patched, "utf8");
 console.log(C.b + "\n育人帮 · CSP 转强制演练" + C.x + C.d + "（原模式：" + ORIGINAL + " → 演练模式：强制）" + C.x + "\n");
 
-const cleanup = () => { try { if (existsSync(TMP_WORKER)) unlinkSync(TMP_WORKER); } catch (_) {} };
+/* ---------- 1.5 P3 现状验收：分路径强制已按预案启用 ----------
+   用未打补丁的原 worker 真调一次，逐路径核对头名：
+   CSP_ENFORCE 里的路径必须已是强制头，其余必须仍是 Report-Only。
+   这组断言保证「有人往 CSP_ENFORCE 加了路径却忘了核对」或「误删集合」会立刻现形。 */
+{
+  /* 原始文件是 .js（无 package.json type:module），必须同样复制成 .mjs 才能 import */
+  const TMP_ORIG = join(ROOT, "temp", "_csp_orig_worker.mjs");
+  writeFileSync(TMP_ORIG, raw, "utf8");
+  const orig = await import(pathToFileURL(TMP_ORIG).href + "?t=" + Date.now());
+  const STUB = { ASSETS: { fetch: async () => new Response("ok", { headers: { "content-type": "text/html" } }) } };
+  for (const [label, path, wantForce] of [
+    ["静态案例库", "/anli/index.html", true],
+    ["案例库子页", "/anli/haizi-xie-zuoye-tuola", true],
+    ["分享落地页", "/share.html", true],
+    ["首页", "/", false]
+  ]) {
+    const r = await orig.default.fetch(new Request("https://xn--gmqq09al6z.cn" + path), STUB);
+    const forced = !!r.headers.get("content-security-policy");
+    const ro = !!r.headers.get("content-security-policy-report-only");
+    const got = forced ? "强制" : (ro ? "Report-Only" : "无 CSP 头");
+    ck("P3 现状 · " + label + (wantForce ? " → 强制" : " → 仍 Report-Only"),
+      wantForce ? (forced && !ro) : (ro && !forced), got);
+  }
+}
+
+const cleanup = () => {
+  try { if (existsSync(TMP_WORKER)) unlinkSync(TMP_WORKER); } catch (_) {}
+  try { if (existsSync(join(ROOT, "temp", "_csp_orig_worker.mjs"))) unlinkSync(join(ROOT, "temp", "_csp_orig_worker.mjs")); } catch (_) {}
+};
 process.on("exit", cleanup);
 
 /* ---------- 2. 真调一次 Worker，拿到强制模式会下发的头 ---------- */

@@ -290,6 +290,15 @@ async function notFound(url, env) {
  *   frame-ancestors  比 X-Frame-Options 更现代，二者并存兼容旧浏览器
  */
 const CSP_HEADER = "content-security-policy-report-only";
+/* P3 分路径强制（2026-10-29，预案 docs/CSP转强制预案.md）：纯静态、无云交互的页面
+   先转强制，逐批扩大；回滚 = 从集合删掉对应路径。hash 已由演练器在强制模式下
+   三页走查零违规（含 share.html 自己的内联块），这一步是执行既定预案。 */
+const CSP_ENFORCE = ["/anli/", "/share.html"];
+function cspNameFor(path) {
+  return CSP_ENFORCE.some((p) => path === p || path.startsWith(p))
+    ? "content-security-policy"
+    : CSP_HEADER;
+}
 const CSP_POLICY = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-eval' 'sha256-WSR3JsBOi1ku91HBvFogs6slXsjcLEp2xrq2WzB/6Mg=' 'sha256-MsIHKWwAkOqHuy+fS8Dh6+h8aIJ9trABD9s34o3VFi0=' 'sha256-4Af4t/iEQUgw37MgnPKy3KbnTbaaP0NhuLE9rncYZGM=' 'sha256-PwOZ9r7SB3z+7SEQtn2TQ4eugxNK+o6fhQ6J7lzc8n4='",
@@ -306,7 +315,7 @@ const CSP_POLICY = [
   "frame-ancestors 'none'"
 ].join("; ");
 
-function secure(h) {
+function secure(h, path) {
   h.set("x-content-type-options", "nosniff");
   h.set("x-frame-options", "DENY");
   h.set("referrer-policy", "strict-origin-when-cross-origin");
@@ -314,7 +323,7 @@ function secure(h) {
   /* HSTS：180 天。刻意不加 includeSubDomains / preload——两者都难回退，
      等真正有子域需要 HTTPS 时再单独评估。 */
   h.set("strict-transport-security", "max-age=15552000");
-  h.set(CSP_HEADER, CSP_POLICY);
+  h.set(cspNameFor(path || ""), CSP_POLICY);
   return h;
 }
 const RL = new Map();
@@ -393,6 +402,6 @@ export default {
     /* 资源存在时补一个构建标记，方便线上核对是否为新版本 */
     const h = new Headers(asset.headers);
     h.set("x-yrb-edge", BUILD_TAG);
-    return new Response(asset.body, { status: asset.status, statusText: asset.statusText, headers: secure(h) });
+    return new Response(asset.body, { status: asset.status, statusText: asset.statusText, headers: secure(h, url.pathname) });
   },
 };
