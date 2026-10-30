@@ -204,8 +204,15 @@
     var list = b.closest("#cmList") || b.closest("#r23CmList");
     var item = b.closest(".cm-item");
     if (!list || !item) return;
-    var idx = Array.prototype.indexOf.call(list.querySelectorAll(".cm-item"), item);
-    if (idx < 0) return;
+    /* 审核（2026-10-30）：原用 .cm-item 在列表里的 DOM 下标当数据下标——渲染顺序与数据顺序
+       一旦不一致（筛选/重排/局部刷新）就会给错人送花，去重键也会漂移。
+       cmItemHTML 本来就在按钮上带 data-i（数据下标），优先用它，取不到再退回 DOM 下标 */
+    var btn = (b.getAttribute && b.getAttribute("data-i") != null) ? b
+      : item.querySelector('[data-act="clike"]');
+    var iAttr = btn ? btn.getAttribute("data-i") : null;
+    var idx = (iAttr != null && !isNaN(parseInt(iAttr, 10))) ? parseInt(iAttr, 10)
+      : Array.prototype.indexOf.call(list.querySelectorAll(".cm-item"), item);
+    if (isNaN(idx) || idx < 0) return;
     var s = ST();
     var p = findPost(s && s.curPost);
     if (!p || !p.comments || !p.comments[idx]) return;

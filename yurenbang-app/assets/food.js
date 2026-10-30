@@ -393,7 +393,9 @@
     const C = window.YRB_CLOUD, uid = myId();
     if (C && C.enabled && C.enabled() && C.signedIn && C.signedIn() && C.client && uid) {
       try {
-        const r = await C.client.database.from("yb_gifts").select("*").or(`to_id.eq.${uid},from_id.eq.${uid}`)
+        /* 审核（2026-10-30）：原来 `.or(to_id..., from_id...).limit(60)` —— 送出记录把
+           limit 占满时收件会被挤掉（漏单）；且返回值只消费 to 侧。改成只查 to_id，语义等价 */
+        const r = await C.client.database.from("yb_gifts").select("*").eq("to_id", uid)
           .order("created_at", { ascending: false }).limit(60);
         if (r && !r.error) {
           const mine = (r.data || []).filter(x => x.to_id === uid);
@@ -406,9 +408,15 @@
   }
   async function markSeen(ids) {
     const C = window.YRB_CLOUD;
-    if (!C || !C.client) return;
-    for (const id of ids) {
-      try { await C.client.database.from("yb_gifts").update({ seen: true }).eq("id", id); } catch (e) {}
+    /* 审核（2026-10-30）：原来逐条 await update（N+1 次请求）。优先一条 .in() 批量更新；
+       SDK 版本差异导致 .in 不可用时自动退回逐条（与旧行为等价），保证不因升级翻车 */
+    if (!C || !C.client || !ids || !ids.length) return;
+    try {
+      await C.client.database.from("yb_gifts").update({ seen: true }).in("id", ids);
+    } catch (e) {
+      for (const id of ids) {
+        try { await C.client.database.from("yb_gifts").update({ seen: true }).eq("id", id); } catch (e2) {}
+      }
     }
     setBadge(0);
     refreshBadge();

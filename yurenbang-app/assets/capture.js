@@ -424,8 +424,10 @@ function bind(host){
       if(mode==="audio"){
         const f=files[0],url=URL.createObjectURL(f);
         const d=await durOf(url,false);
-        if(state.voice)URL.revokeObjectURL(state.voice.url);
+        /* 审核（2026-10-30）：原顺序是先 revoke 旧录音再校验新文件——校验失败 return 时
+           旧的已被 revoke，用户原试听变死链。改为校验失败只清新 url，成功后才换旧的 */
         if(!d){URL.revokeObjectURL(url);toast("这个文件不是可播放的音频，请换一个");return;}
+        if(state.voice)URL.revokeObjectURL(state.voice.url);
         state.voice={blob:f,url,dur:Math.min(MAX_VOICE,d),ext:extOf(f.type)};
         state.aState="done";state.help=null;refresh();
         toast("录音已选好（"+fmt(state.voice.dur)+"），可试听后上传 🎙️");return;

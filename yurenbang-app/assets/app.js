@@ -53,7 +53,10 @@ function avatarSVG(kind,effect,ch){
   if(effect==="mosaic"){
     const pal=["#F4694B","#2FA393","#E9A23B","#E75D7C","#7A5CC7","#4C96D7","#57C7B5","#F0B26B"];let sq="";
     for(let r=0;r<6;r++)for(let c=0;c<6;c++){sq+=`<rect x="${c*10}" y="${r*10}" width="10" height="10" fill="${pal[(r*6+c+((ch||"阳").charCodeAt(0)))%pal.length]}"/>`;}
-    return `<svg viewBox="0 0 60 60"><defs><clipPath id="cp${uid()}"><circle cx="30" cy="30" r="30"/></clipPath></defs><g clip-path="url(#cp${UID-1})">${sq}</g></svg>`;
+    /* 审核（2026-10-30）：原写法 `id="cp${uid()}" ... url(#cp${UID-1})` 依赖「uid() 是模板里
+       最后一次调用」这一求值顺序巧合，中间插一个 uid() 就引用错 id。改为先取再两处复用 */
+    const cp="cp"+uid();
+    return `<svg viewBox="0 0 60 60"><defs><clipPath id="${cp}"><circle cx="30" cy="30" r="30"/></clipPath></defs><g clip-path="url(#${cp})">${sq}</g></svg>`;
   }
   if(effect==="warp"){
     const f="wf"+uid();

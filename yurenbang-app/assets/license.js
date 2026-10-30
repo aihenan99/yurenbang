@@ -92,6 +92,13 @@
     $("#licView").addEventListener("click", e => { if (e.target.id === "licView" || e.target.className === "lv-body") $("#licView").classList.remove("open"); });
   }
   function openViewer(src, title) {
+    /* 审核（2026-10-30）：src 直塞 img.src 且无协议校验——设置值被篡改时可注入
+       javascript:/data: 之类。只放行 http(s) 与站内相对路径（云端签名 URL 均为 https） */
+    src = String(src || "");
+    if (!/^(https?:)?\/\//i.test(src) && !/^\//.test(src)) {
+      if (window.toast) toast("证照地址不可用");
+      return;
+    }
     ensureViewer();
     $("#lvTitle").textContent = title || "证照";
     $("#lvImg").src = src;

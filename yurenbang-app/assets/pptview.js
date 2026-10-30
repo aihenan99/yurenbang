@@ -509,15 +509,24 @@ function coverGet(key){
   try{
     var o=JSON.parse(localStorage.getItem(COVER_KEY)||"{}");
     var e=o[key];
-    return e&&e.d?e.d:null;
+    if(!(e&&e.d))return null;
+    /* 审核（2026-10-30）：原来只看 d 不看 t——同 path 的 PPT 更新后封面永不刷新。
+       无时间戳的旧记录与超 30 天的一律视为过期：删掉并返回 null，让本次重新渲染回写 */
+    if(!e.t||Date.now()-e.t>30*864e5){
+      delete o[key];
+      try{localStorage.setItem(COVER_KEY,JSON.stringify(o));}catch(e2){}
+      return null;
+    }
+    return e.d;
   }catch(e){return null;}
 }
 function coverPut(key,d){
   try{
     var o=JSON.parse(localStorage.getItem(COVER_KEY)||"{}");
     o[key]={d:d,t:Date.now()};
-    var ks=Object.keys(o);
-    while(ks.length>24)delete o[ks.shift()];        /* LRU 上限 24 个 ≈ 1MB */
+    /* 审核（2026-10-30）：原淘汰用 Object.keys 插入序，不是按时间；改为按 t 升序删最旧 */
+    var ks=Object.keys(o).sort(function(a,b){return (o[a].t||0)-(o[b].t||0);});
+    while(ks.length>24){delete o[ks.shift()];}      /* LRU 上限 24 个 ≈ 1MB */
     try{localStorage.setItem(COVER_KEY,JSON.stringify(o));}
     catch(qe){                                       /* 超配额：砍掉最旧一半再试一次 */
       var arr=ks.sort(function(a,b){return (o[a].t||0)-(o[b].t||0);});

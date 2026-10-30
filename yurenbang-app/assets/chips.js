@@ -51,6 +51,10 @@
 
   /* ---------- 云端拉取 ---------- */
   let loading = false, pulled = false;
+  /* 审核（2026-10-30）：后台保存会立刻触发 yrb-chips 事件并 apply 新栏目；若此时启动期
+     发出的云端 pull 还在路上，回来会用云端**旧值**把刚保存的（含本会话新加的拓展）冲掉。
+     置 userTouched 后，本会话内 pull 不再覆盖（云端新值下次启动自然拉到） */
+  let userTouched = false;
   async function pull() {
     const C = window.YRB_CLOUD;
     if (loading || pulled || !C || !C.enabled || !C.enabled() || !C.client || !C.client.database) return;
@@ -58,7 +62,7 @@
     try {
       const r = await C.client.database.from("yb_settings").select("key,value").eq("key", "home_chips").maybeSingle();
       const raw = r && r.data && r.data.value;
-      if (raw) {
+      if (raw && !userTouched) {
         const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
         cfg = sanitize(parsed);
         try { localStorage.setItem(LSKEY, JSON.stringify(cfg)); } catch (e) {}
@@ -80,11 +84,11 @@
     }
   }, 300);
 
-  /* 后台保存后即时生效 */
+  /* 后台保存后即时生效（并保护本会话状态不被迟到的 pull 冲掉） */
   window.addEventListener("yrb-chips", e => {
     try {
       const d = e && e.detail;
-      if (d) { cfg = sanitize(d); try { localStorage.setItem(LSKEY, JSON.stringify(cfg)); } catch (e2) {} }
+      if (d) { cfg = sanitize(d); userTouched = true; try { localStorage.setItem(LSKEY, JSON.stringify(cfg)); } catch (e2) {} }
       apply();
     } catch (e3) {}
   });
