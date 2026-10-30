@@ -113,7 +113,7 @@
 <div class="sheet">
 
   <div class="toolbar">
-    <span class="prog" id="prog">已完成 0 / 17</span>
+    <span class="prog" id="prog">已完成 0 / 19</span>
     <span>
       <button type="button" id="btnPrint">打印 / 存 PDF</button>
       <button type="button" id="btnReset">全部清空</button>
@@ -214,6 +214,22 @@
         ④ CSP 首页转强制 —— 发版满 3 天无异常报告后再动
       </div>
       <div class="hint">发版必须 run_in_background；自检不过会自动回滚，别手动干预。</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <label class="box"><input type="checkbox" id="c8"><span class="mk"></span></label>
+    <div class="body">
+      <div class="t"><span class="n">8</span>（可选）清理存量 PPT 案例数据 —— 上传通道已于 2026-10-30 下线</div>
+      <div class="d">先看后删：查 <code>select count(*) from yb_cases where type='ppt';</code>，确认为 0 或很少再做。
+        勾选这一步 = 用户已拍板彻底不要存量 PPT。执行两条：</div>
+      <div class="d" style="margin-top:1.5mm;line-height:1.7">
+        ① 删记录：找出 <code>type='ppt'</code> 的 <code>id</code> 和 <code>file</code> 路径，先导出留档到本机，再
+        <code>delete from yb_cases where type='ppt';</code><br>
+        ② 删文件：对上一步记下的每个 storage 路径逐个 <code>remove</code>（后台「🎬 案例管理」逐条删即可，会连带清素材），
+        删完看 storage 用量确认回落
+      </div>
+      <div class="hint">不删也不影响使用：查看端仍保留，已传 PPT 案例照常能翻页。这条只省存储与流量。</div>
     </div>
   </div>
 
