@@ -38,8 +38,11 @@
   function say(msg, ms) {
     if (typeof window.toast === "function") { try { window.toast(msg); return; } catch (e) {} }
     var d = document.createElement("div");
+    d.id = "yrbUpgToast";
     d.textContent = msg;
-    d.style.cssText = "position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:99999;" +
+    /* z-index 99991：系统提示层（见 app.css 顶部的层级阶梯）。原来写 99999 会盖住强制升级面板本身，
+       升级提示反而被自己的气泡压住；带 id 是为了让 scripts/zindex-audit.mjs 能识别并守住这一层 */
+    d.style.cssText = "position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:99991;" +
       "background:rgba(35,25,20,.9);color:#fff;font-size:13px;border-radius:99px;padding:10px 20px;" +
       "max-width:86vw;text-align:center;line-height:1.5";
     document.body.appendChild(d);

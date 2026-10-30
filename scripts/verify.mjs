@@ -241,6 +241,18 @@ step("隐私合规自检（同意闸门 / 政策正文 / 限时签名 / 脱敏�
   };
 });
 
+/* ---------- 4.6 层级契约：z-index 不许再随手写「比谁都大」 ---------- */
+step("层叠阶梯：z-index 落在契约区间且高层级已登记", () => {
+  const r = spawnSync(process.execPath, [join(ROOT, "scripts", "zindex-audit.mjs")], { encoding: "utf8" });
+  const out = (r.stdout || "") + (r.stderr || "");
+  if (r.status !== 0) {
+    const bad = out.split("\n").filter((l) => l.includes("✗")).map((l) => l.trim());
+    throw new Error(bad.slice(0, 3).join(" / ") || "层级契约未通过");
+  }
+  const m = out.match(/采集 (\d+) 处 z-index，跨 (\d+) 个不同值；超 #modal\(96\) 的有 (\d+) 处/);
+  return { ok: true, msg: m ? `${m[1]} 处 / ${m[2]} 个值，高层级 ${m[3]} 处全部登记` : "通过" };
+});
+
 /* ---------- 4. 部署一致性：源码与待部署包是否同源 ---------- */
 if (!FAST) {
   const PY = process.platform === "win32" ? "python" : "python3";
@@ -291,7 +303,9 @@ const LINES = [
         ["全局异常兜底", "guard-test.js"],
         ["云端深度体检", "deepcheck-test.js"],
         /* 长辈模式三层（媒体全屏 / 图文编辑器 / PPT 全屏）——老年人可用性的回归底线 */
-        ["长辈模式三层适配", "elder-test.js"]
+        ["长辈模式三层适配", "elder-test.js"],
+        /* 层叠顺序：提示必须盖过全屏层（#toast 曾长期低于 #vpFull，全屏里「点了没反应」） */
+        ["层叠顺序与提示可见性", "layering-test.js"]
       ]
     }
   ];

@@ -428,9 +428,14 @@ svg{display:block}
 .bn-ic{font-size:26px}
 .bn-t{font-weight:800;font-size:14px}
 .bn-s{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#toast{position:absolute;left:50%;bottom:110px;transform:translateX(-50%) translateY(16px);z-index:75;background:rgba(35,25,20,.88);color:#fff;font-size:13px;border-radius:99px;padding:10px 20px;opacity:0;pointer-events:none;transition:.25s;max-width:82%;text-align:center}
+/* 层叠阶梯（2026-10-30 定契约，scripts/zindex-audit.mjs 守卫）：
+   0-9 层内装饰 · 10-39 页面骨架 · 40-59 全局浮层（抽屉/半屏页）· 60-79 面板与详情
+   · 80-96 最高内容面板（#modal）· 100-999 全屏媒体层（#vpFull）· 90000+ 系统提示层
+   toast 与满屏感谢必须盖过全屏媒体层——否则在 PPT 全屏里点了没反应也看不到原因；
+   但两者仍在强制升级提示（99997）之下，升级时不许被提示条遮住。 */
+#toast{position:absolute;left:50%;bottom:110px;transform:translateX(-50%) translateY(16px);z-index:99990;background:rgba(35,25,20,.88);color:#fff;font-size:13px;border-radius:99px;padding:10px 20px;opacity:0;pointer-events:none;transition:.25s;max-width:82%;text-align:center}
 #toast.show{opacity:1;transform:translateX(-50%)}
-#gift{position:absolute;inset:0;z-index:70;background:radial-gradient(circle at 50% 26%,#6B3D50 0%,#3A2735 55%,#241A2A 100%);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.35s}
+#gift{position:absolute;inset:0;z-index:99989;background:radial-gradient(circle at 50% 26%,#6B3D50 0%,#3A2735 55%,#241A2A 100%);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:.35s}
 #gift.open{opacity:1;pointer-events:auto}
 .gift-inner{text-align:center;position:relative;z-index:2;transform:scale(.7);transition:.45s cubic-bezier(.2,1.4,.4,1)}
 #gift.open .gift-inner{transform:none}

@@ -226,7 +226,10 @@ function renderCases(){
     else if(st==="fail")empty=`<div class="empty">⚠️ 案例加载失败，可能是网络不稳定<br><button type="button" class="btn-a" id="casesRetry" style="margin-top:12px">↻ 点此重试</button></div>`;
     else empty=`<div class="empty">暂无该类型案例</div>`;
   }
-  $("#caseGrid").innerHTML=(list.length?list.map(c=>`<div class="case-card" data-act="case" data-i="${S.cases.indexOf(c)}">
+  /* data-i 必须是「在 S.cases 里的下标」——点击侧 openViewer(S.cases[+i]) 依赖它；
+     原来在 map 里逐个 S.cases.indexOf 是 O(n²)，先建一次索引表 O(n)（2026-10-30） */
+  const idxOf=new Map();S.cases.forEach((c,i)=>idxOf.set(c,i));
+  $("#caseGrid").innerHTML=(list.length?list.map(c=>`<div class="case-card" data-act="case" data-i="${idxOf.get(c)}">
     <div class="c-thumb">${caseThumb(c)}</div>
     <div class="c-info"><div class="c-title">${esc(c.t)}</div>
     <div class="c-by"><span class="ca">${avatarSVG(c.ava)}</span>${esc(c.by)}</div>
@@ -247,10 +250,12 @@ function renderGrowth(){
 /* 社交「朋友」页已按要求移除（renderFriends 不再需要） */
 function renderMsgs(){
   const g=[["🌹 礼物与感谢",m=>m.rose],["🤝 帮忙互动",m=>["🤝","❤️"].includes(m.ic)],["🔔 系统",m=>m.ic==="🔔"]];
+  /* 同上：分组后仍要还原出在 S.msgs 里的真下标，一次建表代替逐个 indexOf（O(n²)→O(n)） */
+  const idxOf=new Map();S.msgs.forEach((m,i)=>idxOf.set(m,i));
   let html="";
   g.forEach(([t,fn])=>{
     const items=S.msgs.filter(fn);if(!items.length)return;
-    html+=`<div class="mg-group">${esc(t)}</div>`+items.map(m=>`<button class="msg-item" data-act="msg" data-i="${S.msgs.indexOf(m)}">
+    html+=`<div class="mg-group">${esc(t)}</div>`+items.map(m=>`<button class="msg-item" data-act="msg" data-i="${idxOf.get(m)}">
       <span class="mg-ic ${m.rose?"rose":""}">${esc(m.ic)}</span>
       <span class="mg-main"><span class="mg-t">${esc(m.t)}</span><span class="mg-s">${esc(m.s)}</span></span>
       <span class="mg-time">${esc(m.time)}</span>${m.unread?'<span class="mg-dot"></span>':""}
