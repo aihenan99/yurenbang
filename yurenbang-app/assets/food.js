@@ -502,5 +502,7 @@
     if (e.target.closest('.tb-item[data-p="me"]')) setTimeout(refreshBadge, 400);
   }, true);
 
-  window.YRB_FOOD = { foods: FOODS, openPanel, send, refreshBadge, fly, openWallet, replay, openInbox };
+  /* inbox / markSeen：消息页（app.js renderMsgs）复用同一份收件箱数据源与已读落库，
+     避免两个页面各拉一遍、已读状态互不同步（2026-10-30，M2 接线） */
+  window.YRB_FOOD = { foods: FOODS, openPanel, send, refreshBadge, fly, openWallet, replay, openInbox, inbox: fetchInbox, markSeen };
 })();

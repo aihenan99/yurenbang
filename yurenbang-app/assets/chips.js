@@ -17,7 +17,10 @@
   const LSKEY = "yrb_chips_v1";
 
   /* 与 app.js 的 renderFuncRow/funcAddSheet 能力对齐 */
-  const CORE = ["foryou", "hot", "cases", "growth"];           // 可配置的核心栏目
+  /* 成长录已从可选栏目撤下（2026-10-30，M2）：它没有任何数据源（种子数据 10-25 下线后永远空态），
+     挂在栏目里等于对用户展示一个永远空白的页面。等记录功能上线后再加回来；
+     旧配置里残留的 growth 会被 sanitize 的 CORE 过滤自动剔除 */
+  const CORE = ["foryou", "hot", "cases"];                     // 可配置的核心栏目
   const EXTRA = ["名师课堂", "心理树洞", "爱心集市", "亲子地图", "公益图谱"]; // 拓展模块
   const DEFAULT = { funcs: ["foryou", "cases"], extra: [] };   // 默认：推荐 + 案例
 

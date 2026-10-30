@@ -243,25 +243,60 @@ $("#caseGrid").addEventListener("click",e=>{
   }
 });
 function renderGrowth(){
+  /* 成长录功能未上线（2026-10-30，M2）：无数据源，入口已撤到「即将上线」组；
+     分享链接/直达 hash 仍能到这里，文案必须如实，不许暗示「马上就能记」 */
   $("#tlList").innerHTML=S.growth.length?S.growth.map(g=>`<div class="tl-item"><span class="tl-dot"></span>
     <div class="tl-card"><div class="tl-date">${esc(g.d)}</div><div class="tl-t">${esc(g.e)} ${esc(g.t)}</div><div class="tl-d">${esc(g.d2)}</div></div></div>`).join("")
-    :`<div class="empty">🌱 还没有成长记录，记下孩子的每一个第一次吧</div>`;
+    :`<div class="empty">🌱 成长录还在准备中，上线后可以在这里记下孩子的每一个第一次</div>`;
 }
 /* 社交「朋友」页已按要求移除（renderFriends 不再需要） */
-function renderMsgs(){
-  const g=[["🌹 礼物与感谢",m=>m.rose],["🤝 帮忙互动",m=>["🤝","❤️"].includes(m.ic)],["🔔 系统",m=>m.ic==="🔔"]];
-  /* 同上：分组后仍要还原出在 S.msgs 里的真下标，一次建表代替逐个 indexOf（O(n²)→O(n)） */
-  const idxOf=new Map();S.msgs.forEach((m,i)=>idxOf.set(m,i));
+function fmtMsgTime(iso){
+  try{
+    const d=new Date(iso),diff=(Date.now()-d.getTime())/1000;
+    if(!(diff>=0))return "";
+    if(diff<60)return "刚刚";
+    if(diff<3600)return Math.floor(diff/60)+" 分钟前";
+    if(diff<86400)return Math.floor(diff/3600)+" 小时前";
+    const p=n=>(n<10?"0":"")+n;
+    return (d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes());
+  }catch(e){return "";}
+}
+/* 消息页（2026-10-30，M2 接线）：真读云端收到的答谢（yb_gifts，复用答谢层的收件箱拉取）。
+   之前这里永远是空态，副标题却写着「帮忙 · 点赞 · 礼物」——对用户是虚假承诺 */
+async function renderMsgs(){
+  const el=$("#msgList");
+  const C=window.YRB_CLOUD;
+  const signed=(function(){try{return !!(C&&C.signedIn&&C.signedIn());}catch(e){return false;}})();
+  if(!signed){
+    el.innerHTML=`<div class="empty">🔔 登录后，这里会显示你收到的礼物与感谢<br><button type="button" class="btn-a" id="msgLogin" style="margin-top:12px">立即登录</button></div>`;
+    return;
+  }
+  const enabled=(function(){try{return !!(C&&C.enabled&&C.enabled());}catch(e){return false;}})();
+  if(!enabled){el.innerHTML=`<div class="empty">🛠 云端服务维护中，消息暂时看不了；恢复后这里会自动回来</div>`;return;}
+  el.innerHTML=`<div class="empty">⏳ 正在加载消息…</div>`;
+  let rows=null;
+  try{rows=await (window.YRB_FOOD&&YRB_FOOD.inbox?YRB_FOOD.inbox():Promise.reject(new Error("no inbox")));}catch(e){rows=null;}
+  if(!rows){el.innerHTML=`<div class="empty">⚠️ 消息加载失败，可能是网络不稳定，稍后再试试</div>`;return;}
+  const items=rows.map(r=>({
+    ic:"🌹",rose:true,
+    t:(r.from_name||"社区家长")+" 送来一份答谢",
+    s:r.food?String(r.food).slice(0,40):"你帮忙过的问题有了回音",
+    time:fmtMsgTime(r.created_at),unread:!r.seen,act:"gift",gid:r.id
+  }));
+  S.msgs=items;  /* 整体替换（审核 H1：禁止 push/unshift 原地改） */
+  S.badge=items.filter(m=>m.unread).length;updBadge();
+  /* 分组结构保留（以后有系统/互动消息再分组），当前唯一真实数据源是礼物 */
+  const g=[["🌹 礼物与感谢",m=>m.rose]];
   let html="";
   g.forEach(([t,fn])=>{
-    const items=S.msgs.filter(fn);if(!items.length)return;
-    html+=`<div class="mg-group">${esc(t)}</div>`+items.map(m=>`<button class="msg-item" data-act="msg" data-i="${idxOf.get(m)}">
+    const its=items.filter(fn);if(!its.length)return;
+    html+=`<div class="mg-group">${esc(t)}</div>`+its.map((m,i)=>`<button class="msg-item" data-act="msg" data-i="${i}">
       <span class="mg-ic ${m.rose?"rose":""}">${esc(m.ic)}</span>
       <span class="mg-main"><span class="mg-t">${esc(m.t)}</span><span class="mg-s">${esc(m.s)}</span></span>
       <span class="mg-time">${esc(m.time)}</span>${m.unread?'<span class="mg-dot"></span>':""}
     </button>`).join("");
   });
-  $("#msgList").innerHTML=html||`<div class="empty">🔔 还没有消息，帮别人一次就会收到感谢啦</div>`;
+  el.innerHTML=html||`<div class="empty">🔔 还没有收到过答谢。帮别人一次，收到的感谢会出现在这里</div>`;
 }
 function renderMe(){
   $("#meAva").innerHTML=myAvaSVG()+`<span class="ed">✎</span>`;
@@ -373,15 +408,18 @@ function updBadge(){
   const b=$("#msgBadge");b.textContent=S.badge;b.classList.toggle("zero",S.badge<=0);
 }
 function clearUnread(){
+  /* 看过消息页 = 全部已读：云端 seen 一并落库（M2 接线后 S.msgs 带 gid） */
+  const ids=S.msgs.filter(m=>m.unread&&m.gid).map(m=>m.gid);
   S.msgs.forEach(m=>m.unread=0);S.badge=0;updBadge();
   $$("#msgList .mg-dot").forEach(d=>d.remove());
+  if(ids.length&&window.YRB_FOOD&&YRB_FOOD.markSeen){try{YRB_FOOD.markSeen(ids);}catch(e){}}
 }
 
 /* ================= 页面切换 ================= */
 function switchTab(p){
   $$(".page").forEach(x=>x.classList.toggle("active",x.id==="page-"+p));
   $$(".tb-item").forEach(b=>b.classList.toggle("active",b.dataset.p===p));
-  if(p==="msgs"){renderMsgs();setTimeout(clearUnread,600);}
+  if(p==="msgs"){renderMsgs().then(()=>setTimeout(clearUnread,600)).catch(()=>{});}
   if(p==="cases")renderCases();
   if(p==="growth")renderGrowth();
   if(p==="me")renderMe();
@@ -425,7 +463,9 @@ function renderDropdown(){
 }
 
 /* ================= 功能抽屉 ================= */
-const DRAWER=[["home","🏠","首页",0],["hot","🔥","爆火",0],["cases","🎬","案例广场",0],["growth","🌱","成长录",0],["jiaojiao","🎓","家教服务",0],["class","🧑‍🏫","名师课堂",1],["tree","🌳","心理树洞",1],["market","🎁","爱心集市",1],["map","🗺️","亲子地图",1],["atlas","❤️","公益图谱",1]];
+const DRAWER=[["home","🏠","首页",0],["hot","🔥","爆火",0],["cases","🎬","案例广场",0],["growth","🌱","成长录",1],["jiaojiao","🎓","家教服务",0],["class","🧑‍🏫","名师课堂",1],["tree","🌳","心理树洞",1],["market","🎁","爱心集市",1],["map","🗺️","亲子地图",1],["atlas","❤️","公益图谱",1]];
+/* 成长录（growth）进「即将上线」组（2026-10-30，M2）：没有数据源，挂在已开放组
+   等于让用户点进一个永远空白的页面；分享链接/直达 hash 仍能打开（保留兜底） */
 function renderDrawer(){
   $("#drBody").innerHTML=DRAWER.map(([k,ic,t,soon])=>`<button class="dr-item" data-k="${k}"><span class="ic">${ic}</span>${t}${soon?'<span class="soon">预留升级</span>':""}</button>`).join("")
   +`<div class="dd-h" style="margin-top:14px">常用小程序</div><div class="dd-minis">${MINIS.map(([ic,t])=>`<button class="mini" data-k="mini"><span class="mi">${ic}</span>${t}</button>`).join("")}</div>`;
@@ -1124,13 +1164,13 @@ $("#viewer").addEventListener("click",e=>{
 });
 
 $("#page-msgs").addEventListener("click",e=>{
+  if(e.target.id==="msgLogin"){if(window.YRB_CLOUD&&YRB_CLOUD.openLogin)YRB_CLOUD.openLogin();return;}
   const b=e.target.closest("[data-act='msg']");if(!b)return;
   const m=S.msgs[+b.dataset.i];if(!m)return;
-  m.unread=0;updBadge();
-  if(m.act==="gift")openGift("谢谢你的帮忙","你的「帮忙」温暖了整个社区 · 收到 3 朵玫瑰");
-  else if(m.act==="help")toast("打开帮忙详情（原型演示）");
-  else if(m.act==="like")toast("查看赞过的内容（原型演示）");
-  else toast(m.s);
+  m.unread=0;S.badge=Math.max(0,S.badge-1);updBadge();
+  if(m.gid&&window.YRB_FOOD&&YRB_FOOD.markSeen){try{YRB_FOOD.markSeen([m.gid]);}catch(e2){}}
+  /* 消息点开只做如实说明；真正的回放/领取入口在「我的 → 收到的答谢」（food.js） */
+  toast("🌹 "+m.t+"，到「我的 → 收到的答谢」可以回放");
 });
 $("#page-me").addEventListener("click",e=>{
   const a=e.target.closest("#meAva");

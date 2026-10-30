@@ -101,12 +101,13 @@ REWRITES = {
 
 
 def current_build():
-    """本次部署的构建号 = 部署时刻（到分钟）。
+    """本次部署的构建号 = 部署时刻（到秒，2026-10-30 从分钟收紧）。
     用它同时作为：index.html 的 meta、bundle.js 内的 window.YRB_BUILD、
     build.json 的内容、所有静态资源的 ?v= 戳。
     四处一致 → 运行时可判断"页面/资源"是否错层；任意两次部署之间必然不同 →
-    用户不会长期卡在旧缓存。"""
-    return time.strftime("%Y%m%d%H%M", time.localtime())
+    用户不会长期卡在旧缓存。精确到秒是修「同分钟两次构建构建号相同」的碰撞——
+    那会让升级层以为没有新版本，用户停在旧缓存。"""
+    return time.strftime("%Y%m%d%H%M%S", time.localtime())
 
 
 def write_build_json(build):
@@ -138,7 +139,7 @@ def stamp_assets(build=None):
         for root, _dirs, files in os.walk(os.path.join(DST, "assets")):
             for f in files:
                 newest = max(newest, int(os.path.getmtime(os.path.join(root, f))))
-        build = time.strftime("%Y%m%d%H%M", time.localtime(newest))
+        build = time.strftime("%Y%m%d%H%M%S", time.localtime(newest))
     txt = io.open(path, encoding="utf-8").read()
     txt2 = re.sub(r'((?:src|href)="assets/[^"?]+\.(?:js|css))(?:\?v=\d+)?(")',
                   lambda m: m.group(1) + "?v=" + build + m.group(2), txt)

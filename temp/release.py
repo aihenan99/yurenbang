@@ -25,13 +25,18 @@ import subprocess
 import sys
 import time
 
-ROOT = r"E:/育人帮"
+# 路径从脚本自身位置推导（2026-10-30）：不再硬编码 E:/育人帮，换机器/换盘不用改代码。
+# release.py 在 <项目根>/temp/ 下，向上退一级就是项目根——与 sync_deploy.py 同一套规则
+_HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(_HERE)
 DST = os.path.join(ROOT, "deploy-cn")
 PREV = os.path.join(ROOT, ".cache", "deploy_prev")
 LASTGOOD = os.path.join(ROOT, ".cache", "deploy_lastgood")
-TEMP = os.path.join(ROOT, "temp")
-PY = os.path.join(ROOT, ".venv", "Scripts", "python.exe")
-NODE = r"C:/Users/a/.workbuddy/binaries/node/versions/22.22.2-6/node.exe"
+TEMP = _HERE
+_VENV_PY = os.path.join(ROOT, ".venv", "Scripts", "python.exe")
+PY = _VENV_PY if os.path.exists(_VENV_PY) else getattr(sys, "executable", "python3")
+_NODE_DEFAULT = r"C:/Users/a/.workbuddy/binaries/node/versions/22.22.2-6/node.exe"
+NODE = _NODE_DEFAULT if os.path.exists(_NODE_DEFAULT) else (shutil.which("node") or "node")
 SITE = "https://xn--gmqq09al6z.cn/"
 UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15"
 
@@ -39,6 +44,8 @@ ARGS = sys.argv[1:]
 CHECK_ONLY = "--check" in ARGS
 NO_ROLLBACK = "--no-rollback" in ARGS
 SKIP_SYNC = "--skip-sync" in ARGS
+SKIP_CSP = "--skip-csp" in ARGS        # 演练依赖真浏览器；无头环境排障时可跳过（要写明原因）
+SKIP_PRUNE = "--no-prune" in ARGS      # 回滚默认按清单对账清理残留；这是逃生开关
 
 
 def say(msg):
@@ -102,7 +109,10 @@ def _write_manifest(dirpath):
 
 
 def _apply_snapshot(src):
-    """把快照内容覆盖回 DST。全程不删除任何文件/目录。"""
+    """把快照内容覆盖回 DST。清单齐全时**对账式恢复**（2026-10-30 审核）：
+    恢复清单内文件之外，还删除快照里没有的文件——否则新版本新增的文件会残留在
+    部署目录里，让「已回滚」名不副实（旧 index.html 不引用它们，但它们仍会被
+    公网直接访问到）。--no-prune 可关掉；清单缺失时退回整体覆盖（不删除，保守）。"""
     man_path = os.path.join(src, ".manifest.json")
     n = 0
     if os.path.exists(man_path):
@@ -119,6 +129,20 @@ def _apply_snapshot(src):
                 os.makedirs(os.path.dirname(d), exist_ok=True)
                 shutil.copy2(s, d)
                 n += 1
+            if not SKIP_PRUNE:
+                removed = 0
+                for root, _dirs, files in os.walk(DST):
+                    for f in files:
+                        rel = os.path.relpath(os.path.join(root, f), DST).replace("\\", "/")
+                        if rel in man:
+                            continue
+                        try:
+                            os.remove(os.path.join(root, f))
+                            removed += 1
+                        except OSError as e:
+                            print("[回滚] 清理失败 %s：%s（不影响其余清理）" % (rel, e))
+                if removed:
+                    print("[回滚] 对账清理：删除新版本多出的 %d 个文件" % removed)
             return n
     shutil.copytree(src, DST, dirs_exist_ok=True)
     return len(_manifest(src))
@@ -256,6 +280,18 @@ def _main_unlocked():
         return 0 if ok else 1
 
     prev_build = read_build(LASTGOOD) or read_build(DST)
+
+    # 审核（2026-10-30）：CSP 演练挂进发布前置——演练器把 Report-Only 规则切强制并真浏览器
+    # 三页走查，能在线上改动之前抓住「新内联块忘了重跑 sync 注入 hash」这类事故。
+    # 失败即中止，此时线上未动；无头环境排障可用 --skip-csp（要写明原因）
+    if not SKIP_CSP:
+        say("⓪ CSP 强制演练（切强制 + 三页走查，线上未改动）")
+        okc, outc = run([NODE, os.path.join(ROOT, "scripts", "csp-rehearsal.mjs")], timeout=300)
+        if not okc:
+            say("❌ CSP 演练未通过，发布中止（线上未改动）。排障：node scripts/csp-rehearsal.mjs")
+            print(outc[-1200:])
+            return 1
+
     if os.path.exists(LASTGOOD):
         print("[备份] 已有「最后已知良好版本」（构建号 %s），本次跳过改动前备份" % (prev_build or "未知"))
     else:

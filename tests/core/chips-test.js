@@ -49,7 +49,8 @@ const has = (arr, kw) => arr.some((x) => x.indexOf(kw) >= 0);
       extraAvail: YRB_CHIPS.extraAvail()
     };
   });
-  ck("下发后爆火/成长录即时上架", has(r2.chips, "爆火") && has(r2.chips, "成长录"), JSON.stringify(r2.chips));
+  /* 成长录已从可选栏目撤下（2026-10-30，M2）：下发含 growth 应被 sanitize 过滤，不许再上架 */
+  ck("下发后爆火上架、growth 被过滤", has(r2.chips, "爆火") && !has(r2.chips, "成长录"), JSON.stringify(r2.chips));
   ck("下发后 extraAvail 同步开放", has(r2.extraAvail, "名师课堂") && has(r2.extraAvail, "爱心集市"), JSON.stringify(r2.extraAvail));
 
   /* T3 ＋面板不泄露未开放模块 */

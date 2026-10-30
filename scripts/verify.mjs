@@ -290,7 +290,11 @@ const LINES = [
         ["状态守卫接管写入", "state-guard-test.js"],
         ["分享长图生成", "longimg-test.js"],
         ["举报落库与断网补发", "report-test.js"],
-        ["隐私与个人信息设置页", "privacy-test.js"]
+        ["隐私与个人信息设置页", "privacy-test.js"],
+        /* 消息页接线（M2）：真读 yb_gifts，空态如实化 */
+        ["消息页数据接线", "msgs-test.js"],
+        /* 重复监听器疑点的固化结论：交互后监听器数量不许增长 */
+        ["监听器无泄漏", "listeners-test.js"]
       ]
     },
     {

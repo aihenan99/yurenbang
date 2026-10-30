@@ -61,7 +61,7 @@
               "access 打阅读标记（p.faved/p.seen）、app 仅做本地发布后的乐观插入"
       },
       cases: { type: "array", owner: "cloud", writable: ["app", "cloud", "casedit"], note: "案例广场；casedit 发布后局部刷新" },
-      growth: { type: "array", owner: "cloud", writable: ["app", "cloud"], note: "成长记录" },
+      growth: { type: "array", owner: "cloud", writable: ["app", "cloud"], note: "成长录（功能未上线，无写入点；入口已撤到「即将上线」组，2026-10-30）" },
       msgs: { type: "array", owner: "cloud", writable: ["app", "cloud"], note: "消息" },
 
       /* ---------- 纯本地偏好：access 独占 ---------- */
