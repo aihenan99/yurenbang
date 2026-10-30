@@ -27,10 +27,11 @@ const ok = (n, c, extra = "") => { c ? (pass++, console.log("  ✅", n, extra)) 
   await p.evaluate(() => { try { YRB_CLOUD.signedIn = () => true; } catch (e) {} });
   await p.evaluate(() => document.querySelector("#caseFab").click());
   await p.waitForTimeout(400);
-  ok("面板打开且有「加图片」入口", await p.evaluate(() => !!document.querySelector("#cuAdd")), await p.evaluate(() => (document.querySelector("#cuAdd") || {}).textContent));
+  ok("面板打开且有「加图片」入口", await p.evaluate(() => !!document.querySelector("#cuGrid .cu-add")), await p.evaluate(() => (document.querySelector("#cuGrid .cu-add") || {}).textContent));
   await p.setInputFiles("#cuFile", ["E:/育人帮/temp/case_img1.jpg", "E:/育人帮/temp/case_img2.jpg"]);
   await p.waitForTimeout(1500);
-  ok("选 2 张图 → 出现 2 个缩略块且「＋」消失（已达上限9未满）", await p.evaluate(() => document.querySelectorAll("#cuGrid .cu-tile").length === 2 && !!document.querySelector("#cuAdd")));
+  /* 2026-10-30 修正：＋是 label.cu-add（10-25 起），2 张未达上限时「＋」应仍在 */
+  ok("选 2 张图 → 出现 2 个缩略块且「＋」仍在（未达上限9）", await p.evaluate(() => document.querySelectorAll("#cuGrid .cu-tile").length === 2 && !!document.querySelector("#cuGrid .cu-add")));
 
   // mock 云端发布
   await p.evaluate(() => {
@@ -68,25 +69,30 @@ const ok = (n, c, extra = "") => { c ? (pass++, console.log("  ✅", n, extra)) 
   await p.evaluate(() => { const x = document.querySelector("#lgX"); x && x.click(); });
   await p.waitForTimeout(300);
 
-  console.log("=== E. 视频与 PPT 文件校验 ===");
+  console.log("=== E. 视频校验 + PPT 通道下线断言（2026-10-30） ===");
   await p.evaluate(() => { document.querySelector('#cuTypes .seg-btn[data-t="video"]').click(); });
   await p.waitForTimeout(200);
-  ok("切视频类型 → 提示变化", await p.evaluate(() => document.querySelector("#cuNote").textContent.includes("30")));
+  ok("切视频类型 → 提示变化（≤20 秒口径，2026-10-26 起）", await p.evaluate(() => document.querySelector("#cuNote").textContent.includes("20")));
   // 超长视频校验（用 canvas 生成一段假 video 不可行，直接测时长逻辑）：
   const durCheck = await p.evaluate(() => {
     // videoDur 对非法文件应返回 0（不阻断）
     return typeof videoDur === "function";
   });
   ok("videoDur 函数可用", durCheck);
-  await p.evaluate(() => { document.querySelector('#cuTypes .seg-btn[data-t="ppt"]').click(); });
-  await p.waitForTimeout(200);
-  // 非法扩展名拒绝
-  await p.setInputFiles("#cuFile", [{ name: "bad.txt", mimeType: "text/plain", buffer: Buffer.from("hello") }]);
-  await p.waitForTimeout(500);
-  ok("非 PPT/PDF 文件被拒绝", await p.evaluate(() => document.querySelectorAll("#cuGrid .cu-tile").length === 0));
-  await p.setInputFiles("#cuFile", [{ name: "教学.pptx", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", buffer: Buffer.from("PK\x03\x04fake") }]);
-  await p.waitForTimeout(500);
-  ok("pptx 文件被接受为文件块", await p.evaluate(() => { const t = document.querySelector("#cuGrid .cu-tile"); return !!t && !!t.querySelector(".cu-doc"); }));
+  /* PPT 上传通道已下线（太耗流量与存储）：入口按钮必须不存在；
+     残留的 S.cuType="ppt"（本地持久化）应被兜底为 img；查看端保留不受影响 */
+  ok("发布面板无 PPT 类型按钮",
+     await p.evaluate(() => !document.querySelector('#cuTypes .seg-btn[data-t="ppt"]')));
+  ok("CU_CONF 无 ppt 配置", await p.evaluate(() => { try { return !CU_CONF.ppt; } catch (e) { return true; } }));
+  ok("残留 cuType=ppt 被兜底为 img", await p.evaluate(() => {
+    try {
+      S.cuType = "ppt";
+      cuAccept();
+      const back = S.cuType === "img";
+      S.cuType = "img";   /* 恢复，别把脏值带进后续用例 */
+      return back;
+    } catch (e) { return false; }
+  }));
   await p.evaluate(() => { document.querySelector("#caseUpSheet .sh-x").click(); });
 
   console.log(`\n===== 案例上传 E2E：${pass} 通过 / ${fail} 失败 =====`);

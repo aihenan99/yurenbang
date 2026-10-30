@@ -326,12 +326,13 @@ if ("serviceWorker" in navigator) {
     <div class="sh-head"><div class="sh-title">上传案例</div><button class="sh-x" data-close="caseUpSheet">✕</button></div>
     <div class="sh-body">
       <input id="cuTitle" placeholder="给案例起个标题…" style="width:100%;border:1.5px solid var(--rule);border-radius:14px;padding:12px;background:var(--bg);outline:none;margin-bottom:12px">
-      <div class="pub-label">案例类型 <span class="pub-note">图片 / 图文 / PPT / 微视频≤30s</span></div>
+      <div class="pub-label">案例类型 <span class="pub-note">图片 / 图文 / 微视频≤30s</span></div>
       <div class="seg" id="cuTypes">
         <button class="seg-btn on" data-t="img"><span class="si">🖼️</span>图片</button>
-        <button class="seg-btn" data-t="ppt"><span class="si">📊</span>PPT</button>
         <button class="seg-btn" data-t="video"><span class="si">🎬</span>微视频 30s</button>
       </div>
+      <!-- PPT 上传通道已下线（2026-10-30，用户决定：太耗流量与存储）。
+           查看端保留：已上传的 PPT 案例仍可正常打开翻页；图文案例请用「📝 图文」 -->
       <div class="pub-label" style="margin-top:12px">案例内容 <span class="pub-note" id="cuNote">选几张图片（最多 9 张）</span></div>
       <div class="cu-grid" id="cuGrid"></div>
       <input type="file" id="cuFile" hidden accept="image/*" multiple>

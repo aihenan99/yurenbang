@@ -913,16 +913,19 @@ $("#caseGrid").addEventListener("click",e=>{
 });
 $("#caseFab").addEventListener("click",()=>{cuAccept();openSheet("caseUpSheet");});
 
-/* ---------- 案例内容选择（2026-10-20：图片 / 视频 / PPT 真实上传） ---------- */
+/* ---------- 案例内容选择（2026-10-20：图片 / 视频真实上传） ----------
+   PPT 上传通道已下线（2026-10-30，用户决定：太耗流量与存储）；
+   已传的 PPT 案例查看端保留可看。CU_CONF.ppt 移除后，残留的
+   S.cuType="ppt"（本地持久化）由 `CU_CONF[S.cuType]||CU_CONF.img` 兜底回落图片类型 */
 const CU_CONF={
-  /* ppt 的 accept 必须带 MIME：安卓文件管理器认 MIME 不认扩展名，只写 .ppt/.pptx/.pdf 会筛得无文件可选 */
   img:{accept:"image/*",multiple:true,max:9,note:"选几张图片（最多 9 张）",add:"加图片"},
-  ppt:{accept:".ppt,.pptx,.pdf,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/pdf",multiple:false,note:"选一个 PPT / PDF 文件（≤8MB）",add:"选文件"},
   video:{accept:"video/*",multiple:false,note:"选一段 ≤20 秒的短视频（用「录视频」现拍体积最小）",add:"选视频"}
 };
 let cuFiles=[];   /* [{blob,url,name,kind,dur}]  kind: img | video | file */
 function cuShort(n){return n&&n.length>14?n.slice(0,6)+"…"+n.slice(-6):n||"文件";}
 function cuAccept(){
+  /* PPT 通道已下线：本地残留的 cuType="ppt" 在面板打开/切换时兜底为图片（doc 由 casedit 注入，放行） */
+  if(S.cuType==="ppt")S.cuType="img";
   const c=CU_CONF[S.cuType]||CU_CONF.img,inp=$("#cuFile");
   if(inp){inp.accept=c.accept;inp.multiple=!!c.multiple;}
   const n=$("#cuNote");if(n)n.textContent=c.note;
@@ -967,6 +970,9 @@ $("#cuGrid").addEventListener("click",e=>{
 /* 静态 #cuFile 与 label 内动态 .cu-in 都走 change 委托（label 输入每次重渲染都会重建） */
 async function handleCuFiles(files){
   if(!files.length)return;
+  /* PPT 通道已下线（2026-10-30）：类型兜底为图片（覆盖本地残留的 cuType="ppt"，防提交侧带出 type:"ppt"），
+     原 ppt 文件分支随之删除——新增案例只能走图片 / 图文 / 微视频 */
+  if(S.cuType==="ppt")S.cuType="img";
   const conf=CU_CONF[S.cuType]||CU_CONF.img;
   if(S.cuType==="img"){
     const cap=(CU_CONF.img.max||9)-cuFiles.length;
@@ -995,15 +1001,6 @@ async function handleCuFiles(files){
       return;
     }
     cuFiles.push({blob:f,url:URL.createObjectURL(f),name:f.name||"video",kind:"video",dur:fmtDur(d)});
-    renderCuGrid();
-  }else{
-    const f=files[0];
-    if(!/\.(pptx?|pdf)$/i.test(f.name||"")){toast("请选择 PPT（.ppt/.pptx）或 PDF 文件");return;}
-    /* 免费额度专项（2026-10-26）：PPT/PDF 每次打开都要下载整个文件，
-       20MB 的课件被看 30 次就是 600MB 流量。8MB 以内通常够放 20-30 页图文课件。 */
-    if(f.size>8*1024*1024){toast("文件超过 8MB 了，请在电脑上压缩（或另存为 PDF）后再传");return;}
-    if(cuFiles.length)cuClear();
-    cuFiles.push({blob:f,url:URL.createObjectURL(f),name:f.name,kind:"file"});
     renderCuGrid();
   }
 }
