@@ -9,9 +9,13 @@
  *   知道」「build.json 对外声明少几层」这类很久以后才发作的病。这个脚本把
  *   「四处对齐」变成一条命令。
  *
+ *   2026-11-04 补了第五项：被引用的资源必须已被 git 跟踪。新层文件在磁盘上
+ *   齐了、页面也跑得通，但没 git add —— 仓库 clone 下来直接缺文件（真实事故）。
+ *
  * 只读静态文件，不执行任何业务代码。退出码：0 全通过；1 有不一致。
  * ========================================================================== */
 import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -156,11 +160,43 @@ const orphans = allJs.filter((f) => !known.has(f));
 if (orphans.length) warn("assets 里存在未被引用的脚本（可能是临时件）", orphans.join(", "));
 else ok("assets 里没有游离脚本", allJs.length + " 个 js 均有出处");
 
+/* H. 仓库完整性：被 html / sw 引用的资源必须在 git 跟踪清单里
+     2026-11-04 的真实事故：staticcases.js / staticcases.css / yb-sb.js 三个新层
+     文件，磁盘上有、html 与 sw.js 也都引用了、页面跑得好好的 —— 但从来没有
+     git add 过。所有检查都是绿的（检查 A 只问 existsSync，磁盘有就算过），
+     而仓库 clone 下来直接缺文件。这一项专门堵这个洞：只看「进没进版本库」。 */
+const trackedAssets = (() => {
+  const r = spawnSync("git", ["-C", ROOT, "ls-files", "-z", "--", "yurenbang-app/assets"], { encoding: "buffer" });
+  if (r.error || r.status !== 0) return null;   /* 无 git 环境（如解包的分发包）不误报 */
+  return new Set(
+    r.stdout.toString("utf8").split("\0").filter(Boolean)
+      .map((p) => p.replace(/^yurenbang-app\/assets\//, "").replace(/\\/g, "/"))
+  );
+})();
+if (!trackedAssets) {
+  warn("git 不可用，跳过「资源是否已纳入版本控制」检查", "建议手动 git status 确认新层已提交");
+} else {
+  /* bundle.* 是 sync_deploy.py 打包出来的产物（源码目录里没有），不算源文件 */
+  const GENERATED = new Set(["bundle.js", "bundle.css"]);
+  const needTracked = [...new Set([
+    ...htmlLayers.map((n) => n + ".js"),
+    ...htmlCss.map((n) => n + ".css"),
+    ...coreJs, ...coreCss,
+  ])].filter((f) => !GENERATED.has(f));
+  const untracked = needTracked.filter((f) => !trackedAssets.has(f));
+  if (untracked.length) {
+    no("被引用的资源都已纳入版本控制",
+      "未 git add：" + untracked.join(", ") + " ← 别人 clone 下来会缺文件（git add yurenbang-app/assets/…）");
+  } else {
+    ok("被引用的资源都已纳入版本控制", needTracked.length + " 个 js/css");
+  }
+}
+
 /* ---------- 汇总 ---------- */
 console.log("");
 if (bad === 0) {
-  console.log(C.g + "✓ 四处登记一致" + C.x + C.d + "（" + htmlLayers.length + " 层）" + C.x + "\n");
+  console.log(C.g + "✓ 四处登记一致 · 被引用的资源都已入库" + C.x + C.d + "（" + htmlLayers.length + " 层）" + C.x + "\n");
   process.exit(0);
 }
-console.log(C.r + "✗ " + bad + " 项不一致" + C.x + C.d + " —— 加层请对照 docs/开发手册.md 的「五处登记」" + C.x + "\n");
+console.log(C.r + "✗ " + bad + " 项不一致" + C.x + C.d + " —— 加层请对照 docs/开发手册.md 的「四处登记」，别忘 git add" + C.x + "\n");
 process.exit(1);

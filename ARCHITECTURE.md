@@ -61,7 +61,7 @@ E:\育人帮\
 ├── scripts\                ← 新增：工程化脚本
 │   ├── verify.mjs           统一验证入口（npm run verify）
 │   ├── state-audit.mjs      状态边界静态审计
-│   ├── layers-audit.mjs     层登记四处对齐 + 体积预算
+│   ├── layers-audit.mjs     层登记四处对齐 + 资源入库校验 + 体积预算
 │   ├── csp-rehearsal.mjs    CSP 转强制本地演练（npm run verify:csp，真浏览器零违规才算过）
 │   └── worker-headers.mjs   真的调一次 Worker 核对安全响应头
 │
@@ -126,6 +126,11 @@ E:\育人帮\
    这四处由 `scripts/layers-audit.mjs` 自动比对（已并入 `npm run verify:fast`）：
    顺序不一致、漏登记、build.json 少声明、层体积超预算，都会直接红。
    `LAYERS` 的顺序必须与 html 的 `<script>` 顺序一致——自愈补载按这张表的顺序重来。
+
+   **还有第五步：`git add`。** 2026-11-04 发现三个新层文件（`yb-sb.js`、
+   `staticcases.js/.css`）磁盘上有、页面也跑得通，但从没进过版本库——仓库 clone
+   下来直接缺文件，而所有检查都是绿的（原来的检查只问「文件在不在磁盘」）。
+   现在 layers-audit 会核对 html 与 sw 引用的每个 js/css 是否已被 git 跟踪。
 
 ### 层叠阶梯（z-index 契约）
 
