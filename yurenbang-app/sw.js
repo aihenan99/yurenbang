@@ -40,7 +40,7 @@ const CORE = [
   '/assets/mediafull.css', '/assets/mediafull.js', '/assets/cover.js',
   '/assets/casedit.css', '/assets/casedit.js',
   '/assets/longimg.css', '/assets/longimg.js',
-  '/assets/state.schema.js', '/assets/state.js',
+  '/assets/state.schema.js', '/assets/state.js', '/assets/recommend.js',
   '/assets/chips.js', '/assets/account.js', '/assets/health.js', '/assets/upgrade.js',
   '/assets/guard.js', '/assets/vendor/cloud-sdk.global.js',
   '/assets/icon-192.png', '/assets/icon-512.png'

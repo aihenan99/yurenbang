@@ -1251,6 +1251,8 @@ async function loadCloudPosts(more){
         type:x.type||"img",media,title:x.title||"",text:x.body||"",
         tag:x.tag||"求助",tagFull:x.tag||"求助",age:x.age||"",
         urg:x.urg||1,vis:x.vis||0,loc:x.loc||"",time:relTime(x.created_at),
+        /* 发布时间戳（毫秒）：recommend 层算时间衰减用；只留 time 那串「3小时前」没法参与计算 */
+        ts:Date.parse(x.created_at)||0,
         likes:x.likes||0,liked:false,favs:0,faved:false,helps:x.helps||0,
         comments:[],roses:[],r23Status:x.status==="solved"?"solved":"open"
       };

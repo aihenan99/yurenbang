@@ -151,6 +151,9 @@ function cardHTML(p){
 function renderFeed(){
   let list=[...S.posts];
   if(S.hotMode)list=list.filter(p=>p.hot).sort((a,b)=>b.likes-a.likes);
+  /* 推荐栏排序（2026-11-04 · recommend 层）：按互动质量 + 时间衰减 + 兴趣 + 探索抖动打分，
+     每次打开页面重新抽签，所以每次看到的求助顺序不一样。层没加载时保持发布时间序。 */
+  else{try{if(window.YRB_RECO)list=YRB_RECO.order(list);}catch(e){}}
   /* 空状态区分「加载中/加载失败/真的没有」：2026-10-25 云端拉取失败不再误导为「还没有求助」 */
   let empty="";
   if(list.length){

@@ -39,6 +39,9 @@
       probe: function () { return !!window.YRB_STATE_SCHEMA; } },
     { id: "state", file: "assets/state.js", flag: "YRB_STATE", severity: "minor",
       probe: function () { return !!(window.YRB_STATE && typeof window.YRB_STATE.report === "function"); } },
+    /* 推荐排序层：缺了只是退回发布时间序，不影响可用；存在时首页顺序每次打开都不同 */
+    { id: "recommend", file: "assets/recommend.js", flag: "YRB_RECO", severity: "minor",
+      probe: function () { return !!(window.YRB_RECO && window.YRB_RECO.ready && typeof window.YRB_RECO.order === "function"); } },
     { id: "capture", file: "assets/capture.js", flag: "YRB_CAPTURE", severity: "minor",
       probe: function () { return !!window.YRB_CAPTURE; } },
     { id: "refine23", file: "assets/refine23.js", flag: "YRB_R23", severity: "major",

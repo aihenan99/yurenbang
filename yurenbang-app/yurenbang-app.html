@@ -367,6 +367,8 @@ if ("serviceWorker" in navigator) {
      契约(state.schema.js) → 守卫(state.js)，两者都不改动任何业务逻辑。 -->
 <script src="assets/state.schema.js"></script>
 <script src="assets/state.js"></script>
+<!-- 推荐排序：只提供「打分+排序」纯函数，由 app.js 的 renderFeed 一行钩子调用 -->
+<script src="assets/recommend.js"></script>
 <script src="assets/capture.js"></script>
 <script src="assets/refine23.js"></script>
 <script src="assets/access.js"></script>

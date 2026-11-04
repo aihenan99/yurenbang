@@ -117,7 +117,7 @@ def write_build_json(build):
         "build": build,
         "at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
         "app": "育人帮",
-        "layers": ["app", "state.schema", "state", "capture", "refine23", "access", "navback", "yb-sb", "cloud",
+        "layers": ["app", "state.schema", "state", "recommend", "capture", "refine23", "access", "navback", "yb-sb", "cloud",
                    "staticcases",
                    "reward", "jiaojiao", "pptview", "admin", "adminguard", "gate", "license",
                    "profile", "food", "account", "chips", "rose", "protect", "mediafull", "cover",
