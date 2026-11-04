@@ -635,6 +635,15 @@ function pfHistPush() {
 try {
   window.addEventListener("popstate", function () {
     if (!pfHist) return;
+    /* 2026-11-04：navback 的占位押在本层垫片之上（举报面板这类叠在全屏/详情上的浮层）。
+       两种 popstate 本层都要让路：
+       ① 它押着占位（guarded）——这次返回是在消费它的占位，由它关掉叠在上面的浮层并重押；
+       ② 它刚主动 back() 还过占位（回声 400ms 内）——那是它自己触发的，更不关本层的事。
+       不让路的后果实测：滑关详情上的举报面板时，详情被连带关掉。 */
+    try {
+      if (window.YRB_NAVBACK && (YRB_NAVBACK.guarded() ||
+          (window.__yrbNbEcho && Date.now() - window.__yrbNbEcho < 400))) return;
+    } catch (e) {}
     pfHist = 0;                                     /* 占位记录已经被系统消耗掉了 */
     if (pfFs) { pfExit(); return; }                 /* 全屏中返回 → 回到信息流（上一级） */
     if (pfDetailOpen()) { pfCloseDetail(); return; }/* 详情中返回 → 关闭详情（上一级） */

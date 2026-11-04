@@ -147,6 +147,38 @@ async function stubCloud(p, mode, signed) {
   T("补发时补上举报人归属", ins2.length === 1 && ins2[0].reporter_id === "test-uid-1", ins2.map((x) => x.reporter_id));
   T("补发保留原始理由", ins2.length === 1 && ins2[0].reason === "侵犯隐私泄露", ins2[0] && ins2[0].reason);
 
+  /* ================= H. 关闭方式（2026-11-04 用户反馈「无法取消退出，没有叉号，也不能左右滑动退出」） ================= */
+  await openReportUI(p, STUB.id);
+  T("面板有 ✕ 关闭按钮", await p.evaluate(() => { const x = document.getElementById("r23RpX"); return !!x && !!x.offsetParent; }));
+  await p.evaluate(() => document.getElementById("r23RpX").click());
+  await p.waitForTimeout(400);
+  T("点 ✕ 关面板（详情留着）", await p.evaluate(() => !document.querySelector("#r23Report.open") && !!document.querySelector("#r23Detail.open")));
+
+  await openReportUI(p, STUB.id);
+  await p.evaluate(() => document.getElementById("r23Report").dispatchEvent(new MouseEvent("click", { bubbles: true })));
+  await p.waitForTimeout(400);
+  T("点遮罩（面板空白处）关面板", await p.evaluate(() => !document.querySelector("#r23Report.open")));
+
+  await openReportUI(p, STUB.id);
+  await p.evaluate(() => {
+    const from = document.querySelector("#r23Detail .r23-dbody") || document.getElementById("r23Detail");
+    const r = from.getBoundingClientRect();
+    const mk = (ty, cx, cy) => new TouchEvent(ty, { bubbles: true, cancelable: true,
+      touches: ty === "touchend" ? [] : [new Touch({ identifier: 1, target: from, clientX: cx, clientY: cy })],
+      changedTouches: [new Touch({ identifier: 1, target: from, clientX: cx, clientY: cy })] });
+    /* 起点在详情内容上（不在面板元素内）——用户最自然的手势，之前正是漏掉这种 */
+    from.dispatchEvent(mk("touchstart", r.left + r.width / 2, r.top + 120));
+    from.dispatchEvent(mk("touchend", r.left + r.width / 2 - 130, r.top + 123));
+  });
+  await p.waitForTimeout(400);
+  T("在详情内容上左右滑 → 关举报面板", await p.evaluate(() => !document.querySelector("#r23Report.open") && !!document.querySelector("#r23Detail.open")));
+
+  await openReportUI(p, STUB.id);
+  const urlBefore = p.url();
+  await p.evaluate(() => history.back());
+  await p.waitForTimeout(500);
+  T("系统返回键 → 关举报面板且不离开页面", await p.evaluate(() => !document.querySelector("#r23Report.open") && !!document.querySelector("#r23Detail.open")) && p.url() === urlBefore);
+
   /* ================= G. 全程零报错 ================= */
   T("页面无 JS 报错", errs.length === 0, errs.slice(0, 3));
 

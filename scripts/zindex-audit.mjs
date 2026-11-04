@@ -110,8 +110,11 @@ function tierOf(v) {
   return TIERS.find((t) => v >= t.min && v <= t.max) || null;
 }
 
-/* 1) 每个值都要落在阶梯里 */
+/* 1) 每个值都要落在阶梯里（负值豁免：负 z-index 是「父级堆叠上下文内部垫底」的
+      标准写法，比如 #r23Report::before 遮罩——父级 z-index:60 已把它钉在详情之上、
+      面板内容之下，不参与全局阶梯） */
 for (const it of items) {
+  if (it.value < 0) { notes.push(`负值（父级上下文内垫底，豁免）：${it.file}:${it.line} ${it.sel} → ${it.value}`); continue; }
   if (!tierOf(it.value)) {
     problems.push(`${it.file}:${it.line} ${it.sel} → z-index ${it.value} 不在任何层级区间（可能是随手写的「比谁都大」）`);
   }

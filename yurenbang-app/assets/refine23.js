@@ -79,7 +79,10 @@ function injectAll(){
     <div id="r23Viewer"><div class="big" id="r23Big"></div><button class="vx" id="r23Vx">✕</button></div>
     <div id="r23Report">
       <div class="sh-handle"></div>
-      <div class="r23-rp-title">举报该求助 / 评论</div>
+      <div class="r23-rp-head">
+        <div class="r23-rp-title">举报该求助 / 评论</div>
+        <button class="r23-rp-x" id="r23RpX" aria-label="关闭举报面板">✕</button>
+      </div>
       <div class="r23-rp-grid" id="r23RpGrid">${RP_REASONS.map(r=>`<button data-r="${r}">${r}</button>`).join("")}</div>
       <button class="btn-a big" id="r23RpGo">提交举报</button>
     </div>
@@ -221,6 +224,10 @@ function bindStatic(){
   $("#r23Viewer").onclick=e=>{if(e.target.id==="r23Viewer")$("#r23Viewer").classList.remove("open");};
   $("#r23RpGrid").onclick=e=>{const b=e.target.closest("button");if(!b)return;$$("#r23RpGrid button").forEach(x=>x.classList.remove("on"));b.classList.add("on");};
   $("#r23RpGo").onclick=submitReport;
+  /* 2026-11-04 用户反馈「无法取消退出，没有叉号」：补 ✕ 与点遮罩关闭。
+     遮罩是 #r23Report::before，点在它上面时 e.target 就是面板本身 */
+  $("#r23RpX").onclick=closeReport;
+  $("#r23Report").onclick=e=>{ if(e.target.id==="r23Report") closeReport(); };
 
   /* 在 document 捕获阶段拦截发布（先于 #pubGo 上 app.js 的 bubble 监听器），改走增强流程 */
   document.addEventListener("click",function(ev){
@@ -964,6 +971,7 @@ function openReport(){
   $$("#r23RpGrid button").forEach(x=>x.classList.remove("on"));rpReason="";
   $("#r23Report").classList.add("open");
 }
+function closeReport(){ $("#r23Report").classList.remove("open"); }
 async function submitReport(){
   rpReason=($$("#r23RpGrid button.on")||[{}])[0]?.dataset.r||"";   /* 2026-10-25 修复：原用 $（单元素）却按数组取 [0]，element[0] 恒 undefined，举报永远卡「请选择理由」 */
   if(!rpReason){toast("请选择举报理由");return;}

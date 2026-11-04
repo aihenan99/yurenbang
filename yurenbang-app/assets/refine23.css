@@ -181,8 +181,16 @@
 
 /* 举报面板 */
 #r23Report{position:absolute;left:0;right:0;bottom:0;z-index:60;background:var(--bg2);border-radius:24px 24px 0 0;box-shadow:0 -14px 50px rgba(40,25,15,.28);transform:translateY(105%);transition:transform .32s cubic-bezier(.3,1,.4,1);padding:0 18px calc(18px + env(safe-area-inset-bottom))}
+/* 2026-11-04：补全屏遮罩。伪元素挂在面板内（z:-1 在面板背景之下、详情 z57 之上），
+   高 100dvh 从面板底铺到手机顶，超出部分由 #phone 的 overflow:clip 裁掉；
+   点它时 e.target 就是 #r23Report 本身（见 bindStatic）。随面板 transform 滑入滑出，另加淡入淡出。 */
+#r23Report::before{content:"";position:absolute;left:0;right:0;bottom:0;height:100dvh;background:rgba(25,15,10,.42);z-index:-1;opacity:0;transition:opacity .32s;pointer-events:none}
+#r23Report.open::before{opacity:1;pointer-events:auto}
 #r23Report.open{transform:none}
+.r23-rp-head{position:relative}
 .r23-rp-title{font-weight:800;font-size:16px;text-align:center;padding:16px 0 10px}
+.r23-rp-x{position:absolute;right:0;top:12px;width:32px;height:32px;border-radius:50%;background:var(--bg);color:var(--muted);font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;transition:.15s}
+.r23-rp-x:active{transform:scale(.9)}
 .r23-rp-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px}
 .r23-rp-grid button{border:1.5px solid var(--rule);background:var(--bg);border-radius:13px;padding:12px 8px;font-size:13.5px;font-weight:600;color:var(--muted);transition:.15s}
 .r23-rp-grid button.on{border-color:var(--rose);background:rgba(231,93,124,.09);color:var(--rose)}

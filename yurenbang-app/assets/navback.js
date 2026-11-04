@@ -71,7 +71,7 @@
     { k: "r23Confirm", sel: "#r23Confirm.open", close: function (el) { click(el, "#r23CfClose"); } },
     { k: "licView",    sel: "#licView.open",    close: function (el) { click(el, "#lvClose"); } },
     { k: "r23Viewer",  sel: "#r23Viewer.open",  close: function (el) { click(el, "#r23Vx"); } },
-    { k: "r23Report",  sel: "#r23Report.open",  close: function (el) { el.classList.remove("open"); } },
+    { k: "r23Report",  sel: "#r23Report.open",  close: function (el) { click(el, "#r23RpX"); } },
     { k: "modal",      sel: "#modal.open",      close: function () { if (typeof window.closeModal === "function") window.closeModal(); } },
     { k: "vpFull",     sel: "#vpFull",          close: function (el) { click(el, ".vf-x"); } }
   ];
@@ -127,6 +127,10 @@
     if (stack.length) { if (!guard) push(); }
     else if (guard) {
       guard = 0; pend++;
+      /* 打一枚回声戳：这次 back() 是本层还占位，不是用户在按返回。
+         mediafull 等也监听 popstate 的层靠它区分「navback 的回声」和「真的返回」，
+         否则会把叠在详情上的面板一关，连详情也一起关掉（2026-11-04 举报面板实测） */
+      try { window.__yrbNbEcho = Date.now(); } catch (e) {}
       try { history.back(); } catch (e) { pend--; guard = 1; }
       /* back() 若被随后的一次 pushState 打断，popstate 就不会来了：1.5 秒后自动归零，
          免得「下一次真实返回」被白白吞掉一下（用户会觉得滑了没反应） */
@@ -167,7 +171,14 @@
     if (st && st[GUARD]) return;                        /* 落在我们的占位上：上面被吃掉的是别的层的垫片 */
     if (!guard) return;                                 /* 没押占位：不归本层管 */
     guard = 0;                                          /* 占位已被系统消费掉 */
-    if (foreignFull()) { sync(); return; }               /* 全屏手势归 mediafull / casedit */
+    /* 打回声戳：这一拍是本层在退自己的浮层（占位押在 mediafull 等层的垫片之上，
+       消费后 e.state 会变成它们的垫片，但那条垫片并没有被消费 —— 后执行的层
+       看到 400ms 内的回声就让路，垫片留到下一次返回自然轮到它） */
+    try { window.__yrbNbEcho = Date.now(); } catch (e) {}
+    /* 详情/案例全屏时手势原则上归 mediafull / casedit；
+       但如果本层还有浮层开着（比如详情全屏上叠着举报面板，面板 z60 > 详情 z57），
+       用户想退的是这层浮层 —— 先关它，全屏留着由 mediafull 继续管 */
+    if (foreignFull() && !stack.length) { sync(); return; }
     closeTop();
     sync();                                             /* 还有下级 → 重新押一条 */
   });
@@ -189,11 +200,14 @@
   window.addEventListener("touchstart", function (e) {
     live = false;
     if (!stack.length || !e.touches || e.touches.length !== 1) return;
-    if (foreignFull()) return;                            /* 全屏里左右滑 = 退出全屏，归 mediafull / casedit */
+    /* 2026-11-04 修正（用户截图：详情页上的举报面板滑不退）：
+       ① 原来详情全屏（foreignFull）时整体让路 —— 但叠在全屏上的面板（z 更高）没人管；
+       ② 原来要求滑动起点落在面板元素内 —— 贴底面板只占下半屏，
+          用户从屏幕中部起滑（最自然的手势）起点在详情内容上，永远进不来。
+       现在只要本层管着浮层（stack 非空），横滑就是「退一级」的意图：
+       竖滑、输入区、视频、横向滚动区在下面逐条排除。 */
     var t = e.touches[0], tgt = e.target;
     if (t.clientX < 26) return;                          /* 贴左边缘留给系统手势 */
-    var top = stack[stack.length - 1];
-    if (!top.el || !top.el.contains(tgt)) return;         /* 只在最上层浮层上接管 */
     if (tgt.closest && tgt.closest("video,audio,input,textarea,select,[data-noswipe]")) return;
     if (canScrollX(tgt)) return;                          /* 横向列表 / 轮播不抢 */
     sx = t.clientX; sy = t.clientY; st0 = Date.now(); live = true;
