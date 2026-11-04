@@ -21,6 +21,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 NODE = r"C:/Users/a/.workbuddy/binaries/node/versions/22.22.2-6"
 WRANGLER = os.path.join(
@@ -63,11 +64,21 @@ def wr(*args, timeout=900):
 
 # ───────────────────────── 1. 登录 ─────────────────────────
 def is_logged_in():
-    rc, out = wr("whoami", timeout=120)
-    low = out.lower()
-    bad = ("not authenticated" in low or "not logged in" in low
-           or "please run `wrangler login`" in low or "you are not authenticated" in low)
-    return (rc == 0 and not bad), out
+    """whoami 经代理偶发很慢（>120s），超时重试而不是直接判未登录 ——
+       误判会触发 wrangler login 的 OAuth 等待，在无人值守环境必然超时。"""
+    last = ""
+    for i in range(3):
+        rc, out = wr("whoami", timeout=240)
+        last = out
+        low = out.lower()
+        if "[超时]" in out:
+            print("      whoami 第 %d 次超时，重试…" % (i + 1))
+            time.sleep(3)
+            continue
+        bad = ("not authenticated" in low or "not logged in" in low
+               or "please run `wrangler login`" in low or "you are not authenticated" in low)
+        return (rc == 0 and not bad), out
+    return False, last
 
 
 def parse_account_id(out):

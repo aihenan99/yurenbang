@@ -16,7 +16,19 @@
  */
 const UPSTREAM = "https://yurenbang.app.workbuddy.host";
 const PREFIX = "/yrbapi";
-const BUILD_TAG = "20261030152940-build";
+const BUILD_TAG = "20261103201845-build";
+
+/* ============================================================
+   /sbapi —— 自建 Supabase 同源代理（2026-11-01 迁移第一步）
+   浏览器永远只跟本站域名说话，由 CF 边缘转发到 Supabase 项目：
+   · supabase.co 域在国内直连不稳，借本站域名中转后访客无感
+   · auth（GoTrue）/ database（PostgREST）/ storage 三条线统一在 /sbapi/* 下
+   · anon key 是公开密钥（配合 RLS 用），由前端随请求自带，Worker 不存密钥；
+     service_role 永远不出现在前端、仓库与日志
+   · 同源校验 + 限流沿用 /yrbapi 同一套规则
+   ============================================================ */
+const SB_UPSTREAM = "https://nyqpovygnwinjsjoiadw.supabase.co";
+const SB_PREFIX = "/sbapi";
 
 /* ============================================================
    /yrbtts —— AI 真人语音合成代理（2026-10-24）
@@ -425,6 +437,38 @@ export default {
       }
     }
 
+    if (url.pathname === SB_PREFIX || url.pathname.startsWith(SB_PREFIX + "/")) {
+      /* Supabase 代理限流：120 次/分/IP（与 /yrbapi 同口径） */
+      if (!rateLimit(ip + "|sb", 120, 60000)) return tooMany(url, "请求太频繁，请稍后再试");
+      if (!sameOriginOk(request, url)) return forbiddenOrigin(url);
+      const sub = url.pathname.slice(SB_PREFIX.length) || "/";
+      const target = SB_UPSTREAM + sub + url.search;
+
+      const headers = new Headers(request.headers);
+      for (const h of STRIP) headers.delete(h);
+      headers.set("origin", SB_UPSTREAM);
+      if (headers.has("referer")) headers.set("referer", SB_UPSTREAM + "/");
+
+      const init = { method: request.method, headers, redirect: "manual" };
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        init.body = await request.arrayBuffer();
+      }
+      try {
+        const resp = await fetch(target, init);
+        const out = new Headers(resp.headers);
+        out.set("access-control-allow-origin", url.origin);
+        out.set("x-yrb-proxy", "sb1");
+        return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers: secure(out) });
+      } catch (err) {
+        /* 同 M12：对外固定文案，原文进边缘日志 */
+        console.error("[sbapi] upstream error:", String(err));
+        return new Response(JSON.stringify({ error: "upstream_error", message: "数据库服务暂时不可用，请稍后再试" }), {
+          status: 502,
+          headers: secure(new Headers({ "content-type": "application/json", "access-control-allow-origin": url.origin })),
+        });
+      }
+    }
+
     if (!allowed(url.pathname)) return notFound(url, env);
 
     const asset = await env.ASSETS.fetch(request);
@@ -432,6 +476,15 @@ export default {
     /* 资源存在时补一个构建标记，方便线上核对是否为新版本 */
     const h = new Headers(asset.headers);
     h.set("x-yrb-edge", BUILD_TAG);
+    /* 2026-11-02：有用户的浏览器/微信 WebView 缓存了旧版页面（看到旧登录面板），
+       HTML 一律 no-cache 强制回源校验；本站 JS/CSS 也收成 must-revalidate
+       （etag 协商 304 很便宜），杜绝「别人打开的是上个星期的网站」 */
+    if (url.pathname === "/" || url.pathname === "/share" || url.pathname === "/share.html" ||
+        url.pathname.endsWith(".html")) {
+      h.set("cache-control", "no-cache");
+    } else if (url.pathname.indexOf("/assets/") === 0) {
+      h.set("cache-control", "public, max-age=0, must-revalidate");
+    }
     return new Response(asset.body, { status: asset.status, statusText: asset.statusText, headers: secure(h, url.pathname) });
   },
 };

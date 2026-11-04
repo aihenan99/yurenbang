@@ -231,91 +231,146 @@ function bindMic(btnId,btnRecHTML,btnNormalHTML,getTextTarget){
     btn.addEventListener("click",()=>toast("当前浏览器暂不支持语音输入，推荐使用 Chrome / Edge，或直接打字"));
     return;
   }
-  /* 2026-10-19 用户反馈「语音转文字卡了」：部分浏览器 start/stop 后不回调 onend，
-     rec 永远非空 → 按钮永远停在「正在听您说」。改为：
-     ① 点击结束时立即复位 UI，不等 onend；
-     ② 启动看门狗 4 秒无任何回调就 abort + 复位提示；
-     ③ 回调统一校验 rec===r，防止旧一轮 onend 打乱新一轮。 */
-  let rec=null,wd=null,tries=0;
-  const settle=msg=>{
-    if(wd){clearTimeout(wd);wd=null;}
-    rec=null;btn.classList.remove("rec");btn.innerHTML=btnNormalHTML;
-    if(msg)toast(msg);
-  };
-  /* 2026-10-25：之前所有识别错误都笼统报「没有听清」，用户困惑。
-     实际错误分几类，处理方式不同：
-     ① no-speech / network：瞬时问题（没开口/网络抖动），自动重试 1 次，长辈不用再点；
-     ② aborted：手动结束或看门狗触发，静默不打扰；
-     ③ 权限/设备类：给出明确指引。
-     另外：识别中停顿导致 onend 但没有 final 结果时，用最后一次 interim 兜底，
-     避免说了半截全丢（表现为「明明说了却什么都没转出来」）。 */
+  /* 2026-11-02 用户反馈「语音转文字还没说完就自己返回了」：原实现 continuous=false，
+     浏览器检测到约 1 秒停顿就判定说完了、自动结束识别；长辈说话慢、常停顿，
+     一句话经常被截成半截。现改为「连续听」：
+     ① continuous=true —— 不再因为一个停顿就结束；
+     ② 引擎因静音/时长上限自行断开时**静默续听**，已识别文字累积（sessAccum）不丢；
+     ③ 只有用户再点一次按钮（=说完了）才真正收尾；
+     ④ 保留 2026-10-19 的启动看门狗（麦克风假死，连续 3 次无响应才报错）
+        与 2026-10-25 的错误分类（no-speech 静默续听、network 重试一次、权限类给指引）。 */
   const SRMSG={
     "audio-capture":"没有找到麦克风，请检查手机是否允许本网站使用麦克风 🎤",
     "not-allowed":"麦克风权限被拒绝：请在浏览器设置里允许本网站使用麦克风",
     "service-not-allowed":"语音服务被浏览器限制，推荐用手机自带浏览器或 Chrome 再试",
     "language-not-supported":"当前浏览器不支持中文语音识别，推荐使用 Chrome / Edge"
   };
-  let sessBase=null,sessWritten="";
+  let rec=null,wd=null;
+  let sessActive=false,manualStop=false,sessBase=null,sessAccum="",
+      sessStart=0,restarts=0,deadStarts=0,netTries=0;
+  /* 会话代号（2026-11-02）：每次开始/结束都 +1。
+     所有 setTimeout 都带上开跑时的代号，回来先校验；过期定时器一律失效。
+     起因：浏览器 stop() 可能**同步**回调 onend，收尾已经完成之后才挂上的
+     「1.6 秒兜底」定时器会在下一轮说话中途把新会话误杀（表现为「说了半句又自己返回」）。 */
+  let gen=0;
+  const hardReset=()=>{
+    gen++;
+    sessActive=false;manualStop=false;rec=null;
+    if(wd){clearTimeout(wd);wd=null;}
+    btn.classList.remove("rec");btn.innerHTML=btnNormalHTML;
+    sessBase=null;sessAccum="";restarts=0;deadStarts=0;netTries=0;
+  };
+  const finish=msg=>{hardReset();if(msg)toast(msg);};
+  /* 文本框内容 = 开始前已有文字 + 本轮已累积 + 当前这句 */
+  const compose=t=>{
+    const p=[];if(sessBase)p.push(sessBase);if(sessAccum)p.push(sessAccum);
+    if(t&&String(t).trim())p.push(String(t).trim());
+    return p.join(" ");
+  };
   btn.addEventListener("click",()=>{
-    if(rec){
-      const r=rec;
-      try{r.stop();}catch(e){try{r.abort();}catch(e2){}}
-      settle();
+    if(sessActive){                 /* 再点一次 = 说完了，收尾 */
+      manualStop=true;
+      const r=rec,g=gen;
+      if(r){try{r.stop();}catch(e){try{r.abort();}catch(e2){}}}
+      if(wd){clearTimeout(wd);}
+      /* 有些浏览器 stop 后不回调 onend：1.6 秒兜底收尾（2026-10-19 老问题，保留）
+         带代号校验：若 onend 已收尾（gen 变了），这个定时器自动作废 */
+      wd=setTimeout(()=>{
+        if(gen===g&&sessActive)finish(sessAccum?"已转成文字，请检查再发布 ✍️":"没听到内容，再点一次试试 🙏");
+      },1600);
       return;
     }
     const target=getTextTarget();if(!target)return;
-    sessBase=target.value||"";sessWritten="";tries=0;
-    begin(target);
+    gen++;                          /* 新会话：作废上一轮所有挂起定时器 */
+    sessActive=true;manualStop=false;restarts=0;deadStarts=0;netTries=0;
+    sessStart=Date.now();sessBase=target.value||"";sessAccum="";
+    begin(target,gen);
   });
-  function begin(target){
+  function begin(target,g){
+    if(!sessActive)return;
     if(!target)target=getTextTarget();
-    if(!target)return;
-    const base=sessBase!==null?sessBase:(target.value||"");
-    const r=new SR();r.lang="zh-CN";r.interimResults=true;r.continuous=false;
+    if(!target){finish("");return;}
+    if(Date.now()-sessStart>120000){finish("语音输入已听满 2 分钟，需要的话再点一次 🎤");return;}
+    if(restarts>80){finish("语音识别反复中断，请稍后再试或直接打字 ✍️");return;}
+    if(deadStarts>=3){finish("麦克风没有响应：请检查手机是否允许本网站使用麦克风 🎤");return;}
+    const base=sessBase;
+    const r=new SR();
+    r.lang="zh-CN";r.interimResults=true;
+    r.continuous=true;              /* ← 关键：连续识别，不因停顿切断 */
     rec=r;
     btn.classList.add("rec");btn.innerHTML=btnRecHTML;
     let finalTxt="",lastInterim="",got=false;
-    const commit=txt=>{
-      sessWritten=txt;target.value=(base?base+" ":"")+txt;
-    };
-    r.onstart=()=>{got=true;};
+    const commit=t=>{target.value=compose(t);};
+    const again=ms=>setTimeout(()=>{if(gen===g)begin(target,g);},ms);
+    r.onstart=()=>{got=true;deadStarts=0;};
     r.onresult=e=>{
       got=true;finalTxt="";lastInterim="";
       for(let i=0;i<e.results.length;i++){
         if(e.results[i].isFinal)finalTxt+=e.results[i][0].transcript;
         else lastInterim=e.results[i][0].transcript;
       }
-      const show=finalTxt||lastInterim;
+      const show=finalTxt+lastInterim;
       if(show)commit(show);
     };
     r.onerror=e=>{
       if(rec!==r)return;
       const c=e&&e.error||"";
-      if(c==="aborted")return;                       /* 手动结束/看门狗，静默 */
-      if((c==="no-speech"||c==="network")&&tries<1){ /* 瞬时问题自动重试 1 次 */
-        tries++;settle(null);
-        toast(c==="no-speech"?"没听清，自动再听一次…":"网络有点抖，自动重试…");
-        setTimeout(begin,600);
+      if(c==="aborted"){
+        /* 自己调的 abort（看门狗）已把 rec 置空；能走到这里说明是外部中断。
+           不静默挂起（否则按钮永远停在「正在听」）：重新起一轮，连续 3 次才报错。 */
+        if(manualStop)return;
+        restarts++;
+        rec=null;if(wd){clearTimeout(wd);wd=null;}
+        if(restarts>3){finish("语音输入被中断了，再点一次试试 🙏");return;}
+        again(300);
         return;
       }
-      if(c==="no-speech")settle("还是没有听清：请靠近手机、说话慢一点，再点一下麦克风 🙏");
-      else if(c==="network")settle("网络不稳定，语音识别暂时用不了，稍后再试或直接打字 ✍️");
-      else settle(SRMSG[c]||"没有听清，再试一次？");
+      if(c==="no-speech"){
+        /* 连续识别下「静音超时」是常态：静默续听，绝不打断长辈说话 */
+        restarts++;if(!got)deadStarts++;
+        rec=null;if(wd){clearTimeout(wd);wd=null;}
+        again(300);
+        return;
+      }
+      if(c==="network"&&netTries<1){               /* 网络抖动重试一次 */
+        netTries++;
+        rec=null;if(wd){clearTimeout(wd);wd=null;}
+        toast("网络有点抖，自动重试…");
+        again(600);
+        return;
+      }
+      finish(c==="network"
+        ? "网络不稳定，语音识别暂时用不了，稍后再试或直接打字 ✍️"
+        : (SRMSG[c]||"没有听清，再试一次？"));
     };
     r.onend=()=>{
-      if(rec!==r)return;                /* 期间已被手动结束/新一轮接管，不动作 */
+      if(rec!==r)return;                           /* 已被手动结束/新一轮接管 */
+      rec=null;if(wd){clearTimeout(wd);wd=null;}
       /* 半截话兜底：没有 final 就用最后一次 interim，别让用户白说 */
       if(!finalTxt&&lastInterim)commit(lastInterim);
-      const done=finalTxt||lastInterim;
-      sessBase=null;sessWritten="";
-      settle(done?"已转成文字，请检查再发布 ✍️":"");
+      const seg=String(finalTxt||lastInterim||"").trim();
+      if(seg)sessAccum=(sessAccum?sessAccum+" ":"")+seg;
+      if(manualStop){
+        finish(sessAccum?"已转成文字，请检查再发布 ✍️":"没听到内容，再点一次试试 🙏");
+        return;
+      }
+      /* 引擎自己停了（静音/60 秒上限）：用户还在说，静默续听 */
+      restarts++;if(!got)deadStarts++;
+      again(250);
     };
     try{
       r.start();
-      wd=setTimeout(()=>{               /* 启动看门狗：start 后无任何回调 = 麦克风假死 */
-        if(rec===r&&!got){try{r.abort();}catch(e){}settle("麦克风没有响应，请再点一次");}
-      },4000);
-    }catch(e){settle("麦克风启动失败，请再试一次");}
+      wd=setTimeout(()=>{                          /* 启动看门狗：start 后无任何回调 = 假死 */
+        if(gen===g&&rec===r&&!got){
+          try{r.abort();}catch(e){}
+          rec=null;deadStarts++;restarts++;
+          again(300);
+        }
+      },5000);
+    }catch(e){
+      rec=null;deadStarts++;restarts++;
+      again(600);
+    }
   }
 }
 
@@ -419,8 +474,9 @@ function bindAll(){
   },true);
 
   /* 语音输入绑定 */
-  bindMic("#a11yMicP","🎤 正在听您说…点一下结束","🎤 语音转文字 · 点一下说话，自动变成文字",()=>$("#pubText"));
-  bindMic("#a11yMicC",`<span class="ic">⏹</span>结束转文字`,`<span class="ic">✍️</span>语音转文字`,()=>$("#cmInput"));
+  /* 文案要点明「可以慢慢说、说够了再点」——连续识别下不会再自动切断（2026-11-02） */
+  bindMic("#a11yMicP","🎤 正在听…慢慢说，说完点这里","🎤 语音转文字 · 点一下说话，自动变成文字",()=>$("#pubText"));
+  bindMic("#a11yMicC",`<span class="ic">⏹</span>说完了`,`<span class="ic">✍️</span>语音转文字`,()=>$("#cmInput"));
 }
 
 /* ============ 11. 装饰观察器 ============ */

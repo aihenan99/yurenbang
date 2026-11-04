@@ -29,6 +29,10 @@
 .cap-big{margin:14px auto 0;display:flex;align-items:center;justify-content:center;gap:8px;min-height:52px;width:100%;border-radius:999px;background:var(--gradA);color:#fff;font-weight:800;font-size:16px;box-shadow:0 8px 20px rgba(244,105,75,.4);transition:.15s}
 .cap-big:active{transform:scale(.97)}
 .cap-big.stop{background:linear-gradient(135deg,#FF6B6B,#E23A3A)}
+/* 安卓微信里「打开手机相机」是一个 label（包着 capture 的 file input），
+   样式按主按钮来，光标和按下反馈也要跟按钮一致，长辈才认得出这是能点的 */
+.cap-big.syscam{cursor:pointer;text-align:center;line-height:1.25}
+.cap-big.syscam:active{transform:scale(.97)}
 .cap-alt{display:block;margin-top:12px;font-size:12.5px;color:rgba(255,255,255,.75);text-decoration:underline;text-align:center;cursor:pointer}
 .cap-row{display:flex;gap:10px;margin-top:14px}
 .cap-row .btn-g,.cap-row .btn-a{flex:1;padding:13px 10px;font-size:15px}

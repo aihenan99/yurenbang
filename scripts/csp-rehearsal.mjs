@@ -181,6 +181,10 @@ for (const [label, path] of PAGES) {
   p.on("response", (r) => {
     const u = new URL(r.url());
     if (u.origin !== BASE) return;
+    /* 本地静态服务没有 Worker：/sbapi（Supabase 同源代理）与 /yrbapi（平台云代理）
+       在这里必然 404，属环境差异而非页面缺陷。线上由 deploy-cn/_worker.js 接管，
+       代理链路另有 scripts/worker-headers.mjs 实测把关。 */
+    if (/^\/(sbapi|yrbapi)(\/|$)/.test(u.pathname)) return;
     if (r.status() >= 400) notFound.push(u.pathname + " " + r.status());
   });
 

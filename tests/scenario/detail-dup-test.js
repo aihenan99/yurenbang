@@ -51,12 +51,12 @@ const ck=(n,c,d)=>{ if(c){pass++;console.log("  ✅",n);} else {fail++;console.l
   ck("重复标题不再渲染（无 …）", t1.open && !t1.hasEllipsis, JSON.stringify(t1).slice(0, 160));
   ck("详情页头部地区行已移除", !t1.sub, "p-sub 仍存在");
 
-  /* T1b 徽章缩小生效 */
-  const t1b = await p.evaluate(() => {
-    const tag = document.querySelector("#r23Detail .r23-dcard .p-tag");
-    return tag ? getComputedStyle(tag).fontSize : "";
-  });
-  ck("详情页徽章缩小为 10.5px", t1b === "10.5px", t1b);
+  /* T1b 2026-11-02 用户反馈：详情页头部不再渲染分类标签与年龄段（信息流卡片保留） */
+  const t1b = await p.evaluate(() => ({
+    tag: !!document.querySelector("#r23Detail .r23-dcard .p-tag"),
+    age: !!document.querySelector("#r23Detail .r23-dcard .age-chip")
+  }));
+  ck("详情页头部无分类标签与年龄段", !t1b.tag && !t1b.age, JSON.stringify(t1b));
   await back();
   await p.waitForTimeout(400);
 

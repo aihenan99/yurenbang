@@ -58,6 +58,7 @@ if ("serviceWorker" in navigator) {
 <link rel="stylesheet" href="assets/access.css">
 <link rel="stylesheet" href="assets/capture.css">
 <link rel="stylesheet" href="assets/cloud.css">
+<link rel="stylesheet" href="assets/staticcases.css">
 <link rel="stylesheet" href="assets/reward.css">
 <link rel="stylesheet" href="assets/jiaojiao.css">
 <link rel="stylesheet" href="assets/admin.css">
@@ -209,7 +210,7 @@ if ("serviceWorker" in navigator) {
       <div class="dr-title">功能栏目</div>
       <div class="dr-sub">全部功能入口 · 架构可持续扩展</div>
       <div class="dr-body" id="drBody"></div>
-      <div class="dr-foot">🚧 <b>预留升级架构</b> · 新功能模块插槽持续升级中</div>
+      <!-- 2026-11-01：撤掉「预留升级架构」横幅（用户要求，未上线能力不摆横幅） -->
     </aside>
 
     <!-- 页面 -->
@@ -221,7 +222,7 @@ if ("serviceWorker" in navigator) {
       <section class="page" id="page-cases">
         <div class="pg-head"><h1>案例广场</h1><span class="pg-sub">图文 · 图片 · PPT · 微视频 ≤30s</span></div>
         <div class="case-tabs" id="caseTabs">
-          <button class="ct on" data-f="all">全部</button><button class="ct" data-f="img">图片</button><button class="ct" data-f="ppt">PPT</button><button class="ct" data-f="video">微视频</button>
+          <button class="ct on" data-f="all">全部</button>
         </div>
         <div class="case-grid" id="caseGrid"></div>
         <!-- 静态内容入口：案例库长文（可被搜索引擎直接抓取，同时给家长一个"慢慢读"的去处） -->
@@ -281,11 +282,11 @@ if ("serviceWorker" in navigator) {
     <div class="sh-head"><div class="sh-title">发布求助</div><button class="sh-x" data-close="publishSheet">✕</button></div>
     <div class="sh-body">
       <textarea id="pubText" placeholder="说说孩子遇到什么问题、需要大家怎么帮忙…（求助内容将帮助更多人）"></textarea>
-      <div class="pub-label">选择媒体 <span class="pub-note">图片 / 微视频≤30s / 语音</span></div>
+      <div class="pub-label">选择媒体 <span class="pub-note">语音 / 图片 / 微视频≤30s</span></div>
       <div class="seg" id="pubTypes">
+        <button class="seg-btn" data-t="voice"><span class="si">🎤</span>语音</button>
         <button class="seg-btn on" data-t="img"><span class="si">🖼️</span>图片</button>
         <button class="seg-btn" data-t="video"><span class="si">🎬</span>微视频 30s</button>
-        <button class="seg-btn" data-t="voice"><span class="si">🎤</span>语音</button>
       </div>
       <div id="pubPrev" style="margin-top:10px"></div>
     </div>
@@ -370,7 +371,10 @@ if ("serviceWorker" in navigator) {
 <script src="assets/refine23.js"></script>
 <script src="assets/access.js"></script>
 <!-- 云服务 SDK 由 cloud.js 以 CDN 形式动态加载（主源失败自动切换备用源）；拉取失败时云功能自动降级为离线演示 -->
+<script src="assets/yb-sb.js"></script>
 <script src="assets/cloud.js"></script>
+<!-- 静态内容层：隔离期把 /anli/ 的可读案例插到首页与案例广场，恢复后自动撤掉 -->
+<script src="assets/staticcases.js"></script>
 <!-- 回报增强层：滚动自动播放 · 帮忙积分 · 职级晋升 · 玫瑰鲜花 + 掌声 -->
 <script src="assets/reward.js"></script>
 <!-- 家教服务层：顶部栏目「家教」入口 + 家教需求登记（需登录后提交，云端入库） -->

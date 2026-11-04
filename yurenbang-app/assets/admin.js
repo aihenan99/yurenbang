@@ -37,13 +37,62 @@ function isAdmin() {
   try {
     const w = me();
     if (!w) return false;
-    /* 1) 账号 ID（sub）命中即为管理员——不依赖手机号读取 */
+    /* 1) 旧平台账号 ID（迁移前的遗留判断，留着不碍事） */
     if (ADMIN_IDS.some(id => String(w.id || "") === id)) return true;
-    /* 2) 兼容：手机号后 11 位匹配 */
+    /* 2) 本次会话里已问过数据库：以答案为准 */
+    if (adminProbeResult === true) return true;
+    if (adminProbeResult === false) return false;
+    /* 3) 刷新后还没问完：先用上回缓存，避免入口闪一下才出现 */
+    if (adminCached()) return true;
+    /* 4) 兼容：手机号后 11 位（旧平台会话能取到号码时生效） */
     const d = digits(w.phone);
     return d.length >= 7 && ADMIN_PHONES.some(p => d.endsWith(digits(p)));
   } catch (e) { return false; }
 }
+
+/* ---------- 管理员身份：改问数据库（2026-11-01 迁移自建库后） ----------
+   新库只认 public.yb_admins（is_admin() 函数），前端再也拿不到手机号可比对。
+   做法：登录后异步调 is_admin() RPC，结果按账号缓存到 localStorage。
+   ★ 缓存只影响「入口是否显示」，真正的增删改权限永远由数据库 RLS 判定，
+     就算有人手工改 localStorage 把入口点亮，操作也会被数据库拒绝。 */
+const ADMIN_CACHE = "yrb_admin_ok:";
+let adminProbe = null;        /* 进行中的请求（并发去重） */
+let adminProbeResult = null;  /* 本次会话的复核结果：true / false / null(未定) */
+
+function adminCacheKey() { const w = me(); return w ? ADMIN_CACHE + String(w.id || "") : null; }
+function adminCached() {
+  try { const k = adminCacheKey(); return !!k && localStorage.getItem(k) === "1"; } catch (e) { return false; }
+}
+function adminSetCache(ok) {
+  try {
+    const k = adminCacheKey(); if (!k) return;
+    ok ? localStorage.setItem(k, "1") : localStorage.removeItem(k);
+  } catch (e) {}
+}
+function probeAdmin(force) {
+  try {
+    if (!window.YRB_CLOUD || !YRB_CLOUD.signedIn()) { adminProbeResult = false; return Promise.resolve(false); }
+    if (adminProbe && !force) return adminProbe;
+    const c = db();
+    if (!c || typeof c.rpc !== "function") return Promise.resolve(isAdmin());
+    adminProbe = c.rpc("is_admin", {}).then(r => {
+      if (!r || r.error) return isAdmin();               /* 异常：沿用现有判断，不误降权 */
+      const v = r.data === true || r.data === "true";
+      const changed = v !== adminCached();
+      adminProbeResult = v;
+      adminSetCache(v);
+      if (changed) {
+        try { syncAdminEntry(); } catch (e) {}
+        try { if (typeof renderFuncRow === "function") renderFuncRow(); } catch (e) {}
+        try { window.dispatchEvent(new CustomEvent("yrb-admin-changed", { detail: { admin: v } })); } catch (e) {}
+      }
+      return v;
+    }).catch(() => isAdmin()).then(v => { adminProbe = null; return v; });
+    return adminProbe;
+  } catch (e) { return Promise.resolve(false); }
+}
+/* 账号一变，本会话的结论立刻作废，避免换了账号还顶着上一个账号的权限 */
+function resetAdminProbe() { adminProbe = null; adminProbeResult = null; }
 /* 当前账号的可读标识，用于提示文案（便于排查"为什么不是管理员"） */
 function meLabel() {
   const w = me(); if (!w) return "未登录";
@@ -93,6 +142,7 @@ function ensureShell() {
   <div id="adLayer">
     <div class="ad-head"><button class="ad-back" id="adBack">‹</button><b>🛠 管理后台</b><button class="ad-refresh" id="adRefresh">刷新</button></div>
     <div class="ad-body" id="adBody"></div>
+    <div id="adCaseEdit" hidden></div>
   </div>`);
 }
 
@@ -279,13 +329,168 @@ function casesTabHTML() {
         <span>🕘 ${relTime(x.created_at)}</span>
         <span class="ad-tag">#${x.id}</span>
       </div>
-      <div class="ad-acts"><button class="ad-act warn" data-ad="casedel" data-id="${x.id}">🗑 删除案例</button></div>
+      <div class="ad-acts">
+        <button class="ad-act" data-ad="caseedit" data-id="${x.id}">✏️ 编辑内容</button>
+        <button class="ad-act warn" data-ad="casedel" data-id="${x.id}">🗑 删除案例</button>
+      </div>
     </div>`;
   }).join("") || `<div class="ad-empty">案例广场还没有内容</div>`;
   return `
     <div class="ad-sec">🎬 案例广场管理 <span class="n">${AD.cases.length}</span></div>
-    <div class="ad-note" style="margin:0 2px 8px">删除会<b>同时清掉案例素材文件</b>，用户端案例广场立即少一条；删除不可撤销。普通账号操作会被数据库拒绝（RLS 保护）。</div>
+    <div class="ad-note" style="margin:0 2px 8px">「编辑内容」可改<b>标题和正文</b>（含加粗、小标题、居中）；图片/视频等素材保持原样，不在此处更换。删除会<b>同时清掉案例素材文件</b>，用户端案例广场立即少一条；删除不可撤销。普通账号操作会被数据库拒绝（RLS 保护）。</div>
     ${rows}`;
+}
+
+/* ---------- 案例二次编辑（2026-11-03） ----------
+   需求：后台除删除外，还要能改已发布案例的标题与正文（错别字、补充说明、重排段落）。
+   范围：只改 title + content_html。素材（media）不在此处变更——正文里的图片用
+         data-yrb-media 序号原样引用，换图请删了重发，避免产生孤儿文件。
+   权限：数据库 yb_cases_update_own（作者本人 or is_admin()）；改不动时明确告知。 */
+const CE_ALLOW = { P: 1, H3: 1, B: 1, STRONG: 1, U: 1, EM: 1, I: 1, BR: 1, UL: 1, OL: 1, LI: 1 };
+let CE = null;   /* 正在编辑的案例：{ id, media } */
+
+/* 保存前的白名单清洗：优先用 casedit 层的实现（同一套规则，避免两处漂移）；
+   扩展层万一没加载，用本层这份兜底。图片只保留 data-yrb-media 序号。 */
+function ceCleanNode(src, dst) {
+  for (let n = src.firstChild; n; n = n.nextSibling) {
+    if (n.nodeType === 3) { dst.appendChild(document.createTextNode(n.nodeValue)); continue; }
+    if (n.nodeType !== 1) continue;
+    const tag = n.tagName;
+    if (tag === "IMG") {
+      const k = n.getAttribute && n.getAttribute("data-yrb-media");
+      if (k != null) {
+        const im = document.createElement("img");
+        im.setAttribute("data-yrb-media", String(k)); im.setAttribute("alt", "");
+        dst.appendChild(im);
+      }
+      continue;
+    }
+    if (!CE_ALLOW[tag]) { ceCleanNode(n, dst); continue; }
+    const el = document.createElement(tag);
+    const st = (n.getAttribute && n.getAttribute("style")) || "";
+    if ((tag === "P" || tag === "H3") && /center/i.test(st)) el.style.textAlign = "center";
+    dst.appendChild(el);
+    ceCleanNode(n, el);
+  }
+}
+function ceClean(html) {
+  const C = window.YRB_CASED;
+  if (C && typeof C.sanitize === "function") {
+    try { return C.sanitize(html); } catch (e) {}
+  }
+  const box = document.createElement("div");
+  const src = document.createElement("div");
+  src.innerHTML = String(html || "");
+  ceCleanNode(src, box);
+  return box.innerHTML;
+}
+/* 载入：先清洗（防库里的脏数据带事件属性），再把图片序号换成签名地址显示。
+   保存时再清洗一次，签名地址被去掉、序号保留 —— 闭环，素材不会被动到。 */
+function ceHydrate(html, media) {
+  const box = document.createElement("div");
+  box.innerHTML = ceClean(html || "");
+  [...box.querySelectorAll("img[data-yrb-media]")].forEach(im => {
+    const k = +im.getAttribute("data-yrb-media");
+    const m = (media || [])[k] || {};
+    im.setAttribute("alt", "");
+    if (m.url) im.setAttribute("src", m.url);
+    else im.classList.add("ce-miss");
+  });
+  return box.innerHTML;
+}
+function openCaseEdit(id) {
+  const x = AD.cases.find(t => String(t.id) === String(id));
+  if (!x) { toast && toast("这条案例不在当前列表里，点右上角刷新后再试"); return; }
+  const host = $("#adCaseEdit"); if (!host) return;
+  CE = { id: x.id, media: x.media || [] };
+  host.innerHTML = `
+    <div class="ad-ce-head">
+      <button class="ad-back" data-ceact="close">‹</button>
+      <b>✏️ 编辑案例</b>
+      <span class="ad-ce-id">#${esc(String(x.id))}</span>
+    </div>
+    <div class="ad-ce-body">
+      <div class="ad-ce-lab">标题</div>
+      <input id="ceTitle2" class="ad-ce-title" maxlength="80" placeholder="案例标题">
+      <div class="ad-ce-lab">正文 <span class="ad-ce-hint">图片保持原样，不能在这里加图</span></div>
+      <div class="ad-ce-bar">
+        <button type="button" class="ad-ce-b" data-ceact="bold"><b>B</b> 加粗</button>
+        <button type="button" class="ad-ce-b" data-ceact="h3">小标题</button>
+        <button type="button" class="ad-ce-b" data-ceact="center">居中</button>
+      </div>
+      <div id="cePaper2" class="ad-ce-paper" contenteditable="true" data-ph="在这里改正文…"></div>
+      <div class="ad-ce-tip" id="ceTip2">只改文字和排版，图片/视频等素材不变；保存后用户端立即生效。</div>
+    </div>
+    <div class="ad-ce-foot">
+      <button type="button" class="ad-act ghost" data-ceact="close">取消</button>
+      <button type="button" class="ad-act" id="ceSave2" data-ceact="save">💾 保存修改</button>
+    </div>`;
+  const ti = $("#ceTitle2"), pa = $("#cePaper2");
+  if (ti) ti.value = x.title || "";
+  if (pa) pa.innerHTML = ceHydrate(x.content_html || "", CE.media);
+  /* 粘贴只收文字：后台不重传图片，粘进来的图保存时会被清洗掉，先说清楚 */
+  if (pa) pa.addEventListener("paste", e => {
+    const cd = e.clipboardData; if (!cd) return;
+    const hasFile = cd.files && cd.files.length;
+    const hasImg = /<img/i.test(cd.getData("text/html") || "");
+    if (!hasFile && !hasImg) return;
+    e.preventDefault();
+    const t = cd.getData("text/plain") || "";
+    try { document.execCommand("insertText", false, t); } catch (e2) {}
+    toast && toast("后台编辑只收文字：图片请保留原样，换图需要删了重发");
+  });
+  host.hidden = false;
+  try { host.scrollTop = 0; } catch (e) {}
+}
+function closeCaseEdit() {
+  const host = $("#adCaseEdit");
+  if (host) { host.hidden = true; host.innerHTML = ""; }   /* 清空才能释放签名图片 */
+  CE = null;
+}
+function ceCmd(cmd) {
+  const pa = $("#cePaper2"); if (!pa) return;
+  try { pa.focus(); } catch (e) {}
+  try {
+    if (cmd === "bold") document.execCommand("bold", false, null);
+    else if (cmd === "center") document.execCommand("justifyCenter", false, null);
+    else if (cmd === "h3") document.execCommand("formatBlock", false, "H3");
+  } catch (e) {}
+  try { pa.focus(); } catch (e) {}
+}
+async function saveCaseEdit() {
+  if (!CE) return;
+  const ti = $("#ceTitle2"), pa = $("#cePaper2"), btn = $("#ceSave2");
+  const title = String((ti && ti.value) || "").replace(/\s+/g, " ").trim();
+  if (!title) { toast && toast("标题不能为空"); return; }
+  if (title.length > 80) { toast && toast("标题最多 80 个字"); return; }
+  const chars = ((pa && pa.textContent) || "").replace(/\s+/g, "").length;
+  const imgs = pa ? pa.querySelectorAll("img").length : 0;
+  if (!chars && !imgs) { toast && toast("正文是空的，写点内容再保存"); return; }
+  const html = ceClean(pa ? pa.innerHTML : "");
+  const C = window.YRB_CLOUD;
+  if (!(C && C.updateCase)) { toast && toast("云层还没就绪，请等几秒再试"); return; }
+  if (btn) { btn.disabled = true; btn.textContent = "保存中…"; }
+  const id = CE.id;
+  try {
+    const r = await C.updateCase(id, { title: title, content_html: html });
+    if (!r || !r.ok) {
+      const m = (r && r.reason === "denied")
+        ? "没有修改权限：只有管理员或案例作者本人能改"
+        : ((r && r.message) || "保存失败，请检查网络后重试");
+      toast && toast(m);
+      if (r && r.reason === "auth" && C.openLogin) setTimeout(() => { try { C.openLogin(); } catch (e) {} }, 500);
+      return;
+    }
+    const row = AD.cases.find(t => String(t.id) === String(id));
+    if (row) { row.title = title; row.content_html = html; }
+    toast && toast("案例已更新 ✅ 用户端已生效");
+    closeCaseEdit();
+    render();
+  } catch (e) {
+    toast && toast("保存失败：" + ((e && e.message) || "请稍后重试"));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "💾 保存修改"; }
+  }
 }
 
 /* ---------- 家教登记页签 ---------- */
@@ -595,7 +800,7 @@ function render() {
   if (!YRB_CLOUD.signedIn()) { body.innerHTML = gateHTML("请先登录管理员账号", "登录后即可查看社区数据并进行内容管理"); return; }
   if (!isAdmin()) {
     body.innerHTML = gateHTML("当前账号不是管理员",
-      `本后台仅对管理员开放（当前账号：${esc(meLabel())}）。请用管理员手机号登录。`,
+      `本后台仅对管理员开放（当前账号：${esc(meLabel())}）。请用管理员账号登录；若刚被设为管理员，点右上角「刷新」重试。`,
       "🔁 切换管理员账号登录", "adSwitch");
     return;
   }
@@ -678,8 +883,55 @@ function render() {
       🔐 进入本后台需通过<b>管理员二次验证</b>（管理密码），验证通过后 15 分钟内有效，切换账号立即失效。</div>
     ${adminFooterHTML()}`;
 }
+/* ---------- 重置家长密码（2026-11-01 迁移自建库后新增） ----------
+   自建库没有短信通道，家长忘记密码无法自助找回，只能由站长代为重置。
+   密码由数据库里的 SECURITY DEFINER 函数修改（admin_reset_password，
+   见 db/supabase/02-recovery.sql），前端拿不到任何密码哈希。 */
+function adRpc(fn, args) {
+  const c = db();
+  if (!c || !c.rpc) return Promise.resolve({ error: { message: "云服务未就绪" } });
+  return c.rpc(fn, args).catch(e => ({ error: e }));
+}
+function openResetUser() {
+  if (typeof window.modal !== "function") { toast && toast("界面未就绪，请刷新页面再试"); return; }
+  window.modal(`<div class="md-title">重置家长密码</div>
+    <div style="font-size:13px;color:var(--muted);margin:-4px 0 10px">
+      家长忘记密码时用：输入他的登录用户名，设一个新密码，再微信或电话告诉他。</div>
+    <div class="lg-label">家长的登录用户名</div>
+    <div class="lg-field"><input id="ruName" maxlength="20" placeholder="例如 小明妈妈" aria-label="家长用户名"></div>
+    <div class="lg-label">新密码（至少 6 位）</div>
+    <div class="lg-field"><input id="ruPwd" maxlength="32" placeholder="临时密码" aria-label="新密码"></div>
+    <div class="lg-err" id="ruErr"></div>
+    <div class="md-acts"><button class="btn-g" data-x="close">取消</button><button class="btn-a" id="ruOk">确认重置</button></div>`);
+  const errEl = $("#ruErr");
+  const say = m => { if (errEl) errEl.textContent = m || ""; };
+  const btn = $("#ruOk"); if (!btn) return;
+  btn.onclick = async () => {
+    const name = String(($("#ruName") || {}).value || "").trim();
+    const pwd = String(($("#ruPwd") || {}).value || "").trim();
+    if (!name) { say("请先填家长的登录用户名"); return; }
+    if (pwd.length < 6) { say("新密码至少 6 位"); return; }
+    say(""); btn.disabled = true; btn.textContent = "重置中…";
+    const r = await adRpc("admin_reset_password", { p_username: name, p_new: pwd });
+    btn.disabled = false; btn.textContent = "确认重置";
+    if (r && r.error) {
+      const msg = String((r.error.message || "")).slice(0, 80);
+      say(/not_admin|permission/i.test(msg) ? "当前账号不是管理员，无法重置" : ("重置失败：" + (msg || "没有权限")));
+      return;
+    }
+    const d = r && r.data;
+    const ok = d === true || (d && d.ok === true);
+    if (!ok) {
+      say((d && d.reason === "user_not_found") ? "没有找到这个用户名，请确认他注册时用的名字" : "重置失败，请稍后重试");
+      return;
+    }
+    if (typeof window.closeModal === "function") window.closeModal();
+    toast && toast("密码已重置，请把新密码告诉家长 🔑");
+  };
+}
 function adminFooterHTML() {
   return `<div class="ad-acts" style="padding:0 0 6px">
+      <button class="ad-act" id="adResetUser">🔑 重置家长密码</button>
       <button class="ad-act" id="adChangePwd">🔑 修改管理密码</button>
       <button class="ad-act" id="adLockNow">🔒 立即锁定后台</button>
     </div>`;
@@ -694,6 +946,10 @@ async function loadAndRender() {
 }
 function openAdmin() {
   ensureShell();
+  /* 先问一次数据库「我是不是管理员」，再决定要不要弹管理密码（2026-11-01） */
+  probeAdmin().then(() => openAdminNow());
+}
+function openAdminNow() {
   /* 二次验证：管理员账号登录后，进后台还需输入管理密码（见 adminguard.js）
      未登录 / 非管理员不在这里拦——交给后台自己的提示页，避免用户看不到"该怎么登录" */
   const G = window.YRB_ADMINGUARD;
@@ -701,7 +957,10 @@ function openAdmin() {
   $("#adLayer").classList.add("open");
   loadAndRender();
 }
-function closeAdmin() { const l = $("#adLayer"); if (l) l.classList.remove("open"); }
+function closeAdmin() {
+  closeCaseEdit();                                  /* 编辑面板不跨次残留（含签名图片） */
+  const l = $("#adLayer"); if (l) l.classList.remove("open");
+}
 
 /* ---------- 操作 ---------- */
 async function act(el) {
@@ -740,6 +999,8 @@ async function act(el) {
       toast && toast("已删除");
     } catch (e) { toast && toast("删除失败：" + ((e && e.message) || "没有权限")); }
     loadAndRender();
+  } else if (op === "caseedit") {
+    openCaseEdit(id);
   } else if (op === "casedel") {
     if (!confirm("确定删除这个案例？素材文件会一并清理，删除后不可恢复。")) return;
     el.textContent = "删除中…";
@@ -942,6 +1203,15 @@ document.addEventListener("click", e => {
 
   const b = e.target.closest("[data-ad]");
   if (b) { e.stopPropagation(); act(b); return; }
+  /* 案例编辑面板内部动作（工具栏 / 保存 / 取消） */
+  const ce = e.target.closest("[data-ceact]");
+  if (ce) {
+    const k = ce.dataset.ceact;
+    if (k === "close") closeCaseEdit();
+    else if (k === "save") saveCaseEdit();
+    else ceCmd(k);
+    return;
+  }
   /* 页签切换 */
   const tb = e.target.closest("[data-adtab]");
   if (tb) { AD.tab = tb.dataset.adtab; render(); return; }
@@ -1033,6 +1303,7 @@ document.addEventListener("click", e => {
     return;
   }
   /* 二次验证相关：改密码 / 立即锁定 */
+  if (e.target.closest("#adResetUser")) { openResetUser(); return; }
   if (e.target.closest("#adChangePwd")) {
     const G = window.YRB_ADMINGUARD;
     if (G) G.changePassword(); else toast && toast("功能未加载，请刷新页面");
@@ -1168,6 +1439,8 @@ function injectMenu() {
 new MutationObserver(() => { if ($("#meMenu")) injectMenu(); })
   .observe($("#phone") || document.body, { childList: true, subtree: true });
 setTimeout(injectMenu, 400);
+/* 启动即问一次身份：已登录的管理员刷新页面后入口马上出现（缓存先顶着，答案回来后校正） */
+setTimeout(() => { probeAdmin().then(() => { try { syncAdminEntry(); } catch (e) {} }); }, 900);
 
 /* 支持 yurenbang-app.html#admin 直达后台（管理员的备用入口：即使未登录也能打开登录引导） */
 function hashRoute() {
@@ -1187,8 +1460,15 @@ window.YRB_CONSOLE = { openShare, openAdmin, isAdmin, reload: loadAndRender,
    而首次渲染时本层还没加载/会话未就绪，这里补一次刷新 */
 window.addEventListener("yrb-auth", () => {
   try { if (typeof renderFuncRow === "function") renderFuncRow(); } catch (e) {}
+  /* 换了账号：先作废上一个账号的判断，再问一次数据库（2026-11-01） */
+  resetAdminProbe();
+  probeAdmin(true).then(() => {
+    try { syncAdminEntry(); } catch (e) {}
+    try { if (typeof renderFuncRow === "function") renderFuncRow(); } catch (e) {}
+  });
 });
 window.addEventListener("yrb-cloud-ready", () => {
   setTimeout(() => { try { if (typeof renderFuncRow === "function") renderFuncRow(); } catch (e) {} }, 300);
+  setTimeout(() => { probeAdmin().then(() => { try { syncAdminEntry(); } catch (e) {} }); }, 500);
 });
 })();

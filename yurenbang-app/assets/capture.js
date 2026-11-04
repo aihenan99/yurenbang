@@ -26,9 +26,42 @@ const state={
 };
 
 /* ---------- 环境能力 ---------- */
+
+/* ---------- 微信/老 WebView 兼容：label 包 hidden 文件框点不开 ----------
+   微信 X5 等内核上，<label> 包 display:none 的 <input type=file>，
+   点 label 经常不弹系统选择框（发布求助的拍照/相册、案例插图、帮忙上传全受影响）。
+   统一在 document 捕获阶段兜底：拦下 label 点击 → 阻止原生转发 → 直接 input.click()。
+   原生本来就弹的环境也只弹一次，行为不变（2026-11-02 用户实机反馈）。
+   配套：把 hidden 文件框改成 1px 隐形但真实渲染，防止个别内核对 display:none
+   的元素连程序化 click 都不理。 */
+document.addEventListener("click",function(e){
+  const t=e.target,lab=t&&t.closest?t.closest("label"):null;
+  if(!lab)return;
+  const inp=lab.querySelector('input[type="file"]');
+  if(!inp||t===inp)return;
+  e.preventDefault();
+  try{inp.click();}catch(err){}
+},true);
+try{
+  const st=document.createElement("style");
+  st.id="cap-file-in-fix";
+  st.textContent='input[type="file"][hidden]{display:block;position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;}';
+  document.head.appendChild(st);
+}catch(e){}
+
 function hasGetUserMedia(){
   return !!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
 }
+/* 微信内置浏览器（安卓）不放行 getUserMedia：点了不弹权限框、直接报 NotAllowedError。
+   这不是手机的问题，也不是代码写错了——所以安卓微信里要把「系统相机」放到主位，
+   网页直拍降为次选（2026-11-03 用户反馈「安卓手机都无法使用摄像头」） */
+function isWx(){
+  return /MicroMessenger/i.test(navigator.userAgent||"");
+}
+function isAndroid(){
+  return /Android/i.test(navigator.userAgent||"");
+}
+function wxAndroid(){return isWx()&&isAndroid();}
 function hasRecorder(){return typeof window.MediaRecorder!=="undefined";}
 /* =========================================================
    环境自诊断：先判断「为什么用不了」，再给出能照做的解决办法
@@ -104,6 +137,16 @@ function explain(err,kind,d){
   const name=(err&&err.name)||"";
   const msg=(err&&err.message)||"";
   const base={kind,name,msg,steps:[],actions:[]};
+  /* 安卓微信：内置浏览器直接拒绝摄像头/麦克风（连权限框都不弹，mediaDevices 也可能干脆没有）。
+     这条必须排在最前——否则会落到「网址不是 https」或「去小锁改权限」这些走不通的建议上 */
+  if(wxAndroid()){
+    return Object.assign(base,{
+      title:"安卓微信里不能直接用"+word,
+      why:"这是微信内置浏览器的限制，不是手机的问题——同一个网址换到手机浏览器里就能正常用。",
+      steps:["点右上角「···」→「在浏览器打开」，再"+(kind==="voice"?"点话筒录音":"点开始拍摄"),
+        "不想换浏览器：拍摄用下面的「手机相机」，录音用「手机录音机」，一样能继续发布"],
+      actions:["open","diag"]});
+  }
   if(!d.hasMediaDevices||!d.safeOrigin){
     return Object.assign(base,{
       title:"浏览器不允许网页使用"+word,
@@ -293,16 +336,22 @@ function helpHTML(h,type){
   const word=type==="voice"?"麦克风":"摄像头";
   const acts=h.actions||["retry","open","diag"];
   const btn={
-    open:`<button class="cap-help-btn primary" data-cap-help="open">🔗 在新窗口打开</button>`,
+    open:isWx()
+      ? `<button class="cap-help-btn primary" data-cap-help="open">🌐 怎么在浏览器打开</button>`
+      : `<button class="cap-help-btn primary" data-cap-help="open">🔗 在新窗口打开</button>`,
     retry:`<button class="cap-help-btn primary" data-cap-help="retry">🔄 重试</button>`,
     diag:`<button class="cap-help-btn ghost" data-cap-help="diag">📋 复制自检信息</button>`
   };
+  /* 微信安卓里，系统相机/录音机是唯一稳定的路，所以给它主色（长辈只看得出哪个能点） */
+  const fb=wxAndroid()?"cap-help-btn primary":"cap-help-btn fallback";
   const extra=type==="video"
-    ? `<label class="cap-help-btn fallback"><input type="file" accept="video/*" capture="environment" data-cap-in="video" hidden>📷 用系统相机拍摄
+    ? `<label class="${fb}"><input type="file" accept="video/*" capture="environment" data-cap-in="video" hidden>📷 用手机相机拍
        </label>
        <label class="cap-help-btn fallback"><input type="file" accept="video/*" data-cap-in="video" hidden>🖼️ 从相册选视频
        </label>`
-    : `<label class="cap-help-btn fallback"><input type="file" accept="audio/*" data-cap-in="audio" hidden>🎵 选已有的录音文件
+    : `<label class="${fb}"><input type="file" accept="audio/*" capture data-cap-in="audio" hidden>🎙️ 用手机录音机录
+       </label>
+       <label class="cap-help-btn fallback"><input type="file" accept="audio/*" data-cap-in="audio" hidden>🎵 选已有的录音文件
        </label>`;
   return `<div class="cap-help" role="alertdialog" aria-label="为什么用不了${word}">
     <div class="cap-help-ic">🔒</div>
@@ -336,6 +385,18 @@ function imgHTML(){
 function vidHTML(){
   const s=state.vState;
   if(s==="idle"){
+    if(wxAndroid()){
+      /* 安卓微信：主入口直接给系统相机（一定能用），网页直拍放到次选。
+         版式刻意做矮：发布面板本身只有 86% 高，留一个 200px 的预览框会把主按钮顶出屏幕 */
+      return `<div class="cap-rec idle">
+      <div class="cap-warn">微信里不能直接开摄像头（不是手机的问题）。用手机相机拍最稳，<b>15 秒内</b>最好传。</div>
+      <label class="cap-big syscam"><input type="file" accept="video/*" capture="environment" data-cap-in="video" hidden>📷 打开手机相机拍摄</label>
+      <div class="cap-alt-row">
+        <button class="cap-alt" data-cap-vid="start">🎥 网页里直接拍</button>
+        <label class="cap-alt"><input type="file" accept="video/*" data-cap-in="video" hidden>🖼️ 从相册选</label>
+      </div>
+    </div>`;
+    }
     const warn=blockWarn("video");
     return `<div class="cap-rec idle">
       <div class="cap-stage"><span class="cap-ph">🎥</span>
@@ -371,6 +432,16 @@ function vidHTML(){
 function voiceHTML(){
   const s=state.aState;
   if(s==="idle"){
+    if(wxAndroid()){
+      /* 安卓微信同样不放行麦克风：把「选/录现成音频」提到话筒下面说清楚，
+         并在失败卡里给「在浏览器打开」的路子（见 explain） */
+      return `<div class="cap-voice">
+      <button class="cap-vmic" data-cap-aud="start">🎤</button>
+      <div class="cap-hint">点大话筒录音，最长 <b>60 秒</b>；<br><b>安卓微信里可能不弹权限</b>，打不开就用下面两种方式</div>
+      <label class="cap-alt"><input type="file" accept="audio/*" capture data-cap-in="audio" hidden>🎙️ 用手机录音机录一段</label>
+      <label class="cap-alt"><input type="file" accept="audio/*" data-cap-in="audio" hidden>🎵 选已有的录音文件</label>
+    </div>`;
+    }
     const warn=blockWarn("voice");
     return `<div class="cap-voice">
       ${warn}
@@ -378,6 +449,7 @@ function voiceHTML(){
       <div class="cap-bars">${bars(34)}</div>
       <div class="cap-hint">点大话筒开始录音，最长 <b>60 秒</b>；录完可以试听</div>
       <label class="cap-alt"><input type="file" accept="audio/*" data-cap-in="audio" hidden>🎵 或选已有的录音文件</label>
+      <label class="cap-alt"><input type="file" accept="audio/*" capture data-cap-in="audio" hidden>🎙️ 或用系统录音机录一段（部分手机可用）</label>
     </div>`;
   }
   if(s==="recording"){
@@ -413,9 +485,21 @@ function bind(host){
         const d=await durOf(url,true);
         if(!d){URL.revokeObjectURL(url);toast("这个文件不是可播放的视频，请换一个");return;}
         /* 免费额度专项（2026-10-26）：相册原片常 20-30MB，几十次播放就能吃掉大块流量额度。
-           现场录制走 854×480 / 0.8Mbps，20 秒约 2MB，所以优先引导现场录。 */
-        if(d>21){URL.revokeObjectURL(url);toast(`这段视频 ${Math.round(d)} 秒，超过 20 秒了，请剪短一点再传`);return;}
-        if(f.size>8*1024*1024){URL.revokeObjectURL(url);toast(`这段视频 ${(f.size/1048576).toFixed(1)}MB，太大了。建议点「录视频」现场录一段`);return;}
+           现场录制走 854×480 / 0.8Mbps，20 秒约 2MB，所以优先引导现场录。
+           2026-11-03：微信安卓只能走系统相机，成片明显更大（1080p 20 秒就 20MB+），
+           8MB 的上限会把人卡死在「录了传不上」，放宽到 16MB 并给出可照做的提示 */
+        if(d>21){
+          URL.revokeObjectURL(url);
+          toast(wxAndroid()?`这段 ${Math.round(d)} 秒，超过 20 秒了。请重新拍一段 15 秒左右的`:`这段视频 ${Math.round(d)} 秒，超过 20 秒了，请剪短一点再传`);
+          return;
+        }
+        if(f.size>16*1024*1024){
+          URL.revokeObjectURL(url);
+          toast(wxAndroid()
+            ?`这段 ${(f.size/1048576).toFixed(0)}MB 太大了。请拍短一点（15 秒内），或在浏览器打开后用网页直接拍`
+            :`这段视频 ${(f.size/1048576).toFixed(1)}MB，太大了。建议点「录视频」现场录一段`);
+          return;
+        }
         if(state.video)URL.revokeObjectURL(state.video.url);
         state.video={blob:f,url,dur:Math.min(MAX_VID,d||1),ext:extOf(f.type)||"mp4"};
         state.vState="done";state.help=null;refresh();
@@ -507,6 +591,11 @@ async function fail(kind,err){
 }
 async function helpAct(a){
   if(a==="open"){
+    /* 微信里 window.open 还是在微信里开，突破不了限制——直接告诉手指该点哪里 */
+    if(isWx()){
+      try{toast("点右上角「···」，再选「在浏览器打开」");}catch(e){}
+      return;
+    }
     let ok=false;
     try{ok=!!window.open(LIVE_URL,"_blank","noopener");}catch(e){ok=false;}
     if(!ok){

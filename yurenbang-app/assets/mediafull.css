@@ -81,3 +81,158 @@ html.yrb-guard .vw-imgs img { pointer-events: auto; -webkit-touch-callout: none;
 #phone[data-elder="1"] .mf-vbtn svg { width: 24px; height: 24px; }
 /* 大图查看器的关闭按钮同步放大（长辈常找不到小 ✕；元素是 #r23Vx.vx，见 refine23.js） */
 #phone[data-elder="1"] #r23Viewer .vx { width: 46px; height: 46px; font-size: 20px; }
+
+/* ---------- 6) 自动跟读开关（2026-11-03）：#phone 左下悬浮胶囊 ----------
+   层级 92（顶层内容 80–96，低于 #modal 96、低于 #vpFull 200）。
+   原来是 42：详情层 57、全屏详情 90 都会把它盖住 —— 用户点进求助后
+   「跟读中」看着像消失了，想关朗读也点不到（2026-11-03 用户反馈）。
+   跟读开关是随时要能按到的止损按钮，必须浮在详情/全屏之上。
+   挂在 #phone（overflow:clip、非滚动容器）上，滚动时不随内容飘走 */
+#mfAuto {
+  position: absolute;
+  left: 14px;
+  bottom: calc(172px + env(safe-area-inset-bottom));
+  z-index: 92;
+  border: 1.5px solid var(--rule);
+  background: var(--bg);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 4px 14px rgba(60, 40, 30, .16);
+  transition: .15s;
+  white-space: nowrap;
+}
+#mfAuto.off { opacity: .85; }
+/* 全屏阅读时把胶囊挪到底部操作条上方：原来停在 172px 处正好压住「帮忙评论」和登录提示，
+   看着像浮在正文中间的杂物（2026-11-03 晚截图核对）。类由 pfEnter/pfExit 加在 #phone 上 */
+#phone.mf-pill-low #mfAuto { bottom: calc(96px + env(safe-area-inset-bottom)); }
+#phone[data-elder="1"] #mfAuto {
+  bottom: calc(130px + env(safe-area-inset-bottom));
+  font-size: 15px;
+  padding: 10px 18px;
+  min-height: 42px;
+  border-width: 2px;
+}
+
+/* ---------- 7) 点一下求助 → 全屏阅读（2026-11-03） ----------
+   .mf-fs 只加在 #r23Detail 上：显隐仍由 .open 控制。
+   2026-11-03 晚（用户反馈「图该占九成、字要小」）：
+   · 照片横向出血到屏幕两边（去掉卡片左右内边距与圆角），单图最高放到 80vh
+   · 头部 / 作者 / 状态条 / 可见范围各降一档字号，视觉重心交给照片 */
+/* 2026-11-03 晚（用户反馈「进详情后左边多出半截画面」）：
+   真机上详情层原本是 absolute + translateX 转场，进全屏时若视口/合成层被系统重算
+   （安卓微信、X5 内核），左缘会漏出底层一窄条旧画面，看着像「两个画面」。
+   这里把全屏态改成 fixed 钉死整屏、transform 归零，从结构上不给它漏边的机会。
+   层级 90 仍在「顶层内容 80–96」这一档内（低于 #modal 96，全屏阅读里弹窗照旧能盖住）。 */
+#r23Detail.mf-fs {
+  transform: none !important;
+  background: var(--bg2);
+  /* 系统级「边缘侧滑返回」抢手势时，别再叠一层浏览器横向回弹/下拉刷新：
+     页面自己的左右滑退出 + 系统返回都由 mediafull.js 的 popstate 接管（见 pfHistPush） */
+  overscroll-behavior: contain;
+  overscroll-behavior-x: none;
+}
+@media (max-width: 559px) {
+  #r23Detail.mf-fs {
+    position: fixed;
+    left: 0; top: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    z-index: 90;
+  }
+}
+#r23Detail.mf-fs .r23-dbody { padding: 0 0 calc(90px + env(safe-area-inset-bottom)); }
+#r23Detail.mf-fs .r23-dcard {
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+  padding: 10px 14px;
+  background: transparent;
+  border-bottom: 1px solid var(--rule);
+}
+#r23Detail.mf-fs .r23-dcard:first-child { padding-top: 10px; }
+#r23Detail.mf-fs .r23-dcard:last-child { border-bottom: 0; }
+
+/* 头部：压低高度、缩小标题与时间 */
+#r23Detail.mf-fs .r23-dhead {
+  padding: calc(7px + env(safe-area-inset-top)) 12px 6px;
+  gap: 8px;
+}
+#r23Detail.mf-fs .r23-dhead .sp-title { font-size: 14.5px; }
+#r23Detail.mf-fs .r23-dhead > span { font-size: 10.5px !important; }
+#r23Detail.mf-fs .r23-dhead .r23-dback {
+  width: 28px; height: 28px; border-radius: 10px; font-size: 16px;
+}
+#r23Detail.mf-fs .r23-dhead .mf-tts {
+  padding: 4px 10px; font-size: 11.5px; border-width: 1px;
+}
+
+/* 作者行：头像与名字各小一档 */
+#r23Detail.mf-fs .r23-dcard .p-head { gap: 8px; }
+#r23Detail.mf-fs .r23-dcard .p-ava { width: 28px; height: 28px; }
+#r23Detail.mf-fs .r23-dcard .p-name { font-size: 13px; }
+
+/* 正文：比普通详情再小一档（普通详情 16px，这里 14.5px）；标题行带内联字号，需 !important */
+#r23Detail.mf-fs .r23-dcard .p-text { font-size: 14.5px !important; line-height: 1.85; }
+#r23Detail.mf-fs .r23-dcard .p-text[style] { margin: 8px 2px 2px !important; }
+#r23Detail.mf-fs .r23-dcard > div[style*="margin:10px 0 0"] { margin-top: 6px !important; }
+
+/* 状态条（已有 N 位家长伸出援手 / 标记已解决）与底部「可见范围」 */
+#r23Detail.mf-fs .r23-dcard .r23-status {
+  font-size: 12px; padding: 8px 11px; border-radius: 12px; margin-bottom: 9px;
+}
+#r23Detail.mf-fs .r23-dcard .r23-status .si { font-size: 14px; }
+#r23Detail.mf-fs .r23-dcard .r23-solve { font-size: 11.5px; padding: 5px 10px; }
+#r23Detail.mf-fs .r23-dcard:first-child > div:last-child { font-size: 10.5px !important; }
+
+/* 照片：横向出血到屏幕两边，纵向最高 80vh（竖构图的大图基本铺满一屏） */
+#r23Detail.mf-fs .r23-dimgs { margin: 0 -14px 6px; gap: 4px; }
+#r23Detail.mf-fs .r23-dimgs .di { border-radius: 0; }
+#r23Detail.mf-fs .r23-dimgs.one .di { background: #0d0a08; }
+#r23Detail.mf-fs .r23-dimgs.one .di .real-img,
+#r23Detail.mf-fs .r23-dimgs.one .di img {
+  width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  background: #0d0a08;
+  display: block;
+}
+/* 视频/语音同理：横向出血、给足高度 */
+#r23Detail.mf-fs .r23-dvideo { margin: 0 -14px 6px; border-radius: 0; height: 58vh; }
+#r23Detail.mf-fs .r23-dvoice { margin: 0 -14px 6px; border-radius: 0; }
+
+/* 双击判定要快：禁掉双击缩放（iOS 忽略 user-scalable=no） */
+#feed .card { touch-action: manipulation; }
+
+/* 提示气泡：进全屏时出现，2.6 秒后自己淡掉；不吃点击 */
+#mfFsTip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: rgba(30, 25, 20, .82);
+  color: #fff;
+  font-size: 13.5px;
+  line-height: 1;
+  z-index: 6;
+  pointer-events: none;
+  animation: mfFsTip 2.6s ease forwards;
+}
+@keyframes mfFsTip { 0% { opacity: 0 } 12% { opacity: 1 } 80% { opacity: 1 } 100% { opacity: 0 } }
+
+/* 长辈模式：全屏里正文仍比普通详情大一点，但不再压照片的份量 */
+#phone[data-elder="1"] #r23Detail.mf-fs .r23-dcard { padding: 10px 16px; }
+#phone[data-elder="1"] #r23Detail.mf-fs .r23-dimgs { margin: 0 -16px 6px; }
+#phone[data-elder="1"] #r23Detail.mf-fs .r23-dcard .p-text { font-size: 16.5px !important; line-height: 1.95; }
+#phone[data-elder="1"] #r23Detail.mf-fs .r23-dcard .p-name { font-size: 14px; }
+#phone[data-elder="1"] #r23Detail.mf-fs .r23-dhead .sp-title { font-size: 15.5px; }
+#phone[data-elder="1"] #mfFsTip { font-size: 15px; padding: 11px 18px; }

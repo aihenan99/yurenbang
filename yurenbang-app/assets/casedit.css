@@ -81,3 +81,35 @@
 #phone[data-elder="1"] .yrb-doc-body{font-size:19.5px;line-height:1.95;padding:16px 18px;border-width:2px}
 #phone[data-elder="1"] .yrb-doc-body h3{font-size:22px}
 #phone[data-elder="1"] .yrb-doc-lock{font-size:16px}
+
+/* ---------- 双击全屏朗读（2026-11-03） ----------
+   长辈看案例嫌字小：双击文字 → 正文撑满应用视口、去掉圆角与边距，同时自动朗读。
+   `.vw-fs` 是唯一开关类：加在 #viewer 上，查看器其余的显隐逻辑（.open）完全不动。
+   只覆盖盒子，不动 app.js 渲染结构 */
+#viewer.vw-fs{padding:0;background:var(--bg2,#fff);backdrop-filter:none}
+#viewer.vw-fs .vw-card{width:100%;height:100%;max-height:none;border-radius:0;transform:none;
+  display:flex;flex-direction:column;overflow:hidden;box-shadow:none}
+#viewer.vw-fs .vw-head{flex:0 0 auto;padding:10px 14px;background:#fff;
+  border-bottom:1px solid var(--rule,#d8dde3)}
+#viewer.vw-fs .vw-title{font-size:16.5px}
+#viewer.vw-fs .vw-body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:14px 18px 34px;overscroll-behavior:contain}
+/* 正文块原本自带 52vh 滚动条与边框：全屏时交给外层滚，避免「框里再滚框」长辈找不到底 */
+#viewer.vw-fs .yrb-doc-body{max-height:none;overflow:visible;border:0;border-radius:0;
+  padding:0;background:transparent;font-size:18.5px;line-height:1.95}
+#viewer.vw-fs .yrb-doc-body h3{font-size:21px}
+/* 顶部标题栏已有标题，正文首行同名标题由脚本打 .vw-dup 隐藏（全屏时省掉重复） */
+#viewer.vw-fs .vw-dup{display:none}
+#viewer.vw-fs .c-stats{margin-top:16px;padding-top:12px;border-top:1px dashed var(--rule,#d8dde3)}
+#phone[data-elder="1"] #viewer.vw-fs .yrb-doc-body{font-size:21px;line-height:2.05}
+#phone[data-elder="1"] #viewer.vw-fs .yrb-doc-body h3{font-size:24px}
+
+/* 提示气泡：进全屏时出现，2.6 秒后自己淡掉；不吃点击 */
+#vwFsTip{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);
+  padding:9px 16px;border-radius:999px;background:rgba(30,25,20,.82);color:#fff;
+  font-size:13.5px;line-height:1;z-index:5;pointer-events:none;
+  animation:vwFsTip 2.6s ease forwards}
+@keyframes vwFsTip{0%{opacity:0}12%{opacity:1}80%{opacity:1}100%{opacity:0}}
+
+/* 双击判定要快：禁掉双击缩放（iOS 忽略 user-scalable=no），顺带去掉 300ms 点击延迟 */
+.case-card,#viewer .vw-body,#viewer .vw-head{touch-action:manipulation}

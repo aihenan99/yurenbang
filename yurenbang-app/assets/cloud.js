@@ -15,7 +15,13 @@ const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&
 const CFG={
   endpoint:"https://yurenbang.app.workbuddy.host",
   oauthRelayBaseUrl:"https://www.workbuddy.cn/v2/as/genie-baas/oauth",
-  publishableKey:"wbpk_Lt4Zxzyd4j1x3DZdRFyFF9_mGfhreB3aiE9eS2lsMIzIG6z3V4E1O01"
+  publishableKey:"wbpk_Lt4Zxzyd4j1x3DZdRFyFF9_mGfhreB3aiE9eS2lsMIzIG6z3V4E1O01",
+  /* 自建 Supabase（2026-11-01 迁移）：一律走本站同源代理 /sbapi，
+     浏览器不直连第三方域名（出境流量、CORS、备案口径都更干净）。
+     用户名 → 伪邮箱 <用户名小写>@usr.yurenbang.cn 映射 GoTrue 的 email 字段 */
+  sbBase:"/sbapi",
+  sbKey:"sb_publishable_ebjDgVECIpbwM2oGW_4pEg_tAAi0wqi",
+  sbEmailDomain:"usr.yurenbang.cn"
 };
 
 let cloud=null, session=null, cloudPosts=[], ready=false;
@@ -169,9 +175,25 @@ function paintMaint(on){
     if(el)return;
     el=document.createElement("div");
     el.id="maintBar";el.setAttribute("role","status");
-    el.textContent="🛠 系统维护中：内容暂时看不到，已自动检测恢复，帖子不会丢失";
     el.style.cssText="background:#FFF4E5;color:#8A5300;font-size:13.5px;line-height:1.55;"
       +"padding:9px 14px;text-align:center;font-weight:700;border-bottom:1px solid #FFE0B2";
+    /* 2026-11-01：隔离期首页是空的，但静态案例库（/anli/）与云端完全无关、一直可读。
+       给访客留一条有内容可看的出路，避免误判「网站废了」；跳静态页，不消耗云额度。 */
+    /* 2026-11-01 改口径：不再承诺「帖子不会丢失」——数据保留期由平台判定，
+       站点自己没法保证；只陈述正在做什么，避免日后被打脸。 */
+    const msg=document.createElement("div");
+    msg.textContent="🛠 云端社区维护中：内容暂时打不开，正在自动检测恢复";
+    const row=document.createElement("div");
+    row.style.marginTop="8px";
+    const keep=document.createElement("a");
+    keep.href="/anli/";
+    keep.textContent="先看案例库（10 篇真实家庭经历）→";
+    keep.style.cssText="display:inline-block;padding:10px 22px;border-radius:10px;background:#fff;"
+      +"color:#8A5300;border:1.5px solid #EDC48A;font-size:15px;font-weight:700;"
+      +"text-decoration:none;line-height:1.5";
+    row.appendChild(keep);
+    el.appendChild(msg);
+    el.appendChild(row);
     const pages=document.getElementById("pages");
     if(pages&&pages.parentNode===app)app.insertBefore(el,pages);else app.appendChild(el);
   }catch(e){}
@@ -256,6 +278,12 @@ async function loadSDK(){
 /* ---------- 初始化 ---------- */
 function initSDK(){
   try{
+    /* 优先自建客户端（2026-11-01 起）：接口面与原 SDK 一致，端点走 /sbapi 同源代理。
+       原平台 SDK 保留为兜底 —— 只需删除 html 里的 yb-sb.js 即可整体回退。 */
+    if(window.YRB_SB&&typeof YRB_SB.createClient==="function"){
+      cloud=YRB_SB.createClient({base:CFG.sbBase,key:CFG.sbKey,emailDomain:CFG.sbEmailDomain});
+      return cloud;
+    }
     if(!window.WorkBuddyCloud||typeof WorkBuddyCloud.createWorkBuddyCloud!=="function")return null;
     cloud=WorkBuddyCloud.createWorkBuddyCloud({
       endpoint:CFG.endpoint,
@@ -292,12 +320,12 @@ function ensureShell(){
       <button class="lg-x" id="lgX" aria-label="关闭">✕</button>
       <div class="lg-title">登录育人帮</div>
       <div class="lg-sub">登录后即可<b>发布求助</b>、<b>帮忙回应</b>并上传照片 / 视频 / 语音<br>不登录也可以浏览大家的求助与帮忙</div>
-      <!-- 两种登录方式：验证码（首次注册）/ 账号密码（老用户免等短信） -->
+      <!-- 自建库版本只用「用户名 + 密码」：验证码登录需短信通道，迁到 Supabase 后不适用 -->
       <div class="lg-tabs" role="tablist">
-        <button class="lg-tab on" id="lgTabPhone" type="button" role="tab" aria-selected="true">📱 验证码登录</button>
-        <button class="lg-tab" id="lgTabPwd" type="button" role="tab" aria-selected="false">🔑 账号密码登录</button>
+        <button class="lg-tab" id="lgTabPhone" type="button" role="tab" aria-selected="false" style="display:none">📱 验证码登录</button>
+        <button class="lg-tab on" id="lgTabPwd" type="button" role="tab" aria-selected="true">👤 用户名登录</button>
       </div>
-      <div id="lgPanePhone">
+      <div id="lgPanePhone" style="display:none">
         <div class="lg-label">手机号</div>
         <div class="lg-field"><span class="lg-pre">+86</span><input id="lgPhone" inputmode="numeric" maxlength="11" placeholder="请输入 11 位手机号" aria-label="手机号"></div>
         <div class="lg-err" id="lgPhoneErr"></div>
@@ -318,12 +346,12 @@ function ensureShell(){
         </div>
       </div>
       <div id="lgPanePwd">
-        <div class="lg-label">登录账号</div>
-        <div class="lg-field"><input id="lgAcct" maxlength="20" placeholder="用户名或 11 位手机号" aria-label="登录账号"></div>
-        <div class="lg-label">登录密码</div>
-        <div class="lg-field"><input id="lgPwd2" type="password" maxlength="32" placeholder="请输入登录密码" aria-label="登录密码">
+        <div class="lg-label">用户名</div>
+        <div class="lg-field"><input id="lgAcct" maxlength="20" placeholder="2-20 个字，如：小明妈妈" aria-label="用户名"></div>
+        <div class="lg-label">密码</div>
+        <div class="lg-field"><input id="lgPwd2" type="password" maxlength="32" placeholder="请输入密码" aria-label="登录密码">
           <button class="lg-eye" id="lgPwdEye2" type="button">显示</button></div>
-        <div class="lg-pwdx"><a id="lgToSms">忘记密码？用验证码登录</a><a id="lgToReg">首次使用？去注册</a></div>
+        <div class="lg-pwdx"><a id="lgToSms">忘记密码</a><a id="lgToReg">还没有账号？点这里注册</a></div>
       </div>
       <!-- 明示同意（未勾选不下发验证码、不能登录） -->
       <div class="lg-agree" id="lgAgree">
@@ -334,9 +362,10 @@ function ensureShell(){
       <div class="lg-hint" id="lgHint"></div>
       <button class="lg-btn" id="lgSubmit" type="button">登录 / 注册</button>
       <button class="lg-btn" id="lgPwdSubmit" type="button" style="display:none">登录</button>
-      <div class="lg-or">或</div>
-      <button class="lg-wx" id="lgWx" type="button">💬 微信一键登录</button>
-      <div class="lg-note">未注册的手机号将自动创建账号<br>我们仅用手机号做登录验证，不向第三方出售个人信息</div>
+      <button class="lg-btn lg-ghost" id="lgGoReg" type="button" style="display:none">注册新账号</button>
+      <div class="lg-or" style="display:none">或</div>
+      <button class="lg-wx" id="lgWx" type="button" style="display:none">💬 微信一键登录</button>
+      <div class="lg-note">用户名 + 密码登录，注册免费<br>忘记密码请联系站长重置</div>
     </div>
     <!-- 协议 / 隐私政策阅读层（登录面板内阅读，不打断登录流程） -->
     <div id="lgDoc" role="dialog" aria-label="协议正文">
@@ -381,13 +410,16 @@ function ensureShell(){
   });
   $("#lgSend").addEventListener("click",sendPhoneCode);
   $("#lgSubmit").addEventListener("click",submitPhoneLogin);
-  $("#lgPwdSubmit").addEventListener("click",submitPwdLogin);
+  $("#lgPwdSubmit").addEventListener("click",submitPwdLoginV2);
   $("#lgWx").addEventListener("click",wechatLogin);
   /* 两种登录方式切换 */
   $("#lgTabPhone").addEventListener("click",()=>switchLoginMode("phone"));
   $("#lgTabPwd").addEventListener("click",()=>switchLoginMode("pwd"));
-  $("#lgToSms").addEventListener("click",()=>switchLoginMode("phone"));
-  $("#lgToReg").addEventListener("click",()=>switchLoginMode("phone"));
+  $("#lgToSms").addEventListener("click",()=>{if(window.toast)toast("重置密码请联系站长（站内留言或微信群）");});
+  $("#lgToReg").addEventListener("click",()=>setRegMode(true));
+  /* 2026-11-02 用户反馈：注册入口原来只是一行小字，长辈找不到——
+     把「注册新账号」做成登录按钮下方的大按钮（ghost 款），一点切注册模式 */
+  $("#lgGoReg").addEventListener("click",()=>setRegMode(!pwdRegMode));
   /* 密码明文切换 */
   [["lgPwdEye","lgPwd"],["lgPwdEye2","lgPwd2"]].forEach(([b,i])=>{
     const btn=$( "#"+b),inp=$("#"+i);
@@ -448,9 +480,10 @@ function switchLoginMode(mode){
   const pp=$("#lgPanePhone"),pq=$("#lgPanePwd");
   if(pp)pp.style.display=pwd?"none":"";
   if(pq)pq.classList.toggle("on",pwd);
-  const b1=$("#lgSubmit"),b2=$("#lgPwdSubmit");
+  const b1=$("#lgSubmit"),b2=$("#lgPwdSubmit"),b3=$("#lgGoReg");
   if(b1)b1.style.display=pwd?"none":"";
   if(b2)b2.style.display=pwd?"":"none";
+  if(b3)b3.style.display=pwd?"":"none";
   const e=$("#lgErr");if(e)e.textContent="";
   const h=$("#lgHint");if(h){h.style.display="none";h.textContent="";}
   setTimeout(()=>{
@@ -632,7 +665,8 @@ function openLogin(){
   ensureShell();
   $("#loginSheet").classList.add("open");
   $("#loginMask").classList.add("open");
-  switchLoginMode("phone");
+  switchLoginMode("pwd");
+  setRegMode(false);
   /* 刷新过页面但验证码还在有效期内：回填手机号并提示直接输入，不用重新发 */
   const otp=loadOtp();
   const hint=$("#lgHint"), ph=$("#lgPhone");
@@ -1375,6 +1409,40 @@ async function deleteCase(cloudId,media){
   }
 }
 
+/* 编辑案例（2026-11-03）：管理员或作者本人可改标题 / 正文（RLS yb_cases_update_own）。
+   素材（media）与类型不在此处改：后台编辑只动文字层，图片序号在正文里原样引用，
+   避免「换图」把已上传文件变成孤儿。
+   注意：PostgREST 对 UPDATE 在 RLS 不通过时返回 200 + 空数组（不是报错），
+   所以必须看 data 长度判断到底改没改到。 */
+async function updateCase(cloudId,patch){
+  if(!cloud||!ready)return {ok:false,reason:"no-cloud"};
+  const ok=await ensureLogin();
+  if(!ok)return {ok:false,reason:"cancel"};
+  if(!session)return {ok:false,reason:"no-session"};
+  const row={};
+  if(patch&&patch.title!=null){
+    const t=String(patch.title).trim().slice(0,120);
+    if(t)row.title=t;
+  }
+  if(patch&&patch.content_html!=null)row.content_html=String(patch.content_html).slice(0,200000);
+  if(!Object.keys(row).length)return {ok:false,reason:"empty",message:"没有需要保存的修改"};
+  try{
+    const r=await withTimeout(cloud.database.from("yb_cases").update(row).eq("id",cloudId),20000,"保存案例修改");
+    if(r&&r.error)throw r.error;
+    const rows=Array.isArray(r&&r.data)?r.data:(r&&r.data?[r.data]:[]);
+    if(!rows.length)return {ok:false,reason:"denied",message:"没有修改这条案例的权限（需要管理员身份）"};
+    try{if(typeof loadCases==="function")loadCases();}catch(_){}
+    return {ok:true,row:rows[0]};
+  }catch(e){
+    try{console.warn("[案例编辑] 原始错误：",e&&(e.code||e.status),e&&e.message||e);}catch(_){}
+    if(isAuthErr(e)){
+      dropDeadSession();
+      return {ok:false,reason:"auth",message:"登录已过期，请重新登录后再保存"};
+    }
+    return {ok:false,reason:"error",message:errMsg(e)};
+  }
+}
+
 /* ---------- 我的页面：账号信息 ---------- */
 function renderAccount(){
   const menu=$("#meMenu");if(!menu)return;
@@ -1433,7 +1501,10 @@ function renderAccount(){
     modal(`<div class="md-title">账号</div>
       <div class="a11y-mrow"><span>登录身份</span><span style="margin-left:auto;font-weight:800">${esc(myName())}</span></div>
       <div class="a11y-mrow"><span>求助与素材</span><span style="margin-left:auto;color:var(--muted);font-size:12.5px">已实时保存到云端</span></div>
+      <button class="me-item" id="clPwd"><span class="ic">🔑</span>修改登录密码<span class="arr">›</span></button>
       <div class="md-acts"><button class="btn-g" data-x="close">关闭</button><button class="btn-a" id="clOut">退出登录</button></div>`);
+    const pw=$("#clPwd");
+    if(pw)pw.onclick=()=>openChangePwd();
     const out=$("#clOut");
     if(out)out.onclick=async()=>{
       try{await cloud.auth.signOut();}catch(e){}
@@ -1663,6 +1734,131 @@ boot();
 /* ---------- 帮忙面板的录音/录像入口（供 app.js 调用） ---------- */
 window.YRB_COMMENT={record:openCommentCapture,close:closeCommentCapture};
 
+/* =========================================================
+   用户名 + 密码：登录 / 注册（2026-11-01 迁移 Supabase 后新版）
+   - 用户名映射为伪邮箱 <小写用户名>@usr.yurenbang.cn，交给 GoTrue
+   - 注册 = signUp + 写 yb_profiles.user_name（唯一索引兜重名）
+   - 与旧版 submitPwdLogin 并存：旧版依赖 yb_account_* 云函数，
+     新库没有这些函数，绑定已切换到本函数
+   ========================================================= */
+let pwdRegMode=false;
+function setRegMode(on){
+  pwdRegMode=!!on;
+  const b=$("#lgPwdSubmit"),t=$("#lgToReg"),e=$("#lgErr"),g=$("#lgGoReg");
+  if(b)b.textContent=on?"注册并登录":"登录";
+  if(t)t.textContent=on?"已有账号？改为登录":"还没有账号？点这里注册";
+  if(g)g.textContent=on?"已有账号？去登录":"注册新账号";
+  if(e)e.textContent="";
+  if(!on){const p=$("#lgPwd2");if(p)p.type="password";}
+}
+async function submitPwdLoginV2(){
+  ensureShell();
+  const errE=$("#lgErr"),btn=$("#lgPwdSubmit");
+  const acct=(($("#lgAcct")||{}).value||"").trim();
+  const pwd=(($("#lgPwd2")||{}).value||"");
+  if(!acct){errE.textContent="请输入用户名";return;}
+  if(!pwd){errE.textContent="请输入密码";return;}
+  const ck=$("#lgCk");
+  if(ck&&!ck.classList.contains("on")){errE.textContent="请先勾选同意《用户协议》和《隐私政策》";return;}
+  if(!cloud){errE.textContent="云服务未就绪，请稍后重试";return;}
+  btn.disabled=true;btn.textContent=pwdRegMode?"注册中…":"登录中…";errE.textContent="";
+  const uname=acct.toLowerCase();
+  try{
+    if(pwdRegMode){
+      const bad=regNameOK(acct);
+      if(bad){errE.textContent=bad;return;}
+      if(pwd.length<6){errE.textContent="密码至少 6 位";return;}
+      const su=await withTimeout(cloud.auth.signUp({username:acct,password:pwd,nick:acct}),20000,"注册");
+      if(su&&su.error){
+        const m=String(su.error.message||"");
+        errE.textContent=/already|exists|registered|已被/i.test(m)
+          ? "这个用户名已有人用了，换一个试试"
+          : (errMsg(su.error)||"注册失败，请稍后重试");
+        return;
+      }
+      await refreshSession();
+      if(!session){errE.textContent="注册成功，请再点一次「登录」";setRegMode(false);return;}
+      const ins=await cloud.database.from("yb_profiles")
+        .insert({user_id:session.user.id,user_name:uname,nick:acct});
+      if(ins&&ins.error){
+        const code=String(ins.error.code||"");
+        if(code==="23505"){errE.textContent="这个用户名已有人用了，换一个试试";return;}
+        /* 档案写入失败不阻断登录：昵称后续可在「我的」里补 */
+        try{console.warn("[注册] 档案写入失败：",code,ins.error.message);}catch(_){}
+      }
+      setRegMode(false);
+      closeLogin(true);onAuthChanged();
+      if(window.toast)toast("注册成功，欢迎加入育人帮 🎉");
+      return;
+    }
+    const done=await withTimeout(cloud.auth.signInWithPassword({username:acct,password:pwd}),20000,"登录");
+    if(!done||done.error){
+      const code=String((done&&done.error&&done.error.code)||"");
+      const raw=String((done&&done.error&&(done.error.message||done.error.error_description))||"");
+      if(code==="invalid_credentials"||/invalid|credential/i.test(raw)){
+        errE.textContent="用户名或密码不正确；新用户请点下方「注册新账号」（免费）";
+      }else{
+        errE.textContent=errMsg(done&&done.error)||"登录失败，请稍后重试";
+      }
+      return;
+    }
+    rememberPhone(acct);
+    await refreshSession();
+    closeLogin(true);onAuthChanged();
+    if(window.toast)toast("登录成功，欢迎回来 👋");
+  }catch(e){
+    errE.textContent=errMsg(e)||"操作失败，请稍后重试";
+  }finally{
+    btn.disabled=false;
+    btn.textContent=pwdRegMode?"注册并登录":"登录";
+  }
+}
+
+/* ---------- 修改登录密码（2026-11-01 迁移自建库后新增） ----------
+   原站靠短信验证码改密；自建库没有短信通道，改为两步：
+     1) 用「当前密码」重登一次做校验（防止会话被捡走就能改密）
+     2) 调 GoTrue 的 PUT /user 换成新密码
+   忘记密码不由用户自助（伪邮箱收不到信），走「找站长重置」——后台有对应入口。 */
+function openChangePwd(){
+  if(!session){ensureLogin();return;}
+  modal(`<div class="md-title">修改登录密码</div>
+    <div style="font-size:13px;color:var(--muted);margin:-4px 0 10px">改完请记牢，下次登录用新密码</div>
+    <div class="lg-label">当前密码</div>
+    <div class="lg-field"><input id="cpOld" type="password" maxlength="32" placeholder="现在用的密码" aria-label="当前密码"></div>
+    <div class="lg-label">新密码（至少 6 位）</div>
+    <div class="lg-field"><input id="cpNew" type="password" maxlength="32" placeholder="新密码" aria-label="新密码"></div>
+    <div class="lg-label">再输一次新密码</div>
+    <div class="lg-field"><input id="cpNew2" type="password" maxlength="32" placeholder="重复新密码" aria-label="重复新密码"></div>
+    <div class="lg-err" id="cpErr"></div>
+    <div class="md-acts"><button class="btn-g" data-x="close">取消</button><button class="btn-a" id="cpOk">保存新密码</button></div>`);
+  const errEl=$("#cpErr");
+  const say=m=>{if(errEl)errEl.textContent=m||"";};
+  const btn=$("#cpOk");
+  if(!btn)return;
+  btn.onclick=async()=>{
+    const o=String(($("#cpOld")||{}).value||"").trim();
+    const n=String(($("#cpNew")||{}).value||"").trim();
+    const n2=String(($("#cpNew2")||{}).value||"").trim();
+    if(!o){say("请输入当前密码");return;}
+    if(n.length<6){say("新密码至少 6 位");return;}
+    if(n!==n2){say("两次输入的新密码不一致");return;}
+    if(n===o){say("新密码不能和当前密码一样");return;}
+    say("");btn.disabled=true;btn.textContent="保存中…";
+    const fail=m=>{say(m);btn.disabled=false;btn.textContent="保存新密码";};
+    try{
+      const mail=(session&&session.user&&session.user.email)||"";
+      const v=await withTimeout(cloud.auth.signInWithPassword({email:mail,password:o}),20000,"校验密码");
+      if(!v||v.error){fail("当前密码不正确");return;}
+      const r=await withTimeout(cloud.auth.updatePassword(n),20000,"修改密码");
+      if(!r||r.error){fail((r&&r.error&&r.error.message)||"修改失败，请稍后重试");return;}
+      if(typeof closeModal==="function")closeModal();
+      if(window.toast)toast("密码已更新，下次用新密码登录 🔑");
+    }catch(e){
+      fail("网络不稳定，改密没成功，请稍后重试");
+    }
+  };
+}
+
 /* ---------- 对外接口 ---------- */
 window.YRB_CLOUD={
   enabled(){return !!cloud;},
@@ -1697,6 +1893,8 @@ window.YRB_CLOUD={
   },
   publishPost,
   loadCloudPosts,
+  /* 「我的—账号」里改密码用（2026-11-01 新增，自建库无短信通道） */
+  changePassword: openChangePwd,
   solvePost,
   postsState,
   retryPosts,
@@ -1718,6 +1916,7 @@ window.YRB_CLOUD={
   publishCase,
   loadCases,
   deleteCase,
+  updateCase,
   /* PPT 在线翻页用：签名地址 1 小时过期时按 path 重新签一个（失败返回空串） */
   async resignUrl(path){
     if(!path||!cloud||!session)return "";

@@ -25,10 +25,16 @@
 /* ---------- 嘉年华式大礼动画 ---------- */
 /* z-index 86：必须盖过帮忙评论面板 #commentSheet(67)、后台 #adLayer(72)、地区页 #region(80)，
    否则从评论面板里送「答谢大餐」时礼物会被面板挡住只露光芒（2026-10-18 用户反馈） */
-#fdFx{position:fixed;inset:0;z-index:86;pointer-events:none;overflow:hidden;
+/* 2026-11-03：fixed → absolute。宿主是 #phone（relative），fixed 在桌面宽屏会以整个窗口为中心，
+   菜图跑到手机框外面、被手机画面挡住一半（用户实机截图反馈） */
+#fdFx{position:absolute;inset:0;z-index:86;pointer-events:none;overflow:hidden;
   background:radial-gradient(ellipse at 50% 48%, rgba(255,168,72,.26), rgba(10,7,4,.84) 72%);
   opacity:1;transition:opacity .5s}
 #fdFx.bye{opacity:0}
+/* 菜图弹出期间：把首页、帮忙面板、弹层、底栏全部淡成透明，只留这一份大礼。
+   用 !important 是为了压过各面板自己的 .open/.show 透明度；动画结束就整类摘掉，
+   不做常驻影响（层叠与 #fdFx 的 86 不变） */
+#phone.fd-live > :not(#fdFx){opacity:0 !important;pointer-events:none !important;transition:opacity .35s ease}
 #fdFx .fd-cap{position:absolute;top:10%;left:0;right:0;text-align:center;animation:fdCap .6s ease both;z-index:4}
 #fdFx .fd-cap1{display:block;font-size:14.5px;color:rgba(255,244,224,.92);letter-spacing:1px}
 #fdFx .fd-cap2{display:inline-block;margin-top:8px;font-size:30px;font-weight:900;color:#fff;

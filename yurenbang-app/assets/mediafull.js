@@ -8,7 +8,7 @@
    ========================================================= */
 (function () {
 "use strict";
-var VERSION = "1";
+var VERSION = "4";
 
 function $(s, r) { return (r || document).querySelector(s); }
 function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
@@ -68,6 +68,10 @@ function injectVideoBtns(root) {
      （pptview 层 pagesFor() 从 ppt/slides/*.xml 提取，逐页读出） */
 var speaking = false, curBtn = null, gen = 0, speakCtx = "";   /* detail|case|card */
 
+/* 自动跟读状态（详见第 6 节）：打开 App 自动朗读，滑动跟随换读 */
+var autoOn = true, autoReading = false, autoCurId = null, autoSkip = {};
+var autoArmed = false, autoTm = 0, autoPill = null;
+
 function setBtn(on, compact) {
   if (curBtn) {
     curBtn.innerHTML = on ? (compact ? "⏹" : "⏹ 停止") : (compact ? "🔊" : "🔊 朗读");
@@ -80,6 +84,7 @@ function stopSpeak() {
   try { if (curAudio) { curAudio.pause(); curAudio = null; } } catch (e) {}
   try { if ("speechSynthesis" in window) speechSynthesis.cancel(); } catch (e) {}
   speaking = false; setBtn(false, curCompact); curBtn = null;
+  autoReading = false; autoCurId = null;           /* 跟读状态一并清掉（是否记「跳过」由调用方决定） */
 }
 /* 长文按句读切分成 ≤180 字的小段：云端合成按段请求（可缓存、可流水线），
    本机兜底也用小段避免超长 utterance 在部分手机浏览器卡死 */
@@ -95,20 +100,58 @@ function splitChunks(t) {
 var curAudio = null, curCompact = false;
 var cloudOk = true;                                /* 云端失败一次后本轮改走本机 */
 
+/* ---------- 朗读预取（2026-11-03：案例广场「打开就立即有」） ----------
+   手指按下案例卡片的一瞬（早于 click 上百毫秒）就开始合成第一段，
+   真正打开朗读时直接取现成音频，省掉大半合成等待。
+   一次只备一段：新预取作废旧预取；页面滚动即整包作废（滑动不是要打开）。 */
+var preCache = {}, preCtl = null;
+function prefetch(text, slow) {
+  try {
+    var t = String(text || "").replace(/\s+/g, " ").trim().slice(0, 3600);
+    if (!t || !cloudOk || !window.Audio) return;
+    var key = t + "|" + (slow ? "s" : "n");
+    if (preCache[key]) return;
+    if (preCtl) { try { preCtl.abort(); } catch (e) {} }
+    var ctl = window.AbortController ? new AbortController() : null;
+    preCtl = ctl;
+    var chunks = splitChunks(t);
+    var tm = ctl ? setTimeout(function () { try { ctl.abort(); } catch (e) {} }, 9000) : 0;
+    var p = fetch("/yrbtts?t=" + encodeURIComponent(chunks[0]) + "&r=" + (slow ? "slow" : "norm"),
+        ctl ? { signal: ctl.signal } : undefined)
+      .then(function (r) { clearTimeout(tm); if (!r.ok) throw new Error("tts " + r.status); return r.blob(); },
+            function (err) { clearTimeout(tm); delete preCache[key]; throw err; });
+    preCache[key] = p;
+  } catch (e) {}
+}
+function prefetchCancel() {
+  if (preCtl) { try { preCtl.abort(); } catch (e) {} preCtl = null; }
+  preCache = {};
+}
+try { document.addEventListener("scroll", function () { prefetchCancel(); }, { passive: true, capture: true }); } catch (e) {}
+
 /* 云端 AI 真人语音（/yrbtts → 微软云扬，央视播音员音色），失败退回本机语音。
    ctx：朗读来源 detail|case|card —— 卡片朗读时详情/查看器都是关闭态，
    关闭即停的观察者只对 detail/case 生效，绝不能掐断卡片朗读 */
 function speak(text, btn, compact, ctx) {
-  if (speaking && btn === curBtn) { stopSpeak(); return; }
+  /* 再点同一来源 = 用户手动停：跟读模块记下这张卡，本会话不再自动重读 */
+  if (speaking && btn === curBtn) {
+    var sid = autoCurId;
+    stopSpeak();
+    if (sid != null) autoSkip[sid] = 1;
+    return;
+  }
   stopSpeak();
   speakCtx = ctx || "card";
   var t = String(text || "").replace(/\s+/g, " ").trim().slice(0, 3600);
   if (!t) { try { toast("这一页没有可朗读的文字"); } catch (e) {} return; }
   var g = ++gen;
   speaking = true; curBtn = btn; curCompact = !!compact; setBtn(true, compact);
+  if (speakCtx === "card") autoAdopt(btn);         /* 卡片朗读（手动或自动）都纳入跟读管辖 */
   if (!cloudOk || !window.Audio) { speakLocal(t, btn, g, compact); return; }
   var slow = (function () { try { var s = getS(); return s && s.elder === "1"; } catch (e) { return false; } })();
   var chunks = splitChunks(t), i = 0, fetches = {};
+  var pk = t + "|" + (slow ? "s" : "n");            /* 预取命中：第一段已是现成音频，秒开 */
+  if (preCache[pk]) { fetches[0] = preCache[pk]; delete preCache[pk]; }
   function getChunk(idx) {
     if (!fetches[idx]) {
       /* 审核 M7（2026-10-29）：无超时则边缘挂起时朗读链永久卡死——9s 取不到响应头就放弃，
@@ -156,7 +199,7 @@ function speak(text, btn, compact, ctx) {
       a.play().catch(finishFail);
     }).catch(function () { if (g === gen) fallbackFrom(idx); });
   }
-  function done() { if (g !== gen) return; speaking = false; setBtn(false, compact); curBtn = null; }
+  function done() { if (g !== gen) return; speaking = false; setBtn(false, compact); curBtn = null; if (speakCtx === "card") autoReading = false; }
   next();
 }
 /* 本机兜底：分段链式 speechSynthesis */
@@ -166,7 +209,7 @@ function speakLocal(t, btn, g, compact) {
   var chunks = splitChunks(t), i = 0;
   var rate = 1;
   try { var s = getS(); rate = s && s.elder === "1" ? 0.85 : 1; } catch (e) {}
-  function done2(gg, cp) { if (gg !== gen) return; speaking = false; setBtn(false, cp); curBtn = null; }
+  function done2(gg, cp) { if (gg !== gen) return; speaking = false; setBtn(false, cp); curBtn = null; if (speakCtx === "card") autoReading = false; }
   function next() {
     if (g !== gen) return;
     if (i >= chunks.length) { done2(g, compact); return; }
@@ -268,6 +311,9 @@ function injectTts() {
       speak(detailText(p), b1, false, "detail");
     });
     dh.appendChild(b1);
+    if (speaking && speakCtx === "detail") {       /* 读到一半按钮才注入：状态补上，别让用户找不到「停止」 */
+      curBtn = b1; b1.classList.add("on"); b1.innerHTML = "⏹ 停止";
+    }
   }
   /* 案例查看器头部（vw-head 内、关闭按钮前） */
   var vh = $(".vw-head");
@@ -280,6 +326,9 @@ function injectTts() {
       speakCase(b2);
     });
     vh.insertBefore(b2, $("#vwX"));
+    if (speaking && speakCtx === "case") {
+      curBtn = b2; b2.classList.add("on"); b2.innerHTML = "⏹ 停止";
+    }
   }
 }
 
@@ -322,6 +371,8 @@ document.addEventListener("click", function (e) {
    2026-10-24 修复：信息流卡片朗读时两者本来就是关闭态，
    旧条件会把卡片朗读在第一次 DOM 变动时立刻掐断 */
 var moCls = new MutationObserver(function () {
+  autoSyncPill();                                  /* 开关胶囊跟着页面/启动屏显隐 */
+  if (autoReading && overlaysOpen()) { stopSpeak(); return; }   /* 详情/弹层打开 → 跟读让路（不记跳过） */
   if (!speaking) return;
   var d = $("#r23Detail"), v = $("#viewer");
   if (speakCtx === "detail" && d && !d.classList.contains("open")) stopSpeak();
@@ -334,6 +385,7 @@ function pass() {
   try { injectVideoBtns($("#r23Detail")); } catch (e) {}
   try { injectVideoBtns($("#viewer")); } catch (e) {}
   try { injectTts(); } catch (e) {}
+  try { autoSyncPill(); } catch (e) {}
 }
 var rt = null;
 function schedule() { clearTimeout(rt); rt = setTimeout(pass, 60); }
@@ -345,6 +397,469 @@ try {
 pass();
 try { window.addEventListener("yrb-auth", schedule); } catch (e) {}
 
-window.YRB_MEDIAFULL = { speak: speak, stopSpeak: stopSpeak, fullVideo: fullVideo, version: VERSION };
+/* ---------- 6. 自动跟读（2026-11-03）：打开 App 自动朗读，滑动跟随换读 ----------
+   ① 手势解锁：浏览器禁止无用户手势出声（Cloud 音频 play() / speechSynthesis 同理）。
+      启动屏点击、任意触摸/按键都算解锁（Chrome sticky activation——解锁一次，
+      本会话内随时可出声）；解锁前静默等待，不报错不重试。
+   ② 跟随：#page-home 滚动停稳（350ms 防抖）后，取视口内露出面积最大的卡片换读；
+      卡片自带的 🔊 按钮同步点亮。纯图/视频卡没有文字则静默跳过。
+   ③ 让路：详情 / 案例查看器 / 弹层 / 其他页签打开时自动暂停（不记跳过），
+      回到首页滑动后继续。
+   ④ 尊重手动：再点当前卡片的 🔊 = 手动停止，这张卡本会话不再自动重读，
+      滑到别的卡才恢复；开关胶囊关闭 = 全部清空。
+   ⑤ 开关：#phone 左下悬浮胶囊（z-index 42，浮层阶梯 40-59），
+      记忆在 localStorage(yrb_autospeak)，默认开。 */
+function overlaysOpen() {
+  var sels = ["#r23Detail", "#viewer", "#modal", "#publishSheet", "#subpage", "#commentSheet"];
+  for (var i = 0; i < sels.length; i++) {
+    var el = document.querySelector(sels[i]);
+    if (el && el.classList.contains("open")) return true;
+  }
+  return false;
+}
+function cardText(p) {
+  if (!p) return "";
+  var t = String(p.title || "").trim(), x = String(p.text || "").trim(), parts = [];
+  if (t && !titleDupWith(t, x)) parts.push(t + "。");   /* 标题=正文首句截断时不重复读 */
+  if (x) parts.push(x);
+  return parts.join(" ").slice(0, 1200);                /* 与卡片手动朗读同口径 */
+}
+/* 视口内露出面积最大的卡片（露出 <60px 视为还没滑到位，不读） */
+function pickCard() {
+  try {
+    var page = $("#page-home"); if (!page) return null;
+    var pr = page.getBoundingClientRect();
+    var cards = document.querySelectorAll("#feed .card");
+    var best = null, bestArea = 0;
+    for (var i = 0; i < cards.length; i++) {
+      var r = cards[i].getBoundingClientRect();
+      var h = Math.min(r.bottom, pr.bottom) - Math.max(r.top, pr.top);
+      if (h > bestArea) { bestArea = h; best = cards[i]; }
+    }
+    return bestArea > 60 ? best : null;
+  } catch (e) { return null; }
+}
+function followNow() {
+  if (!autoOn || !autoArmed || !autoAllowed()) return;
+  if (overlaysOpen()) return;
+  try {
+    var app = $("#app");
+    if (app && app.classList.contains("hidden")) return;      /* 启动屏还没进 App，不出声 */
+    var home = $("#page-home");
+    if (!home || !home.classList.contains("active")) return;
+  } catch (e) { return; }
+  var card = pickCard(); if (!card) return;
+  var id = card.dataset.id;
+  if (id == null || id === autoCurId) return;        /* 同一张卡（读完/在读）不重来 */
+  if (autoSkip[id]) return;
+  var p = null;
+  try { var s = getS(); p = (s && s.posts || []).filter(function (x) { return String(x.id) === String(id); })[0]; } catch (e) {}
+  var text = cardText(p);
+  if (!text) return;
+  var btn = null;
+  try { btn = card.querySelector("[data-tts]"); } catch (e) {}
+  speak(text, btn, true, "card");                    /* autoAdopt 在 speak 内接管 */
+  /* 卡片暂时没有 🔊 按钮（decorateFeed 未跑完）时 adopt 拿不到卡，这里兜底记账，
+     否则同一张卡会在每次滚动停稳后被反复重读 */
+  autoReading = true; autoCurId = id;
+}
+function scheduleFollow(ms) { clearTimeout(autoTm); autoTm = setTimeout(followNow, ms || 350); }
+/* 环境守卫：自动化测试（navigator.webdriver）与 ?noautospeak=1 调试参数下不出声，
+   避免 tests/ 点页面时触发 /yrbtts 造成噪音与 9s 超时拖慢 */
+function autoAllowed() {
+  try {
+    if (navigator.webdriver) return false;
+    if (/[?&]noautospeak=1/.test(location.search)) return false;
+  } catch (e) {}
+  return true;
+}
+/* 手动/自动的卡片朗读都归属跟读管辖：卡片重建（点赞 renderFeed）后按钮元素会换，
+   重新指向新按钮，保证「再点一下=停」和图标状态始终正确 */
+function autoAdopt(btn) {
+  try {
+    var card = btn && btn.closest ? btn.closest(".card") : null;
+    if (card && card.dataset.id != null) {
+      autoReading = true; autoCurId = card.dataset.id;
+      delete autoSkip[autoCurId];
+      var b = card.querySelector("[data-tts]");
+      if (b && b !== curBtn) { curBtn = b; setBtn(true, true); }
+    }
+  } catch (e) {}
+}
+function autoPaintPill() {
+  if (!autoPill) return;
+  autoPill.innerHTML = autoOn ? "🔊 跟读中" : "🔇 跟读关";
+  autoPill.classList.toggle("off", !autoOn);
+}
+function autoSyncPill() {
+  if (!autoPill) return;
+  var show = false;
+  try {
+    var app = $("#app"), sp = $("#splash"), home = $("#page-home");
+    show = !!(app && !app.classList.contains("hidden") &&
+              (!sp || sp.classList.contains("hidden")) &&
+              home && home.classList.contains("active"));
+  } catch (e) {}
+  autoPill.style.display = show ? "" : "none";
+}
+function buildAutoPill() {
+  var phone = $("#phone");
+  if (!phone || autoPill) return;
+  autoPill = document.createElement("button");
+  autoPill.type = "button"; autoPill.id = "mfAuto";
+  autoPill.setAttribute("aria-label", "自动朗读开关：打开后自动朗读首屏内容，滑动时跟着换");
+  autoPill.addEventListener("click", function (e) {
+    e.stopPropagation();
+    autoOn = !autoOn;
+    try { localStorage.setItem("yrb_autospeak", autoOn ? "1" : "0"); } catch (err) {}
+    autoPaintPill();
+    if (autoOn) { autoSkip = {}; autoArmed = autoAllowed(); scheduleFollow(120); }
+    else stopSpeak();
+  });
+  phone.appendChild(autoPill);
+  autoPaintPill();
+  autoSyncPill();
+}
+/* 初始化：开关胶囊、滚动跟随、信息流重建跟随、手势解锁 */
+try { autoOn = localStorage.getItem("yrb_autospeak") !== "0"; } catch (e) {}
+buildAutoPill();
+try {
+  var ph = $("#page-home");
+  if (ph) ph.addEventListener("scroll", function () { scheduleFollow(350); }, { passive: true });
+} catch (e) {}
+try {
+  new MutationObserver(function () {
+    if (autoOn && !autoReading) scheduleFollow(600);          /* 首屏渲染 / 换内容后自动开读 */
+    else if (autoReading && autoCurId != null) {              /* 朗读中卡片被重建 → 重新指按钮 */
+      var c = document.querySelector('#feed .card[data-id="' + autoCurId + '"]');
+      if (c) { var b = c.querySelector("[data-tts]"); if (b && b !== curBtn) { curBtn = b; curCompact = true; setBtn(true, true); } }
+    }
+  }).observe($("#feed") || document.body, { childList: true });
+} catch (e) {}
+(function autoArm() {
+  function arm() { if (autoArmed || !autoAllowed()) return; autoArmed = true; scheduleFollow(150); }
+  ["pointerdown", "touchend", "mousedown", "keydown"].forEach(function (ev) {
+    try { document.addEventListener(ev, arm, true); } catch (e) {}
+  });
+})();
+
+/* ---------- 7. 求助全屏阅读：点一下全屏，左右滑退出，上下滑换一条（2026-11-03） ----------
+   需求：所有求助画面，点一下就转全屏；左右滑退出；上下滑换上一条/下一条。
+   做法：「点」自己判（pointerdown→pointerup 位移 <12px、时长 <600ms，否则算滚动）；
+   滑动手势走 touchstart/touchend，竖滑锚定滚动边缘防误触（见 pfSw 注释）。
+   · 点卡片文字/空白（按钮、图片、播放器除外）→ 打开求助详情 + 全屏 + 从头朗读
+   · 点详情正文/空白 → 进全屏 + 从头朗读；全屏中再点一下 → 退出全屏（朗读继续）
+   · 全屏中左右滑 → 退出全屏；上滑（到底）→ 下一条，下滑（在顶）→ 上一条，自动接着读
+   · 只加一个 .mf-fs 类，不改 refine23 的 .open 显隐逻辑 */
+var pfFs = false, pfTm = 0, pfPostId = null, pfAt = 0, pfGuardUntil = 0;
+var pfPress = null, pfSw = null;
+var pfOptOut = null;                              /* 用户主动退出全屏的那一条：同一条不再自动进 */
+var pfHist = 0;                                   /* 历史栈里是否押了一条「占位记录」（见 pfHistPush） */
+var pfExitedAt = 0;                               /* 上次退出全屏的时刻：用来判断 popstate 是不是同一个滑动手势 */
+var pfWant = 0;                                   /* 最近一次「从信息流点开详情」的时间 */
+
+function pfDetailOpen() {
+  var d = $("#r23Detail");
+  return !!(d && d.classList.contains("open"));
+}
+function pfTip() {
+  try {
+    var d = $("#r23Detail");
+    if (!d || $("#mfFsTip")) return;
+    var el = document.createElement("div");
+    el.id = "mfFsTip";
+    el.textContent = "左右滑返回上一步 · 上下滑换一条";
+    d.appendChild(el);
+    setTimeout(function () { try { if (el.parentNode) el.parentNode.removeChild(el); } catch (e) {} }, 2600);
+  } catch (e) {}
+}
+function pfEnter() {
+  var d = $("#r23Detail");
+  if (!d || !d.classList.contains("open")) return;
+  /* 自愈：标记还在但类被别的层冲掉了（真机上出现过「进来还是卡片态」），补回来 */
+  if (pfFs && !d.classList.contains("mf-fs")) {
+    d.classList.add("mf-fs");
+    return;
+  }
+  if (pfFs) return;
+  pfFs = true; pfAt = Date.now();
+  pfOptOut = null;
+  pfHistPush();
+  d.classList.add("mf-fs");
+  try { var ph0 = $("#phone"); if (ph0) ph0.classList.add("mf-pill-low"); } catch (e) {}
+  try {
+    var b = $(".r23-dbody", d); if (b) b.scrollTop = 0;
+    d.scrollTop = 0;
+  } catch (e) {}
+  /* 2026-11-03 晚：不再调原生 requestFullscreen。
+     真机上它有两个副作用：微信/X5 会在几百毫秒后自己退出（用户看到「点了没全屏」），
+     退出瞬间重算视口还会把详情层挤偏、左缘漏出底层画面（「左边两个画面」）。
+     视觉全屏已由 .mf-fs（fixed 钉满整屏）完成，原生全屏这层壳只会帮倒忙。 */
+  pfTip();
+  /* 再补一次：有的 WebView 会在打开动画结束、页面重绘时把类刷掉 */
+  setTimeout(function () {
+    try {
+      var v = $("#r23Detail");
+      if (pfFs && v && v.classList.contains("open") && !v.classList.contains("mf-fs")) v.classList.add("mf-fs");
+    } catch (e) {}
+  }, 420);
+}
+function pfExit() {
+  if (!pfFs) return;
+  pfFs = false;
+  pfExitedAt = Date.now();
+  try { var s = getS(); pfOptOut = s && s.curPost != null ? String(s.curPost) : null; } catch (e) { pfOptOut = null; }
+  try { var d = $("#r23Detail"); if (d) d.classList.remove("mf-fs"); } catch (e) {}
+  try { var ph1 = $("#phone"); if (ph1) ph1.classList.remove("mf-pill-low"); } catch (e) {}
+  try { var t = $("#mfFsTip"); if (t && t.parentNode) t.parentNode.removeChild(t); } catch (e) {}
+}
+function pfCloseDetail() {
+  try {
+    var d = $("#r23Detail");
+    if (d) { d.classList.remove("mf-fs"); d.classList.remove("open"); }
+    var ph = $("#phone"); if (ph) ph.classList.remove("mf-pill-low");
+  } catch (e) {}
+}
+/* ---------- 系统返回（手机侧滑 / 返回键）接管：返回上一级，而不是退出应用 ----------
+   2026-11-03 用户反馈「全屏里左右滑，整个 APP 退出了」。
+   真因不在本层的手势判定，而在**系统手势**：安卓微信/X5、系统 WebView、iOS Safari 的边缘侧滑
+   都是「WebView 后退」，比我们 touchend 里那步跑得更早；历史栈本来只有一条记录，
+   退一格就直接出了页面（看着像 APP 被关掉）。
+   做法：进全屏时往历史栈押一条占位记录。系统后退只能退到这条占位上，被 popstate 接住，
+   于是「滑一下 / 按返回」= 退出全屏回到列表（返回上一级），页面本身不会离开。
+   占位记录不主动清：全屏退出后它正好充当详情页的「返回垫片」，最后一并按上面的规则消耗掉。 */
+function pfHistPush() {
+  if (pfHist) return;
+  try { history.pushState({ yrbFull: 1 }, ""); pfHist = 1; } catch (e) {}
+}
+try {
+  window.addEventListener("popstate", function () {
+    if (!pfHist) return;
+    pfHist = 0;                                     /* 占位记录已经被系统消耗掉了 */
+    if (pfFs) { pfExit(); return; }                 /* 全屏中返回 → 回到信息流（上一级） */
+    if (pfDetailOpen()) { pfCloseDetail(); return; }/* 详情中返回 → 关闭详情（上一级） */
+    /* 刚才是页面自己左右滑退出的，同一次手势触发的系统后退也到了：
+       不能再 back()，否则会连退两格真的离开应用 */
+    if (Date.now() - pfExitedAt < 900) return;
+    try { history.back(); } catch (e) {}            /* 用户真的按返回：这层垫片不该挡路 */
+  });
+} catch (e) {}
+/* 详情头部的 🔊 由 injectTts 注入，常比本层晚一拍：等它出现再读，
+   否则用户在全屏里找不到「停」的地方 */
+function pfSpeak(tries) {
+  tries = tries || 0;
+  var btn = $(".r23-dhead .mf-tts");
+  if (!btn && tries < 6) { setTimeout(function () { pfSpeak(tries + 1); }, 110); return; }
+  var p = null;
+  try {
+    var s = getS();
+    p = (s && s.posts || []).filter(function (x) { return String(x.id) === String(pfPostId); })[0];
+  } catch (e) {}
+  if (!p) return;
+  var txt = detailText(p);
+  if (!txt) return;
+  stopSpeak();                                    /* 全屏重读：先停旧链。不先停的话，同一按钮再 speak
+                                                     会被当成「再点一次=停止」，全屏就不出声了 */
+  speak(txt, btn, false, "detail");
+}
+/* 打开详情：走卡片上既有的「📄 查看完整求助」入口（refine23 在捕获阶段接管 openDetail），
+   这样不用复制它内部的打开逻辑；按钮偶尔还没注入就重试几次 */
+function pfOpen(id, tries) {
+  tries = tries || 0;
+  var card = document.querySelector('#feed .card[data-id="' + id + '"]');
+  var link = card && card.querySelector("[data-r23detail]");
+  if (!link) { if (tries < 8) clearTimeout(pfTm), pfTm = setTimeout(function () { pfOpen(id, tries + 1); }, 90); return; }
+  pfPostId = id;
+  var cur = null;
+  try { var s = getS(); cur = s && s.curPost; } catch (e) {}
+  if (!pfDetailOpen() || String(cur) !== String(id)) link.click();   /* 已打开同一条就不重复点 */
+  pfEnter();
+  pfSpeak(0);
+}
+function pfToggleInDetail() {
+  if (pfFs) { pfExit(); return; }
+  pfEnter(); pfSpeak(0);
+}
+/* 上下滑换一条：只换当前信息流里「卡片已渲染出来」的求助 */
+function pfStep(dir) {
+  var s = null; try { s = getS(); } catch (e) {}
+  if (!s || !s.posts || !s.posts.length) return;
+  var idx = -1, i;
+  for (i = 0; i < s.posts.length; i++) { if (String(s.posts[i].id) === String(pfPostId)) { idx = i; break; } }
+  if (idx < 0) return;
+  for (i = idx + dir; i >= 0 && i < s.posts.length; i += dir) {
+    var n = s.posts[i].id;
+    if (document.querySelector('#feed .card[data-id="' + n + '"] [data-r23detail]')) { pfOpen(n, 0); return; }
+  }
+  try { toast(dir > 0 ? "已经是最后一条了" : "已经是第一条了"); } catch (e) {}
+}
+/* ---------- 2026-11-03 新交互：点一下 = 全屏，左右滑退出，上下滑换一条 ----------
+   「点」用按下/抬起自己判断：手指动了（>12px）就是滚动，不算点；
+   按住超 600ms（长按）也不算。双击手势废止——单击已经覆盖它的功能。 */
+function pfDown(e) {
+  if (e && e.button !== undefined && e.button !== 0) return;      /* 只认左键 / 单指 */
+  var t = e && e.target;
+  if (!t || !t.closest) return;
+  var card = t.closest("#feed .card");
+  if (card) {
+    /* 2026-11-03 晚：图片/图片容器不再排除——用户点的往往正是照片本身，
+       排除 img 就等于「点了没反应」（用户两次反馈「点红色画面不进全屏」）。
+       仍然排除：按钮/链接（♥⭐🔊 分享 举报、查看完整求助）、播放器、语音条。
+       头像与昵称不排除：点它们进全屏也是同一件事，不亏。 */
+    if (t.closest("button,a,input,textarea,select,video,audio,.m-realvideo,.m-video,.m-voice")) { pfPress = null; return; }
+    pfPress = { x: e.clientX, y: e.clientY, t: Date.now(), kind: "card", id: card.dataset.id };
+    return;
+  }
+  var d = t.closest("#r23Detail");
+  if (d) {
+    if (t.closest("button,a,input,textarea,select,video,audio,img,.di,.cm-item,.r23-dvimgs,.r23-dvideo,.r23-dvoice")) { pfPress = null; return; }
+    pfPress = { x: e.clientX, y: e.clientY, t: Date.now(), kind: "detail" };
+    return;
+  }
+  pfPress = null;
+}
+function pfMove(e) {
+  if (!pfPress) return;
+  var dx = e.clientX - pfPress.x, dy = e.clientY - pfPress.y;
+  if (dx * dx + dy * dy > 144) pfPress = null;    /* 动了 = 在滚动/滑动，不是点 */
+}
+function pfUp(e) {
+  if (!pfPress) return;
+  var p = pfPress; pfPress = null;
+  if (Date.now() - p.t > 600) return;             /* 长按不算点 */
+  if (p.kind === "card") {
+    if (!p.id) return;
+    pfGuardUntil = Date.now() + 600;              /* 残余的 click 一并吃掉，防双重打开 */
+    pfWant = Date.now();                          /* 记下「这是从信息流点开的」，供兜底观察者用 */
+    pfOpen(p.id, 0);
+  } else {
+    pfToggleInDetail();
+  }
+}
+try { document.addEventListener("pointerdown", pfDown, true); } catch (e) {}
+try { document.addEventListener("pointermove", pfMove, true); } catch (e) {}
+try { document.addEventListener("pointerup", pfUp, true); } catch (e) {}
+/* 「📄 查看完整求助」按钮也要全屏：按钮被排除在「点一下全屏」之外（怕连点误触），
+   但这恰好是长辈最常用的入口，不走这一步就只能看到普通详情页（2026-11-03 用户反馈） */
+try {
+  document.addEventListener("click", function (e) {
+    var l = e.target && e.target.closest ? e.target.closest("#feed [data-r23detail]") : null;
+    if (!l) return;
+    if (Date.now() - pfAt < 500) return;              /* 卡片点击那条路已经进过全屏，别重复读 */
+    var card = l.closest("#feed .card");
+    var id = card && card.dataset.id;
+    if (!id) return;
+    pfWant = Date.now();
+    setTimeout(function () {
+      if (!pfDetailOpen() || Date.now() - pfAt < 500) return;
+      pfPostId = id;
+      pfEnter();
+      pfSpeak(0);
+    }, 140);
+  }, true);
+} catch (e) {}
+/* 兜底 ①：卡片文字上的 click（有的 WebView 会吞掉 pointerup，手势判定失效） */
+try {
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    var card = t && t.closest ? t.closest("#feed .card") : null;
+    if (!card) return;
+    if (t.closest("button,a,input,textarea,select,video,audio,.m-realvideo,.m-video,.m-voice,.pa-btn")) return;
+    if (Date.now() - pfAt < 500) return;              /* 已经全屏了 */
+    if (pfDetailOpen()) return;                        /* 详情已经开着：交给详情内的点击逻辑 */
+    var id = card.dataset.id;
+    if (!id) return;
+    pfWant = Date.now();
+    pfOpen(id, 0);
+  }, true);
+} catch (e) {}
+/* 兜底 ②：详情一打开就补全屏——不依赖手势判定，只要它是「刚从信息流点开的」。
+   用户主动退出（左右滑/再点一下/返回）会记住这一条，不会再被强行拉回全屏 */
+try {
+  var pfObs = $("#r23Detail"), pfFix = 0, pfWasOpen = false;
+  if (pfObs) new MutationObserver(function () {
+    var d = pfObs;
+    var nowOpen = d.classList.contains("open");
+    if (!nowOpen) {
+      if (pfFs) pfExit();
+      try { var ph2 = $("#phone"); if (ph2) ph2.classList.remove("mf-pill-low"); } catch (e) {}
+      pfOptOut = null;                                 /* 关掉详情：退出记忆一起清掉 */
+      pfFix = 0;
+      /* 详情被用户正常关掉（点返回/点遮罩）：历史栈里那条占位记录要还回去，
+         否则下一次按系统返回键会有一下「按了没反应」。popstate 自己触发的关闭不算（pfHist 已归零） */
+      if (pfHist) { pfHist = 0; try { history.back(); } catch (e) {} }
+      pfWasOpen = false;
+      return;
+    }
+    /* 只在「由关到开」这一下押垫片：mf-fs 类变化、补类重绘也会进这个分支，
+       无条件押会让历史栈越堆越长（每次进/退全屏都多一条） */
+    if (!pfWasOpen) { pfWasOpen = true; pfHistPush(); }
+    /* 全屏态被别的层刷掉（真机出现「进来还是卡片态」）：补回来，最多 6 次防死循环 */
+    if (pfFs && !d.classList.contains("mf-fs")) {
+      if (pfFix < 6) { pfFix++; d.classList.add("mf-fs"); }
+      return;
+    }
+    if (pfFs) return;
+    var cur = null;
+    try { var s = getS(); cur = s && s.curPost; } catch (e) {}
+    if (cur != null && pfOptOut != null && String(cur) === String(pfOptOut)) return;
+    if (!pfWant || Date.now() - pfWant > 2500) return;  /* 不是从信息流点开的，不强行全屏 */
+    pfPostId = cur;
+    pfEnter();
+    pfSpeak(0);
+  }).observe(pfObs, { attributes: true, attributeFilter: ["class"] });
+} catch (e) {}
+/* ---------- 全屏里的滑动手势（触屏）：左右滑退出；上下滑换一条 ----------
+   竖滑做了「锚定」：上滑换下一条只在正文已滚到底部时生效，下滑换上一条
+   只在顶部时生效——长文中间的快速滚动绝不会误触换篇。 */
+try {
+  var pfD2 = $("#r23Detail");
+  if (pfD2) {
+    pfD2.addEventListener("touchstart", function (e) {
+      if (!pfFs || e.touches.length !== 1) { pfSw = null; return; }
+      var t = e.target;
+      if (t.closest && t.closest("button,a,input,textarea,select,video,audio,img,.di,.r23-dvimgs,.r23-dvideo,.r23-dvoice")) { pfSw = null; return; }
+      var T = e.touches[0];
+      pfSw = { x: T.clientX, y: T.clientY, t: Date.now() };
+    }, { passive: true });
+    pfD2.addEventListener("touchend", function (e) {
+      if (!pfFs || !pfSw) { pfSw = null; return; }
+      var T = e.changedTouches[0];
+      var dx = T.clientX - pfSw.x, dy = T.clientY - pfSw.y, dt = Date.now() - pfSw.t;
+      pfSw = null;
+      var adx = Math.abs(dx), ady = Math.abs(dy);
+      if (adx > 56 && adx > ady * 1.3 && dt < 600) { pfExit(); return; }   /* 左右滑退出 */
+      if (dt > 500 || ady < 64 || ady < adx * 1.2) return;                 /* 不是干净的竖滑 */
+      var body = $(".r23-dbody", pfD2);
+      var st = body ? body.scrollTop : 0, sh = body ? body.scrollHeight : 0, ch = body ? body.clientHeight : 1;
+      if (dy < 0) { if (sh - (st + ch) <= 10) pfStep(1); }                 /* 上滑到底 → 下一条 */
+      else { if (st <= 10) pfStep(-1); }                                   /* 下滑在顶 → 上一条 */
+    }, { passive: true });
+  }
+} catch (e) {}
+/* 双击后 600ms 内的那次 click 若落在遮罩/空白上，可能被别的层当成「点外部关闭」，一并吃掉 */
+try {
+  document.addEventListener("click", function (e) {
+    if (Date.now() > pfGuardUntil) return;
+    var t = e.target;
+    if (t && t.closest && t.closest("#feed .card")) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
+} catch (e) {}
+/* 返回/关闭详情 → 收掉全屏类，避免下次打开还是全屏。
+   （浏览器的 fullscreenchange 已与本层无关：原生全屏调用已移除，视觉全屏只跟着 .mf-fs 走） */
+try {
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("#r23DBack") : null;
+    if (b) pfExit();
+  }, true);
+} catch (e) {}
+try {
+  var pfD = $("#r23Detail");
+  if (pfD) new MutationObserver(function () {
+    if (!pfD.classList.contains("open") && pfFs) pfExit();
+  }).observe(pfD, { attributes: true, attributeFilter: ["class"] });
+} catch (e) {}
+
+window.YRB_MEDIAFULL = { speak: speak, stopSpeak: stopSpeak, fullVideo: fullVideo, prefetch: prefetch, prefetchCancel: prefetchCancel, autoFollow: { enabled: function () { return autoOn; }, state: function () { return { on: autoOn, reading: autoReading, id: autoCurId }; } }, postFull: { on: function () { return pfFs; } }, version: VERSION };
 console.log("[mediafull] ready v" + VERSION);
 })();

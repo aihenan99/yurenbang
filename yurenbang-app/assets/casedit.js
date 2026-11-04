@@ -526,6 +526,18 @@ function publish(){
 
 /* ---------- 查看端：图文案例正文（接管 app.js 渲染结果，不改其代码） ---------- */
 var curDocCase=null;   /* 当前正在查看的图文案例；非图文时为 null */
+/* 后台编辑用（2026-11-03）：把编辑区 HTML 收敛成可落库的形态。
+   白名单标签保留；图片只留 data-yrb-media 序号（后台不改素材，序号仍指向原 media 数组），
+   外链图 / 粘贴图一律丢弃——避免后台编辑引入来源不明的图片。 */
+function sanitizeHtml(html){
+  var box=document.createElement("div");
+  try{
+    var parsed=new DOMParser().parseFromString("<div>"+String(html||"")+"</div>","text/html");
+    var root=parsed.body.firstChild||parsed.body;
+    cleanInto(root,box,"view");
+  }catch(_){return "";}
+  return box.innerHTML;
+}
 function docPlainText(html){
   var box=document.createElement("div");
   try{
@@ -587,7 +599,16 @@ function onCardClick(e){
   curDocCase=(c&&c.content_html)?c:null;   /* 非图文必须清空：朗读拦截按此放行 */
   if(!curDocCase)return;                   /* 非图文案例：不干预 app.js 的渲染 */
   renderDocView(curDocCase);
+  try{
+    var M=window.YRB_MEDIAFULL;
+    /* 单击=自动读：尊重 #mfAuto「跟读」开关；双击全屏走 fsPending（显式手势，不看开关） */
+    if(M&&M.speak&&(!M.autoFollow||M.autoFollow.enabled()))speakDocNow(0);
+  }catch(_){}
 }
+/* 尊重「跟读」开关（#mfAuto 胶囊 / yrb_autospeak）：关了就不自动读，手动点 🔊 仍可读。
+   双击全屏路径由 fsPending 处理（force 重读，同篇 800ms 内不重发） */
+/* 自动读的开关判断已并入 onCardClick 的直调链路（2026-11-03 精简）：
+   单击打开即 speakDocNow；跟读开关由 mediafull 侧统一裁决 */
 /* 朗读接管：mediafull 的 speakCase 只认识 slides（旧静态案例），图文正文读不出来。
    capture 阶段拦下查看器朗读按钮，把「标题+正文纯文本」交给 YRB_MEDIAFULL.speak
    （其内部自带再点停止、分段播放、云端转本机兜底与按钮状态，全部复用）。 */
@@ -603,6 +624,192 @@ function onTtsClick(e){
   if(M&&M.speak){
     try{M.speak(full,b,false,"case");}catch(_){}
   }
+}
+
+/* ---------- 双击全屏朗读（2026-11-03） ----------
+   为什么：案例广场的卡片文字小，点开后的正文还在一个带边距的圆角卡片里；
+   长辈要「放大 + 有人念」。所以双击（快速两下）就一步到位：撑满屏幕 + 自动朗读。
+   行为：
+   · 案例广场里双击卡片文字 → 打开后直接全屏朗读（app.js 的单击照旧只是打开）
+   · 查看器里双击正文 → 进全屏并朗读；再双击 = 退出全屏（朗读继续，按头部 🔊 才停）
+   · 只有「有正文的图文案例」才进全屏，视频/图片案例保持原样，不做无意义的放大
+   实现要点：单击已经被 app.js 用来打开案例，dblclick 事件到不了卡片（第一下就浮层遮住了），
+   所以自己数「两次 pointerdown」：第二下落在查看器上也认，第二下仍落在卡片上也认。 */
+var fsOn=false, lastTap=null, fsTimer=null, fsGuardUntil=0;
+var ceHist=0, ceExitAt=0;                   /* 全屏时押在历史栈里的「返回垫片」 */
+/* ---------- 系统返回（侧滑 / 返回键）接管：退回全屏前的样子，而不是退出应用 ----------
+   与 mediafull 里 pfHistPush 同一思路，两层各自管自己的垫片（history.state 只用于观测）。
+   2026-11-03 用户反馈「全屏里左右滑，整个 APP 退出了」：安卓微信/X5、系统 WebView、iOS Safari
+   的边缘侧滑都是 WebView 后退，历史栈只有一条时退一格就出了页面。 */
+function ceHistPush(){
+  if(ceHist)return;
+  try{history.pushState({yrbCase:1},"");ceHist=1;}catch(_){}
+}
+try{
+  window.addEventListener("popstate",function(){
+    if(!ceHist)return;
+    ceHist=0;
+    if(fsOn){fsExit();return;}                       /* 全屏中返回 → 回到查看器（上一级） */
+    if(Date.now()-ceExitAt<900)return;               /* 刚自己退出过：同一次手势，别再退一格 */
+    try{history.back();}catch(_){}
+  });
+}catch(_){}
+/* 双击窗口：卡片的第二下要等查看器的 250ms 打开动画，实测常到 400-500ms，
+   所以「卡片 → 遮罩」这一档放到 800ms；查看器内部双击按常规 500ms */
+var TAP_MS=650, CARD_MS=800;
+
+function speakDocNow(tries,force){
+  var c=curDocCase; if(!c)return false;
+  var title=($("#vwTitle")||{}).textContent||(c.t||"");
+  var txt=docPlainText(c.content_html);
+  if(!txt)return false;
+  var full=(title&&txt.slice(0,40).indexOf(title)!==0)?title+"。"+txt:txt;
+  var btn=$(".vw-head .mf-tts");
+  if(btn&&btn.classList.contains("on")){
+    if(!force)return true;                               /* 已经在读：不打断，只换显示方式 */
+    /* 全屏重读：但同篇刚开读不到一瞬（<800ms）就别重发了——这时用户其实什么都没听到，
+       「从头」已经是事实，重发只会更慢 */
+    if(lastRead&&lastRead.txt===full&&Date.now()-lastRead.t<800)return true;
+    try{var M0=window.YRB_MEDIAFULL;if(M0&&M0.stopSpeak)M0.stopSpeak();}catch(_){}
+  }
+  var M=window.YRB_MEDIAFULL;
+  if(M&&M.speak){
+    /* 不再等 🔊 按钮注入：按钮晚到时 mediafull 会自动把状态补到新按钮上，先出声要紧 */
+    try{lastRead={t:Date.now(),txt:full};M.speak(full,btn||null,false,"case");return true;}catch(_){}
+  }
+  return false;
+}
+var lastRead=null;
+function fsTip(){
+  try{
+    var v=$("#viewer");if(!v||$("#vwFsTip"))return;
+    var d=document.createElement("div");
+    d.id="vwFsTip";d.textContent="再双击文字可退出全屏";
+    v.appendChild(d);
+    setTimeout(function(){try{if(d.parentNode)d.parentNode.removeChild(d);}catch(_){}},2600);
+  }catch(_){}
+}
+function fsEnter(){
+  var v=$("#viewer");
+  if(!v||fsOn||!v.classList.contains("open"))return;
+  fsOn=true;v.classList.add("vw-fs");
+  ceHistPush();                                     /* 押垫片：系统返回只退全屏，不出页面 */
+  /* 顶部已经写着标题，正文第一行又是同一句：全屏时省掉重复那行，别让长辈以为是两篇 */
+  try{
+    var h=$(".yrb-doc-body h1,.yrb-doc-body h2,.yrb-doc-body h3");
+    if(h){
+      var a=(h.textContent||"").replace(/\s+/g,"");
+      var t=(($("#vwTitle")||{}).textContent||"").replace(/\s+/g,"");
+      if(a&&t&&a===t)h.classList.add("vw-dup");
+    }
+  }catch(_){}
+  /* 2026-11-03 晚：不再调原生 requestFullscreen。
+     安卓微信/X5 里它常被系统在几百毫秒后自己退出，退出瞬间重算视口会把页面挤偏
+     （用户看到「左边多出半截画面」）；视觉全屏靠 .vw-fs 撑满即可。 */
+  fsTip();
+}
+function fsExit(){
+  if(!fsOn)return;
+  fsOn=false;ceExitAt=Date.now();
+  try{var v=$("#viewer");if(v)v.classList.remove("vw-fs");}catch(_){}
+  try{each(document.querySelectorAll(".vw-dup"),function(n){n.classList.remove("vw-dup");});}catch(_){}
+  try{var t=$("#vwFsTip");if(t&&t.parentNode)t.parentNode.removeChild(t);}catch(_){}
+}
+/* 等第一下的渲染落地（app.js → casedit 依次跑完）再进全屏；最多试 6 次，约 0.5 秒 */
+function fsPending(tries){
+  tries=tries||0;
+  clearTimeout(fsTimer);
+  fsTimer=setTimeout(function(){
+    var v=$("#viewer");
+    if(!v||!v.classList.contains("open")){if(tries<6)fsPending(tries+1);return;}
+    if(!curDocCase)return;                 /* 视频/图片案例：不进全屏，也不读 */
+    fsEnter();
+    speakDocNow(0,true);                   /* 强制从头重读：小窗可能刚自动开读，全屏要「再次阅读」 */
+  },tries?90:70);
+}
+function fsToggle(){
+  if(fsOn){fsExit();return;}
+  fsEnter();speakDocNow(0,true);           /* 进全屏 = 从头再读一遍 */
+}
+/* 手指按下案例卡片的一瞬就开始合成第一段语音（比 click 早一百来毫秒），
+   mediafull 会缓存；真正打开朗读时直接用现成音频。滚动时 mediafull 自动作废。 */
+function preTouch(card){
+  var M=window.YRB_MEDIAFULL;
+  if(!M||!M.prefetch)return;
+  var c=null;
+  try{var i=+card.dataset.i;c=(typeof S!=="undefined"&&S&&S.cases)?S.cases[i]:null;}catch(_){}
+  if(!c||!c.content_html)return;
+  var txt=docPlainText(c.content_html);
+  if(!txt)return;
+  var t=c.t||"";
+  var full=(t&&txt.slice(0,40).indexOf(t)!==0)?t+"。"+txt:txt;
+  var slow=false;
+  try{var s=getS();slow=!!(s&&s.elder==="1");}catch(_){}
+  M.prefetch(full,slow);
+}
+function onFsDown(e){
+  if(e&&e.button!==undefined&&e.button!==0)return;       /* 只认左键 / 单指 */
+  var t=e&&e.target;
+  if(!t||!t.closest)return;
+  var now=Date.now();
+  var card=t.closest(".case-card");
+  if(card){
+    try{preTouch(card);}catch(_){}                          /* 按下即预取语音，打开就立即有 */
+    var same=!!(lastTap&&lastTap.kind==="card"&&lastTap.el===card&&(now-lastTap.t)<TAP_MS);
+    lastTap={t:now,kind:"card",el:card};
+    if(same){fsGuardUntil=now+CARD_MS+100;fsPending(0);}  /* 第二下没被浮层吃掉：同样算双击 */
+    return;
+  }
+  var inV=t.closest("#viewer");
+  if(inV){
+    if(t.closest("button,a,input,textarea,select,video"))return;   /* 按钮/链接自己处理 */
+    var fromCard=!!(lastTap&&lastTap.kind==="card"&&(now-lastTap.t)<CARD_MS);
+    if(fromCard){lastTap=null;fsGuardUntil=now+CARD_MS+100;fsPending(0);return;} /* 第二下落在刚打开的查看器上 */
+    var twice=!!(lastTap&&lastTap.kind==="viewer"&&(now-lastTap.t)<TAP_MS);
+    lastTap={t:now,kind:"viewer"};
+    if(twice){
+      lastTap=null;              /* 一击只算一次双击：否则「双击→停顿→双击」会被连成一串，进又立刻退 */
+      /* 退出全屏会让卡片一下缩回中间：双击的第二下会落到遮罩上被当成「关闭」，
+         一并吃掉，否则「退出全屏」等于「关掉案例」 */
+      if(fsOn)fsGuardUntil=now+600;
+      fsToggle();
+    }
+    return;
+  }
+  lastTap=null;
+}
+function wireFs(){
+  try{document.addEventListener("pointerdown",onFsDown,true);}catch(_){}
+  /* 双击的第二下若落在卡片外的遮罩上，app.js 会当成「点遮罩关闭」把刚打开的查看器关掉，
+     全屏就永远进不去。识别为双击后半段时把这一下吃掉（600ms 内，且必须是遮罩本身） */
+  try{
+    document.addEventListener("click",function(e){
+      if(Date.now()>fsGuardUntil)return;
+      var t=e.target;
+      if(!t||!t.closest||!t.closest("#viewer"))return;
+      if(t.closest(".vw-card"))return;                    /* 卡内点击照常 */
+      e.preventDefault();e.stopPropagation();
+    },true);
+  }catch(_){}
+  /* 关闭查看器 / 按 Esc 退出原生全屏 → 收掉全屏类，避免下次打开「还是全屏」 */
+  try{
+    document.addEventListener("click",function(e){
+      var x=e.target&&e.target.closest?e.target.closest("#vwX"):null;
+      if(x)fsExit();
+    },true);
+  }catch(_){}
+  try{
+    /* 全屏态只跟随查看器自身的 .open，不再跟随浏览器 fullscreenchange：
+       2026-11-03 晚去掉原生全屏后，系统级 fullscreenchange 与视觉全屏已无关系，
+       留着反而会在某些浏览器按 F11/手势时把阅读态误关掉 */
+    var v=$("#viewer");
+    if(v)new MutationObserver(function(){
+      if(!v.classList.contains("open")&&fsOn)fsExit();
+      /* 查看器被正常关掉（点 ✕ / 点遮罩）：把垫片还回去，
+         否则下次按系统返回键会有一下「按了没反应」 */
+      if(!v.classList.contains("open")&&ceHist){ceHist=0;try{history.back();}catch(_){}}
+    }).observe(v,{attributes:true,attributeFilter:["class"]});
+  }catch(_){}
 }
 
 /* ---------- 事件接线（全部委托，不改 app.js 任何结构） ---------- */
@@ -674,6 +881,8 @@ function wire(){
   document.addEventListener("click",onCardClick);
   /* 查看器朗读按钮（capture 阶段先于 mediafull 的按钮监听） */
   document.addEventListener("click",onTtsClick,true);
+  /* 双击全屏朗读（见上方「双击全屏朗读」一节） */
+  wireFs();
 }
 
 /* ---------- 启动：DOM 就绪后注入 ---------- */
@@ -712,5 +921,5 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 else boot();
 
 /* 可检测标志：health.js 探针与自愈补载据此判断本层是否存活（增强层惯例） */
-try{window.YRB_CASED={version:2,ready:function(){return !!$("#cePanel");}};}catch(_){}
+try{window.YRB_CASED={version:4,ready:function(){return !!$("#cePanel");},sanitize:sanitizeHtml};}catch(_){}
 })();

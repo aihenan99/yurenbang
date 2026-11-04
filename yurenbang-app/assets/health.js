@@ -45,9 +45,18 @@
       probe: function () { return !!window.YRB_R23; } },
     { id: "access", file: "assets/access.js", flag: "YRB_MYLIST", severity: "major",
       probe: function () { return !!window.YRB_MYLIST; } },
+    { id: "yb-sb", file: "assets/yb-sb.js", flag: "YRB_SB", severity: "core",
+      probe: function () {
+        return !!(window.YRB_SB && typeof window.YRB_SB.createClient === "function");
+      } },
     { id: "cloud", file: "assets/cloud.js", flag: "YRB_CLOUD", severity: "core",
       probe: function () {
         return !!(window.YRB_CLOUD && typeof window.YRB_CLOUD.ensureLogin === "function");
+      } },
+    /* 静态内容层：隔离期的内容兜底。缺了不影响社区功能，只是首页又变回空态 */
+    { id: "staticcases", file: "assets/staticcases.js", flag: "YRB_STATICCASE", severity: "minor",
+      probe: function () {
+        return !!(window.YRB_STATICCASE && typeof window.YRB_STATICCASE.refresh === "function");
       } },
     { id: "reward", file: "assets/reward.js", flag: "YRB_REWARD", severity: "minor",
       probe: function () { return !!window.YRB_REWARD; } },

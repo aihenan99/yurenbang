@@ -23,6 +23,8 @@
 .lg-btn{margin-top:16px;width:100%;padding:15px;border-radius:999px;background:var(--gradA);color:#fff;font-weight:800;font-size:16px;box-shadow:0 6px 18px rgba(244,105,75,.4);transition:.15s}
 .lg-btn:active{transform:scale(.97)}
 .lg-btn:disabled{opacity:.5}
+/* 2026-11-02：注册新账号的 ghost 款大按钮——白底描边，和橙色登录按钮摆在一起一眼可辨 */
+.lg-btn.lg-ghost{background:var(--bg2);color:var(--accent);border:2px solid var(--accent);box-shadow:none;margin-top:10px;font-weight:700}
 /* ---------- 明示同意勾选（获取验证码下方） ---------- */
 .lg-agree{display:flex;align-items:flex-start;gap:9px;margin:2px 2px 0;font-size:12.5px;color:var(--muted);line-height:1.65;cursor:pointer;user-select:none}
 .lg-ck{flex:none;width:19px;height:19px;margin-top:1px;padding:0;border-radius:6px;border:1.8px solid var(--rule);background:var(--bg);display:flex;align-items:center;justify-content:center;transition:.16s}

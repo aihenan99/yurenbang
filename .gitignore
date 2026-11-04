@@ -43,6 +43,11 @@ temp/_worker_probe.mjs
 temp/_csp_rehearsal_worker.mjs
 *.log
 
+# ---------- 调试备份（*.bak_dbg 等，改文件前的人肉快照，可随时重做）----------
+*.bak
+*.bak_*
+*.orig
+
 # ---------- 系统垃圾 ----------
 nul
 Thumbs.db

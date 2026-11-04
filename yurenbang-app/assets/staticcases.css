@@ -1,0 +1,58 @@
+/* ============================================================================
+   育人帮 · 静态内容层样式 staticcases.css（2026-11-01）
+   只在隔离期生效：.sc-on 由 staticcases.js 在插入区块时加到 #page-home / #page-cases
+   ========================================================================== */
+
+.sc-wrap{
+  margin:14px 12px 8px;padding:15px 13px 13px;
+  background:var(--bg2,#fff);border:1px solid var(--rule,#EFE7DC);
+  border-radius:18px;
+}
+.sc-h{
+  font-size:17px;font-weight:700;color:var(--ink,#322E29);line-height:1.45;
+}
+.sc-sub{
+  margin-top:6px;font-size:14px;color:#7A736B;line-height:1.68;
+}
+.sc-list{margin-top:12px}
+
+.sc-card{
+  display:block;margin-top:10px;padding:13px 14px;
+  background:#FFFDFB;border:1px solid var(--rule,#EFE7DC);border-radius:14px;
+  text-decoration:none;-webkit-tap-highlight-color:transparent;
+}
+.sc-card:first-child{margin-top:0}
+.sc-card:active{background:#FDF3ED;border-color:#F2D9C9}
+
+.sc-t{
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  font-size:16.5px;font-weight:700;color:var(--ink,#322E29);line-height:1.52;
+}
+.sc-d{
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  margin-top:6px;font-size:14.5px;color:#7A736B;line-height:1.66;
+}
+.sc-a{
+  display:block;margin-top:9px;
+  font-size:15px;font-weight:700;color:var(--accent2,#2FA393);
+}
+
+.sc-more{
+  display:block;margin-top:12px;padding:13px 10px;
+  background:#EFF8F5;border-radius:13px;
+  text-align:center;font-size:15.5px;font-weight:700;color:#1D8C7E;
+  text-decoration:none;
+}
+.sc-more:active{background:#E4F3EE}
+
+/* 隔离期把应用自带的「维护中」空态收起来：上方区块已经说明情况，
+   手机上两段维护文案叠在一起既拥挤又像坏站。自动重试逻辑不受影响。 */
+#page-home.sc-on #feed .empty,
+#page-cases.sc-on #caseGrid .empty{display:none}
+
+@media (max-width:360px){
+  .sc-wrap{margin:12px 9px 6px;padding:13px 11px 11px}
+  .sc-h{font-size:16px}
+  .sc-t{font-size:15.5px}
+  .sc-d{font-size:14px}
+}

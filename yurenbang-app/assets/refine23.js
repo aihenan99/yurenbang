@@ -54,8 +54,6 @@ function injectAll(){
         <input id="r23Title" placeholder="一句话标题（可留空，例如：孩子不肯独自睡怎么办）">
         <div class="r23-label">问题分类 <span class="r23-hint">选填 · 已按内容预选</span></div>
         <div class="r23-tags" id="r23Tags">${TAGS.map((t,i)=>`<button class="r23-tag ${i===0?"on":""}" data-i="${i}">${t}</button>`).join("")}</div>
-        <div class="r23-label">👶 孩子年龄段 <span class="r23-hint">按年龄给建议更科学</span></div>
-        <div class="r23-vis" id="r23Age">${AGES.map(([ic,t],i)=>`<button class="${i===2?"on":""}" data-i="${i}"><b style="font-size:15px">${ic}</b>${t}</button>`).join("")}</div>
         <div class="r23-label">紧急程度 <span class="r23-hint">选填</span></div>
         <div class="r23-seg3" id="r23Urg">
           <button class="r23-urg on" data-u="1"><span class="ui">🌤</span>普通求助</button>
@@ -207,7 +205,7 @@ function toggleVoicePlay(){
 /* ============ 拦截并增强发布 ============ */
 function bindStatic(){
   $("#r23Tags").onclick=e=>{const b=e.target.closest(".r23-tag");if(!b)return;$$("#r23Tags .r23-tag").forEach(x=>x.classList.remove("on"));b.classList.add("on");tag=TAGS[+b.dataset.i];classManual=true;refreshAiCard();};
-  $("#r23Age").onclick=e=>{const b=e.target.closest("#r23Age button");if(!b)return;$$("#r23Age button").forEach(x=>x.classList.remove("on"));b.classList.add("on");age=+b.dataset.i;classManual=true;refreshAiCard();};
+  /* 孩子年龄段已于 2026-11-02 应要求撤下：UI 不再展示与选择，age 字段入库留空 */
   $("#r23Urg").onclick=e=>{const b=e.target.closest(".r23-urg");if(!b)return;$$("#r23Urg .r23-urg").forEach(x=>x.classList.remove("on"));b.classList.add("on");urg=+b.dataset.u;classManual=true;refreshAiCard();
     /* 科学性与未成年人保护：紧急求助时主动给出专业求助渠道 */
     $("#r23Hotline").classList.toggle("show",urg>=2);};
@@ -359,11 +357,11 @@ function applyGuessToUI(){
 function refreshAiCard(){
   const row=$("#r23CfAiRow");if(!row)return;
   const URG_T=["","🌤 普通求助","🔥 紧急求助","🚨 十万火急"];
-  const curTag=tag||TAGS[aiGuess.tag],curAge=(AGES[age]||AGES[aiGuess.age])[1],curUrg=URG_T[urg]||URG_T[aiGuess.urg];
-  row.innerHTML=`<span class="c on">${curTag}</span><span class="c on">${(AGES[age]||AGES[aiGuess.age])[0]} ${curAge}</span><span class="c on">${curUrg}</span>`;
+  const curTag=tag||TAGS[aiGuess.tag],curUrg=URG_T[urg]||URG_T[aiGuess.urg];
+  row.innerHTML=`<span class="c on">${curTag}</span><span class="c on">${curUrg}</span>`;
   const tip=$("#r23CfAiTip");
   if(tip)tip.innerHTML=classManual
-    ? `已按你选的分类发布（AI 原判：${TAGS[aiGuess.tag]} · ${AGES[aiGuess.age][1]}）。<b>不选也没关系</b>，后台 AI 会按内容自动归类。`
+    ? `已按你选的分类发布（AI 原判：${TAGS[aiGuess.tag]}）。<b>不选也没关系</b>，后台 AI 会按内容自动归类。`
     : (aiGuess.confident
         ? "按内容自动识别，<b>现在就能直接发布</b>；也可以点选修改。"
         : "内容里没有明显的分类特征，<b>直接发布会由后台 AI 归类</b>；也可以点选修改。");
@@ -419,7 +417,7 @@ async function finishPublish(skipAi){
     const items=window.YRB_CAPTURE?YRB_CAPTURE.collect(t):[];
     const capDur=window.YRB_CAPTURE?YRB_CAPTURE.duration(t):"";
     const payload={type:t,title,text:body,tag:tagName(tag),tagFull:tag,
-      age:AGES[age]?AGES[age][1]:"",urg,vis,loc};
+      age:"",urg,vis,loc};
 
   /* 真实上传 + 入库（未配置/未登录/失败都退化为本机保存，绝不丢用户素材） */
   let media=[],cloudId=null,cloudOk=false;
@@ -445,7 +443,7 @@ async function finishPublish(skipAi){
   }
 
   const p={id:uid(),mine:true,user:(window.YRB_CLOUD&&YRB_CLOUD.signedIn())?YRB_CLOUD.name():"阳阳爸爸",flag:S.region.flag,type:t,
-    title,tag:tagName(tag),tagFull:tag,age:AGES[age]?AGES[age][1]:"",urg,vis,loc,
+    title,tag:tagName(tag),tagFull:tag,age:"",urg,vis,loc,
     text:body,status:"open",r23Status:doReview?"reviewing":"open",aiClassified:!classManual,
     time:"刚刚",likes:0,liked:false,favs:0,faved:false,helps:0,comments:[],roses:[],
     media,cloudId,__cloud:cloudOk};
@@ -458,7 +456,7 @@ async function finishPublish(skipAi){
   switchTab("home");S.hotMode=false;renderFuncRow();renderFeed();
   enhanceCard(p.id,p.r23Status);
   toast(cloudOk?"求助已发布到云端，等待温柔的帮忙 🌸":"求助已提交，等待温柔的帮忙 🌸");
-  if(!classManual)wait(1600).then(()=>toast("🤖 后台 AI 已完成分类："+tagName(tag)+" · "+(AGES[age]?AGES[age][1]:"")));
+  if(!classManual)wait(1600).then(()=>toast("🤖 后台 AI 已完成分类："+tagName(tag)));
   if(doReview){
     wait(2400).then(()=>{p.r23Status="open";enhanceCard(p.id,"open");toast("审核通过，求助已公开发布 ✅");});
   }
@@ -648,6 +646,7 @@ function titleRedundant(p){
   return !!b&&x.replace(/\s+/g," ").indexOf(b.replace(/\s+/g," "))===0;
 }
 function openDetail(id){
+  /* 2026-11-02 用户反馈：详情页头部去掉分类标签与年龄段（信息流卡片保留） */
   /* 同一条求助 80ms 内重复打开直接忽略：防止「自动重开详情」与 DOM 观察者互相触发形成点击风暴 */
   const now=Date.now();
   if(__odId===id&&now-__odAt<80)return;
@@ -662,7 +661,6 @@ function openDetail(id){
         <div class="p-head">
           <div class="p-ava">${p.mine?myAvaSVG():avatarSVG(p.ava)}</div>
           <div><div class="p-name">${esc(p.user)} ${esc(p.flag||"")}</div></div>
-          <span class="p-tag">${esc(p.tagFull||p.tag||"求助")}</span>${p.age?`<span class="age-chip">👶 ${esc(p.age)}</span>`:""}
         </div>
         ${p.urg>=2?`<div style="margin:10px 0 0"><span class="hot-badge" style="background:linear-gradient(135deg,#FF7A6B,#E8443A)">${p.urg===3?"🚅 十万火急":"🔥 紧急求助"}</span></div>`:""}
         ${titleRedundant(p)?"":`<div class="p-text" style="font-size:16px;font-weight:800;margin:12px 2px 4px">${esc(p.title||"")}</div>`}

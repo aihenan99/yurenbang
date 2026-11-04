@@ -14,6 +14,7 @@
   const $ = (s, r = document) => r.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const LS_OUT = "yrb_food_out_v1";
+  let flySeq = 0;                       /* 大礼动画轮次：连送多份时只让最后一轮收场 */
 
   const FOODS = [
     { k: "fish",     n: "红烧鲤鱼",   img: "assets/gifts/fish.webp" },
@@ -93,6 +94,10 @@
     const fx = document.createElement("div");
     fx.id = "fdFx";
     host.appendChild(fx);
+    /* 2026-11-03：菜图弹出期间把首页 / 帮忙面板 / 弹层整块淡成透明（#phone.fd-live），
+       否则大餐被白底面板挡住一半。只在本层做类开关，不动其它层的显隐逻辑 */
+    const seq = ++flySeq;
+    if (host.id === "phone") host.classList.add("fd-live");
 
     const W = fx.clientWidth || 390, H = fx.clientHeight || 844;
     const cx = Math.round(W / 2), cy = Math.round(H * 0.48);
@@ -194,7 +199,11 @@
     /* 掌声 + 收场 */
     try { if (typeof applause === "function") applause(1); } catch (e) {}
     setTimeout(() => { fx.classList.add("bye"); }, DUR - 780);
-    setTimeout(() => { fx.remove(); }, DUR + 300);
+    setTimeout(() => {
+      try { fx.remove(); } catch (e) {}
+      /* 只有「最后一轮」动画才恢复页面：连着送两份时，前一份的收场不能把后一份的舞台拆掉 */
+      if (seq === flySeq && host.id === "phone") host.classList.remove("fd-live");
+    }, DUR + 300);
   }
 
   /* ---------- 送出 ---------- */

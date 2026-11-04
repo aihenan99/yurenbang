@@ -208,7 +208,10 @@ async function submit() {
   if (pwd !== pwd2) { setErr("两次输入的新密码不一致"); return; }
   if (mode === "change" && !old) { setErr("请输入当前管理密码"); return; }
   busy = true; renderBusy("保存中…"); setErr("");
-  const args = mode === "change" ? { p_new: pwd, p_old: old } : { p_new: pwd };
+  /* 首次设置也要带 p_old（空串）：数据库函数是 (p_new, p_old) 两参形态，
+     不带会被 PostgREST 判成「找不到函数」（2026-11-01 线上踩坑）。
+     空串在 setup 分支会被跳过（此时 pwd_hash 为空，不做旧密码校验）。 */
+  const args = mode === "change" ? { p_new: pwd, p_old: old } : { p_new: pwd, p_old: "" };
   const r = await rpc("admin_set_password", args);
   busy = false; renderIdle();
   if (r.error) { setErr("保存失败：" + esc(r.error.message || "网络异常")); return; }

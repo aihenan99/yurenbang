@@ -28,22 +28,22 @@ const KEY = "yrb_jiaojiao_v1";
 
 /* ================= 1. 顶部栏目入口：包装 renderFuncRow ================= */
 const CHIP = `<button class="f-chip jj-chip" data-f="jiaojiao">🎓 家教</button>`;
+/* 「求助」芯片：点击弹出的发布面板与底部 ＋ 完全相同（2026-11-01 用户拍板） */
+const HELP_CHIP = `<button class="f-chip help-chip" data-f="help">🆘 求助</button>`;
 try {
   const _renderFuncRow = renderFuncRow;
   renderFuncRow = function () {
     _renderFuncRow();
     try {
       const row = $("#funcrow");
-      if (!row || $(".jj-chip", row)) return;
-      /* 家教入口插到栏目行**第一位**：行是横向滚动条，插在末尾时
-         大半截在屏幕外，手机上不滑动根本看不到（用户反馈"找不到家教栏目"） */
-      const first = $(".f-chip", row);
-      if (first) first.insertAdjacentHTML("beforebegin", CHIP);
-      else {
-        const add = $(".f-add", row);
-        if (add) add.insertAdjacentHTML("beforebegin", CHIP);
-        else row.insertAdjacentHTML("beforeend", CHIP);
-      }
+      if (!row) return;
+      /* 2026-11-01 用户拍板：家教从第一位挪到栏目行末尾（原来第一位是怕滚动条
+         挡住看不到，现在跟着「求助」一起排在案例后面）；行内的「＋添加」撤下，
+         同名能力仍在 设置→首页设置→编辑功能拓展区。_renderFuncRow 每次都会
+         重建 innerHTML，这里直接追加即可，不会重复。 */
+      const add = $(".f-add", row);
+      if (add) add.remove();
+      row.insertAdjacentHTML("beforeend", CHIP + HELP_CHIP);
     } catch (e) {}
   };
 } catch (e) {}
@@ -253,6 +253,12 @@ document.addEventListener("click", e => {
   if (e.target.closest("#funcrow .jj-chip")) {
     e.preventDefault(); e.stopPropagation();
     try { switchTab("jiaojiao"); } catch (err) {}
+    return;
+  }
+  /* 「求助」芯片＝底部 ＋ 的同名入口：同样的发布面板（2026-11-01） */
+  if (e.target.closest("#funcrow .help-chip")) {
+    e.preventDefault(); e.stopPropagation();
+    try { pubAvaRender(); pubPreview(); openSheet("publishSheet"); } catch (err) {}
   }
 }, true);
 

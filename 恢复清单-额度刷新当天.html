@@ -93,6 +93,27 @@
   .warn label { display: flex; gap: 2.5mm; align-items: flex-start; cursor: pointer; }
   .warn .box { margin-top: .9mm; }
 
+  /* ---- 时间闸门 ---- */
+  .gates { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2mm; margin-bottom: 4mm; font-size: 8.4pt; }
+  .gates > div { border: 1px solid #d8dde3; border-radius: 1.6mm; padding: 2mm 2.2mm; line-height: 1.45; }
+  .gates b { display: block; font-size: 9.6pt; margin-bottom: .6mm; }
+  .gates span { color: #5c6670; }
+  .gates .dead { border: 1.6px solid #1f2329; background: #f2f4f6; }
+
+  /* ---- 应急分支（与主流程互斥） ---- */
+  .branch { margin-top: 5mm; border: 1.6px dashed #1f2329; border-radius: 2mm; padding: 3.5mm 4mm; }
+  .branch h2 { font-size: 11pt; margin: 0 0 1.5mm; }
+  .branch .lead { font-size: 9.2pt; color: #3b444d; margin-bottom: 2.5mm; }
+  .branch .step { border-bottom: 1px dashed #d8dde3; }
+  .branch .step:last-of-type { border-bottom: none; }
+  .branch .t { font-size: 10.4pt; }
+  .branch .t .e {
+    display: inline-block; min-width: 5.6mm; height: 5.6mm; line-height: 5.4mm;
+    text-align: center; border: 1.4px solid #1f2329; border-radius: 1mm;
+    font-size: 8.5pt; font-weight: 700; margin-right: 2mm; vertical-align: 1px;
+  }
+  .branch .step.done .t .e { background: #1f2329; color: #fff; }
+
   footer {
     margin-top: 4mm; padding-top: 2.5mm; border-top: 1px solid #d8dde3;
     font-size: 8.6pt; color: #6b747d; display: flex; justify-content: space-between; gap: 6mm;
@@ -113,7 +134,7 @@
 <div class="sheet">
 
   <div class="toolbar">
-    <span class="prog" id="prog">已完成 0 / 19</span>
+    <span class="prog"><span id="prog">已完成 0 / 19</span>　<span id="progEm" style="font-weight:400;color:#5c6670">应急 0 / 5</span></span>
     <span>
       <button type="button" id="btnPrint">打印 / 存 PDF</button>
       <button type="button" id="btnReset">全部清空</button>
@@ -128,6 +149,13 @@
       <label>操作人：<input class="fill w-short" id="f-ops" type="text" placeholder=""></label>
     </div>
   </header>
+
+  <div class="gates">
+    <div><b>10-26　额度耗尽</b><span>隔离期开始计时，云端整体 402</span></div>
+    <div><b>11-08　升级闸门</b><span>仍不恢复就别再等，推工单要结论</span></div>
+    <div class="dead"><b>11-10　数据销毁线</b><span>隔离满 15 天，到期永久删除</span></div>
+    <div><b>11-14　刷新估算</b><span>按开通日 10-14 推算，晚于销毁 4 天</span></div>
+  </div>
 
   <div class="step">
     <label class="box"><input type="checkbox" id="c1"><span class="mk"></span></label>
@@ -233,6 +261,64 @@
     </div>
   </div>
 
+  <div class="branch" id="emergency">
+    <h2>另一条路：到 11-09 仍没恢复（隔离期内能做的）</h2>
+    <div class="lead">
+      这一节和上面 1–8 步<b>互斥</b>：上面是「恢复了」的走法，这一节是「可能救不回数据」的走法，别两边都勾。
+      隔离期内云端完全不可达——导出、查询、storage 全部 402，<b>第 2 步此时根本跑不通</b>。
+      所以别在那儿反复点重试：重试不会让 402 变好，只会占掉你本来能做别的事的时间。
+    </div>
+
+    <div class="step">
+      <label class="box"><input type="checkbox" id="e1"><span class="mk"></span></label>
+      <div class="body">
+        <div class="t"><span class="e">E1</span>先把目标换掉</div>
+        <div class="d">从「把数据救回来」换成「把重建成本压到最低」。这不是放弃，是承认两件事：免费版没有任何自助恢复手段；
+          额度刷新日（约 11-14）晚于销毁线（约 11-10）4 天，等待这条路本身不成立。</div>
+        <div class="hint">判断依据不看感觉：留痕里连续 isolated 到 11-09 24:00，就按这条走。</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <label class="box"><input type="checkbox" id="e2"><span class="mk"></span></label>
+      <div class="body">
+        <div class="t"><span class="e">E2</span>抢救唯一还能抢救的东西：骨架</div>
+        <div class="d">数据救不回，但「重建的依据」一直在本地。<code>db/schema.sql</code> 逐项核对：
+          8 张表是否全覆盖、每张表是否都开了 RLS、<code>yb_comments_sync_helps</code> 等触发器是否写全、<code>is_admin()</code> 是否在列。</div>
+        <div class="hint">空库 + 这份 SQL + 现在的客户端代码 = 站点能原地重建；丢掉的是用户内容，不是能力。</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <label class="box"><input type="checkbox" id="e3"><span class="mk"></span></label>
+      <div class="body">
+        <div class="t"><span class="e">E3</span>每天留一条痕（30 秒）</div>
+        <div class="d">跑 <code>node tests/diag/probe_cloud_recovery_v2.js</code>，结果自动追加到
+          <code>temp/cloud-recovery-log.jsonl</code>，一行一天。</div>
+        <div class="hint">这条链子是工单里唯一能证明「哪天开始断、断到哪天」的东西。别手抄，手抄会断。</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <label class="box"><input type="checkbox" id="e4"><span class="mk"></span></label>
+      <div class="body">
+        <div class="t"><span class="e">E4</span>定对外口径（需你拍板）</div>
+        <div class="d">真到数据没了那天，社区需要一个说法：不承诺恢复、说明做过哪些备份尝试、给出重建时间表。
+          宁可说得难听但准确，也不要含糊——家长用户对站点的信任只经得起一次含糊。</div>
+        <div class="hint">这条不是技术活，等本人决定，别让代码跑到话术前面。</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <label class="box"><input type="checkbox" id="e5"><span class="mk"></span></label>
+      <div class="body">
+        <div class="t"><span class="e">E5</span>11-09 24:00 是最后判断点</div>
+        <div class="d">到这个时间点若平台仍无明确答复，<b>不再等 11-14</b>，直接转 E2 + E4。</div>
+        <div class="hint">工单文案见 <code>docs/云服务工单-额度刷新日与隔离期冲突.md</code>，已带完整时间线与实测证据。</div>
+      </div>
+    </div>
+  </div>
+
   <div class="warn">
     <h2>当天不要做这三件事</h2>
     <ol>
@@ -244,7 +330,7 @@
 
   <footer>
     <span>提醒：云服务暂停后数据仅保留 15 天，逾期永久删除。</span>
-    <span>下一道防线：11 月 1 日 09:30 自动复查已就绪。</span>
+    <span>11-01 复查：仍 isolated（6 次 402，构建 202610261926）· 下一道闸门 11-08</span>
   </footer>
 
 </div>
@@ -277,10 +363,19 @@
   }
 
   function updateProgress(){
-    var cbs = inputs.filter(function(el){ return el.type === "checkbox"; });
-    var done = cbs.filter(function(el){ return el.checked; }).length;
-    document.getElementById("prog").textContent = "已完成 " + done + " / " + cbs.length;
-    cbs.forEach(function(el){
+    // 主流程和应急分支是两条互斥的路，混在一个分母里会让两边都永远到不了 100%
+    var all = inputs.filter(function(el){ return el.type === "checkbox"; });
+    var emergency = function(el){ return !!el.closest("#emergency"); };
+    var mainCbs = all.filter(function(el){ return !emergency(el); });
+    var emCbs   = all.filter(emergency);
+
+    var done = mainCbs.filter(function(el){ return el.checked; }).length;
+    var emDone = emCbs.filter(function(el){ return el.checked; }).length;
+
+    document.getElementById("prog").textContent = "已完成 " + done + " / " + mainCbs.length;
+    document.getElementById("progEm").textContent = "应急 " + emDone + " / " + emCbs.length;
+
+    all.forEach(function(el){
       var step = el.closest(".step");
       if (step) step.classList.toggle("done", el.checked);
     });

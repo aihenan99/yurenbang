@@ -466,9 +466,14 @@ function renderDropdown(){
 const DRAWER=[["home","🏠","首页",0],["hot","🔥","爆火",0],["cases","🎬","案例广场",0],["growth","🌱","成长录",1],["jiaojiao","🎓","家教服务",0],["class","🧑‍🏫","名师课堂",1],["tree","🌳","心理树洞",1],["market","🎁","爱心集市",1],["map","🗺️","亲子地图",1],["atlas","❤️","公益图谱",1]];
 /* 成长录（growth）进「即将上线」组（2026-10-30，M2）：没有数据源，挂在已开放组
    等于让用户点进一个永远空白的页面；分享链接/直达 hash 仍能打开（保留兜底） */
+/* 2026-11-01 用户拍板：抽屉撤下五个「预留升级」占位模块（名师课堂/心理树洞/
+   爱心集市/亲子地图/公益图谱）和「常用小程序」区——未上线的入口不摆出来，
+   界面清爽。DRAWER 数据保留：分享链接/直达 hash 兜底与 toast 文案仍要用；
+   要恢复时把 DRAWER_HIDDEN 清空即可 */
+const DRAWER_HIDDEN=["class","tree","market","map","atlas"];
 function renderDrawer(){
-  $("#drBody").innerHTML=DRAWER.map(([k,ic,t,soon])=>`<button class="dr-item" data-k="${k}"><span class="ic">${ic}</span>${t}${soon?'<span class="soon">预留升级</span>':""}</button>`).join("")
-  +`<div class="dd-h" style="margin-top:14px">常用小程序</div><div class="dd-minis">${MINIS.map(([ic,t])=>`<button class="mini" data-k="mini"><span class="mi">${ic}</span>${t}</button>`).join("")}</div>`;
+  $("#drBody").innerHTML=DRAWER.filter(d=>DRAWER_HIDDEN.indexOf(d[0])<0)
+    .map(([k,ic,t,soon])=>`<button class="dr-item" data-k="${k}"><span class="ic">${ic}</span>${t}${soon?'<span class="soon">预留升级</span>':""}</button>`).join("");
 }
 
 /* ================= 设置二级页 / 弹窗 ================= */
