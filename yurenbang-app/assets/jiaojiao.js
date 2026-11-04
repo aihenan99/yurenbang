@@ -284,47 +284,87 @@ function cloudDb() {
   } catch (e) { return null; }
 }
 function loadQR() {
-  /* 1) 先用本地缓存秒开 */
+  /* 1) 先用本地缓存秒开（不触网） */
   try {
     const cached = localStorage.getItem("yrb_jj_qr") || "";
     if (cached) applyQR(cached);
   } catch (e) {}
-  /* 2) 云端为准：client 未就绪时等事件 + 轮询兜底（最多约 12 秒） */
-  let tries = 0;
-  (function pull() {
-    const D = cloudDb();
-    if (!D) {
-      if (tries++ < 48) setTimeout(pull, 250);
-      return;
-    }
-    Promise.resolve(D.from("yb_settings").select("key,value").eq("key", "jiaojiao_qr").maybeSingle())
-      .then(r => {
-        if (!r || r.error || !r.data) return;      /* 没配置过 / 读取失败：保持当前图 */
-        const v = r.data.value || "";
-        if (v) {
-          applyQR(v);
-          try { localStorage.setItem("yrb_jj_qr", v); } catch (e) {}
-        } else {
-          applyQR("");                              /* 后台恢复默认 */
-          try { localStorage.removeItem("yrb_jj_qr"); } catch (e) {}
-        }
-      }).catch(() => {});
-  })();
+  /* 2) 云端只在「娇娇页真的被打开」时才取 —— 见 pullQR/whenJiaojiaoVisible。
+     2026-11-04 性能：以前这里 boot 就无条件拉，且 cloud-ready 又拉一次，
+     同一张 150KB 的 base64 二维码每次访问要跨境拉 2 遍（实测 2107ms+1397ms）。
+     二维码只在这一页显示，首页访客根本看不到，没必要为它付流量。 */
 }
-/* 云端 SDK 就绪 → 立刻补读一次（解决"早期读到 null 就放弃"） */
-window.addEventListener("yrb-cloud-ready", () => { try { loadQR(); } catch (e) {} });
+
+/* 当前是否停在娇娇页（switchTab 用的是 .page.active） */
+function jjVisible() {
+  const p = document.querySelector("#page-jiaojiao");
+  return !!(p && p.classList.contains("active"));
+}
+
+/* 云端取二维码：并发去重 + 成功过就不再重复取；force 用于后台改图后校准 */
+let qrInflight = null;
+let qrPulled = false;
+let qrTries = 0;
+
+function pullQR(force) {
+  if (qrInflight) return qrInflight;
+  if (qrPulled && !force) return Promise.resolve();
+  const D = cloudDb();
+  if (!D) {
+    /* SDK 尚未就绪：只在娇娇页可见时短轮询（最多 10 秒），首页不空转 */
+    if (qrTries++ < 20 && jjVisible()) setTimeout(() => pullQR(force), 500);
+    return Promise.resolve();
+  }
+  qrTries = 0;
+  qrInflight = Promise.resolve(
+    D.from("yb_settings").select("key,value").eq("key", "jiaojiao_qr").maybeSingle()
+  ).then(r => {
+    if (!r || r.error || !r.data) return;      /* 没配置过 / 读取失败：保持当前图 */
+    const v = r.data.value || "";
+    if (v) {
+      applyQR(v);
+      try { localStorage.setItem("yrb_jj_qr", v); } catch (e) {}
+    } else {
+      applyQR("");                              /* 后台恢复默认 */
+      try { localStorage.removeItem("yrb_jj_qr"); } catch (e) {}
+    }
+  }).catch(() => {}).then(() => {
+    qrPulled = true;
+    qrInflight = null;
+  });
+  return qrInflight;
+}
+
+/* 一进娇娇页就取一次（之后靠缓存 + 后台改图事件） */
+function whenJiaojiaoVisible() {
+  const page = document.querySelector("#page-jiaojiao");
+  if (!page) return;
+  if (page.classList.contains("active")) { pullQR(); return; }
+  try {
+    /* 只读观察 class，不写被观察元素，不会触发 observer 自循环 */
+    const mo = new MutationObserver(() => { if (page.classList.contains("active")) pullQR(); });
+    mo.observe(page, { attributes: true, attributeFilter: ["class"] });
+  } catch (e) {}
+}
+
+/* 云端 SDK 就绪 → 只有正停在娇娇页时才补读（首页不再白拉） */
+window.addEventListener("yrb-cloud-ready", () => {
+  try { if (jjVisible()) pullQR(); } catch (e) {}
+});
 /* 后台刚换完二维码 → 立即反映到正开着的家教页 */
 window.addEventListener("yrb-jj-qr", (ev) => {
   const v = ev && ev.detail && ev.detail.value;
   if (v) applyQR(v);            /* 后台已拿到新值：先本地立即生效 */
-  loadQR();                     /* 再用云端真相校准（多设备一致） */
+  pullQR(true);                 /* 再用云端真相校准（多设备一致） */
 });
 
 /* ================= 6. 启动 ================= */
 function boot() {
   buildPage();
   if (qrCurrent) applyQR(qrCurrent);   /* 页面刚建好，把已知二维码补上 */
-  bind(); loadQR();
+  bind();
+  loadQR();                            /* 只应用本地缓存，不触网 */
+  whenJiaojiaoVisible();               /* 真正进娇娇页时才向云端取 */
   try { renderFuncRow(); } catch (e) {}   /* 立即补上入口（此时 renderFuncRow 已是包装版） */
 }
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);

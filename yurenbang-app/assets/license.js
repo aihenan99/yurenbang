@@ -39,7 +39,10 @@
     if (loading || !C || !C.enabled || !C.enabled() || !C.client || !C.client.database) return;
     loading = true;
     try {
-      const r = await C.client.database.from("yb_settings").select("key,value");
+      /* 2026-11-04 性能：原来拉整表 select("key,value")，把 yb_settings 里
+         所有键都拖下来 —— 包括 150KB 的娇娇二维码 base64（跨境约 1.5 秒）。
+         证照只关心 license_* 五个键，按 key 精确取，返回通常 0 行。 */
+      const r = await C.client.database.from("yb_settings").select("key,value").in("key", LICENSES.map(L => L.key));
       const rows = (r && r.data) || [];
       if (rows.length) {
         let dirty = false;
@@ -169,6 +172,9 @@
     refresh: pull
   };
 
-  /* 启动后预热一次：打开「资质证照」时无需等待 */
-  setTimeout(pull, 1500);
+  /* 启动不再预热。
+     2026-11-04 性能：以前这里是 setTimeout(pull, 1500)，每个访客首屏后 1.5 秒
+     都要白拉一次设置表（含 150KB 二维码），只为「点开资质页时快一点」。
+     证照页是低频入口，现在改为点开才拉（openSubpage("license") 里已调 pull），
+     平时零请求；已看过的内容有 localStorage 缓存，再点也是秒开。 */
 })();
