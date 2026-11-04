@@ -25,8 +25,7 @@ img{max-width:100%;height:auto}
 
 /* ---------- 顶栏 ---------- */
 .site-head{
-  position:sticky;top:0;z-index:20;background:rgba(250,245,239,.92);
-  backdrop-filter:blur(12px);border-bottom:1px solid var(--rule);
+  position:sticky;top:0;z-index:20;background:#faf5ef;border-bottom:1px solid var(--rule);
 }
 .site-head .in{
   max-width:760px;margin:0 auto;padding:12px 18px;

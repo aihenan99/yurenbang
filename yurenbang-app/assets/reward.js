@@ -178,15 +178,17 @@ function applause(sec) {
   bed.start(t0); bed.stop(t0 + sec + 0.1);
   return { stop() { try { master.gain.cancelScheduledValues(c.currentTime); master.gain.setTargetAtTime(0.0001, c.currentTime, 0.05); } catch (e) {} } };
 }
-/* 首次交互时解锁音频（iOS/Safari 需要用户手势后才能出声） */
+/* 首次交互时解锁音频（iOS/Safari 需要用户手势后才能出声）
+   2026-11-04：原来同时监听 touchstart 和 click。touchstart 会被「每一次上下滑动」触发，
+   而新建 AudioContext 在中低端机上要 200~450ms（实测），正好卡在用户第一次上滑那一下，
+   表现就是「一滑就顿一下」。真正要出声必须点按钮（click 手势），
+   掌声那一路本来也会自己调 ac()，所以只留 click 完全不影响到发声。 */
 (function unlock() {
   const go = () => {
     const c = ac();
     if (c) { const b = c.createBuffer(1, 1, c.sampleRate); const s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); }
-    document.removeEventListener("touchstart", go, true);
     document.removeEventListener("click", go, true);
   };
-  document.addEventListener("touchstart", go, true);
   document.addEventListener("click", go, true);
 })();
 

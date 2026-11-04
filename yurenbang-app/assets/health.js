@@ -434,4 +434,48 @@
                last: recent ? (new Date(recent.t).toLocaleString() + " " + recent.evt + " " + recent.layer + " " + recent.msg) : "无" };
     }
   };
+
+  /* ---------------- 真机帧率自测（?fps=1） ----------------
+     桌面上 Chrome 用 GPU 走快速路径，测不出低端机/微信内核的真实代价，
+     所以留一个现场可用的量化开关：地址后面加 ?fps=1，右下角出现小面板，
+     显示实时帧率、最近 3 秒掉帧比例、最长一帧，以及本机型号信息。
+     用户截图报「卡」，就有数字可对，不用再猜。只在带参数时运行，平时零开销。 */
+  if (/[?&]fps=1\b/.test(location.search) && !window.__yrbFps) {
+    window.__yrbFps = true;
+    var box = document.createElement("div");
+    box.id = "yrbFpsBox";
+    box.style.cssText = "position:fixed;right:8px;bottom:88px;z-index:99998;font:600 11px/1.5 -apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;" +
+      "background:rgba(20,16,12,.86);color:#fff;padding:7px 9px;border-radius:9px;pointer-events:auto;" +
+      "box-shadow:0 4px 14px rgba(0,0,0,.3);white-space:pre;max-width:76vw";
+    box.textContent = "帧率测速中…";
+    var add = function () { try { (document.getElementById("phone") || document.body).appendChild(box); } catch (e) {} };
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", add); else add();
+
+    var gaps = [], tPrev = 0, worst = 0, runMax = 0;
+    (function tick(t) {
+      if (tPrev) {
+        var g = t - tPrev;
+        gaps.push(g);
+        if (gaps.length > 180) gaps.shift();          /* 约 3 秒窗口 */
+        if (g > worst) worst = g;
+      }
+      tPrev = t;
+      requestAnimationFrame(tick);
+    })(0);
+    setInterval(function () {
+      if (!gaps.length) return;
+      var sorted = gaps.slice().sort(function (a, b) { return a - b; });
+      var p95 = sorted[Math.floor(sorted.length * 0.95)] || 0;
+      var drop = gaps.filter(function (x) { return x > 25; }).length / gaps.length;
+      var fps = Math.round(1000 / (gaps.reduce(function (s, x) { return s + x; }, 0) / gaps.length));
+      runMax = Math.max(runMax, worst);
+      var mem = navigator.deviceMemory || "?", cpu = navigator.hardwareConcurrency || "?";
+      var wx = /MicroMessenger/i.test(navigator.userAgent) ? "微信 " + (navigator.userAgent.match(/MicroMessenger\/([\d.]+)/) || [, "?"])[1] : "非微信";
+      box.textContent =
+        "帧率 " + fps + "fps   掉帧 " + Math.round(drop * 100) + "%\n" +
+        "95% 帧 " + p95.toFixed(1) + "ms   最慢 " + worst.toFixed(0) + "ms\n" +
+        wx + "   CPU " + cpu + "核   内存 " + mem + "G";
+      worst = 0;
+    }, 700);
+  }
 })();

@@ -42,6 +42,7 @@ const REGISTRY = [
   { sel: "#gift", value: 99989, why: "满屏感谢动画：同上，全屏里点赞也要有反馈" },
   { sel: "#yrbUpg", value: 99997, why: "强制升级面板：不许被任何页面内容或提示条遮住" },
   { sel: "#yrbHealthBar", value: 99998, why: "健康探针条：仅 ?health=1 时出现，排障时需要压住一切" },
+  { sel: "#yrbFpsBox", value: 99998, why: "真机帧率面板：仅 ?fps=1 时出现，排障时需要压住一切（与健康探针条同档）" },
   { sel: "#yrbUpgToast", value: 99991, why: "升级层的兜底提示气泡（window.toast 缺失时用），必须低于升级面板本身" }
 ];
 
