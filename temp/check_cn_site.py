@@ -166,13 +166,23 @@ def main():
             st, hd, body = http(f"{base}/yrbtts?t=%E4%BD%A0%E5%A5%BD&r=norm",
                                 {"Referer": base + "/"})
             if st != 200:
-                return False, f"HTTP {st} ← /yrbtts 回源 CF，检查 CF 边缘是否还活着"
+                return False, (f"HTTP {st} ← 本机服务和 CF 兜底都没出声，"
+                               f"先 systemctl status yrbtts")
             ct = hd.get("content-type", "")
             if "audio" not in ct:
                 return False, f"content-type={ct!r}（应为 audio/mpeg）"
             if len(body) < 1000:
                 return False, f"只有 {len(body)} 字节，不像有效音频"
-            return True, f"audio/mpeg {len(body)} 字节"
+            # Bridge 头告诉你走的是哪条路：1=本机 Node 服务，2=回源 CF 兜底。
+            # 只看「有声」不够 —— 本机服务挂了也照样有声（走兜底），
+            # 那等于没发现回归。所以 Bridge=2 时只算「可用但降级」。
+            bridge = hd.get("x-yrb-tts-bridge", "?")
+            if bridge == "1":
+                return True, f"audio/mpeg {len(body)} 字节（本机合成）"
+            if bridge == "2":
+                return (False, f"audio/mpeg {len(body)} 字节，但走的是 CF 兜底："
+                               f"systemctl status yrbtts 看本机服务为什么挂了")
+            return True, f"audio/mpeg {len(body)} 字节（Bridge 头缺失，可能是旧配置）"
 
         check("TTS 真能合成音频", c_tts)
 

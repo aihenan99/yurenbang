@@ -72,12 +72,14 @@ bash /tmp/deploy-tencent/install.sh /tmp/yrb-release
 | `curl -I http://<IP>/不存在的路径` | 404，页面是站内 `error.html` |
 | 浏览器打开 `http://<IP>/` | 首页正常，控制台无大量报错 |
 | 首页留言区 | 能读到云端数据（说明 `/yrbapi` 或 `/sbapi` 通了） |
-| 点卡片上的 🔊 | 能出声（说明 `/yrbtts` 回源通了） |
+| 点卡片上的 🔊 | 能出声，且响应头 `X-YRB-TTS-Bridge: 1`（`2` 表示走 CF 兜底，本机服务挂了） |
 
 ## 两个现实约束
 
 1. **域名不能直接绑**：境内服务器对未备案域名会拦，先用 `http://<IP>/` 验证功能；要正式对外必须先完成 ICP 备案（备案主体、材料清单另出）。
-2. **TTS 依赖 Cloudflare**：`/yrbtts` 目前靠回源原站，所以 Cloudflare 上的部署**不能删**。要让服务器完全独立，需要写一个 Node 版 TTS（`temp/edge-tts-v2.js` 里已有令牌算法源码），届时替换 `location = /yrbtts` 那一段即可。
+2. ~~**TTS 依赖 Cloudflare**~~ → **2026-11-04 已解决**：`/yrbtts` 改成主路走本机 Node 服务
+   （`tts/yrbtts.mjs`，systemd 常驻），CF 只是兜底。所以现在这台机器**能独立跑**，
+   CF 上的部署可以动，但建议保留当兜底通道（见 `tts/README.md`）。
 
 ## 回滚
 
@@ -126,3 +128,22 @@ rsync -a /tmp/yrb-release/ /var/www/yrb/
 首页 200/2.2s、31 个层全部加载、构建号 `20261103201845` 与生产一致；信息流 13 条真实云端帖子、
 案例 7 张卡片；`/yrbapi/` 200、`/yrbtts` 200（audio/mpeg 11KB）；无同源放行漏洞
 （无 Origin 无 Referer → 403）；唯一控制台提示是探针自己打的 `/sbapi/` 裸路径 404（Supabase 根路径本就 404，非错误）。
+
+### 追加：语音合成搬回本机（2026-11-04 晚）
+
+原来 `/yrbtts` 是回源 CF，属于「境内机器其实不独立」的最后一个缺口。现在本机 Node 服务当主路。
+
+实测四项（都在服务器上做的）：
+
+| 场景 | 结果 |
+|---|---|
+| 直接问本机服务 `127.0.0.1:8791` | 200 audio/mpeg **14544 字节 / 1445ms**（与本机开发机字节数完全一致） |
+| 经 nginx `127.0.0.1/yrbtts` | 200 audio/mpeg，`X-YRB-TTS-Bridge: 1`、`x-yrb-tts: miss` / 1043ms |
+| 停掉 yrbtts 再请求（验兜底） | 200 audio/mpeg 11232 字节，`Bridge: 2` 来自 CF / 1748ms，站点不报错 |
+| 恢复服务后跑巡检 | 9/9 通过，TTS 项显示「本机合成」 |
+
+传输过程本身也踩了一次坑，记下来：`execute_command` 单条 2048 字符，16KB 的
+`yrbtts.mjs` 走 base64 分 8 片传；中途漏了一片，`base64 -d` 出来的包比本地小 1900 字节、
+sha256 对不上。用「每片前 24 字符做指纹 grep」定位到缺第 2 片，按偏移拼接后 sha256
+与本地逐字一致（`d364b24c…`）。**以后传文件一律先比 sha256 再用**。
+

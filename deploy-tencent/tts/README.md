@@ -73,3 +73,16 @@ systemctl restart yrbtts
 | 503 busy | 排队超 24 个 | 异常流量，查 access log |
 
 `X-YRB-TTS-Bridge` 是判断走哪条路的第一眼证据：`1` = 本机合成，`2` = 回源 CF。
+
+## 怎么验兜底（改动 nginx 后必做一次）
+
+```bash
+systemctl stop yrbtts
+curl -s -o /tmp/a.mp3 -D- '127.0.0.1/yrbtts?t=你好' | grep -i x-yrb-tts-bridge   # 期望 2
+systemctl start yrbtts
+curl -s -o /tmp/a.mp3 -D- '127.0.0.1/yrbtts?t=你好' | grep -i x-yrb-tts-bridge   # 期望 1
+```
+
+2026-11-04 实测：停服务后走兜底 11232 字节 / 1748ms，站点不报错；恢复后 6912 字节 /
+`Bridge: 1`。注意 `max_fails=2 fail_timeout=30s`——刚停服务时头一两个请求还会撞一次
+connection refused，之后 30 秒内直接走 CF，不会每次朗读都等一个失败。
