@@ -1,0 +1,37 @@
+[Unit]
+Description=育人帮 语音合成服务（本地 Edge TTS，替代回源 CF）
+Documentation=file:/opt/yrbtts/README.md
+# 先起网再起服务：合成要连微软端点，网络没就绪时启动会立刻失败并重试
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/yrbtts
+Environment=NODE_ENV=production
+Environment=YRB_TTS_HOST=127.0.0.1
+Environment=YRB_TTS_PORT=8791
+ExecStart=/usr/bin/node /opt/yrbtts/yrbtts.mjs
+Restart=always
+RestartSec=3
+
+# 2C2G 的小机器：内存超限直接重启进程，不要拖死整机
+MemoryMax=384M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LimitNOFILE=4096
+
+# 日志走 journald：journalctl -u yrbtts -f
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=yrbtts
+
+[Install]
+WantedBy=multi-user.target

@@ -65,6 +65,7 @@ E:\育人帮\
 │   ├── zindex-audit.mjs     层叠阶梯（z-index 落区间 + 高层级必须登记）
 │   ├── privacy-audit.mjs    隐私合规回归（政策条款/同意闸门/零假开关）
 │   ├── secret-hygiene.mjs   白名单目录的真凭据守卫（tests/ docs/ temp/）
+│   ├── tts-sync.mjs         本地 TTS 与 Worker 的令牌算法逐字比对（防复制漂移）
 │   ├── csp-rehearsal.mjs    CSP 转强制本地演练（npm run verify:csp，真浏览器零违规才算过）
 │   └── worker-headers.mjs   真的调一次 Worker 核对安全响应头
 │

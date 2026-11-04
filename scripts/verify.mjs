@@ -268,6 +268,21 @@ step("泄密守卫：被白名单放行的目录里没有真凭据形态", () =>
   return { ok: true, msg: m ? m[1] + " 个文本文件 / " + m[2] + " 条规则，零命中" : "通过" };
 });
 
+/* ---------- 4.8 语音服务与 Worker 同源 ---------- */
+/* deploy-tencent/tts/yrbtts.mjs 的令牌算法是从 _worker.js 切出来复制的
+   （定制哈希，手抄错一位就 403）。复制就会漂移，漂移的表现是「境内站读不出声、
+   CF 站点正常」——不查这一步根本想不到是复制导致。 */
+step("语音服务同源：本地 TTS 的令牌算法与 Worker 逐字一致", () => {
+  const r = spawnSync(process.execPath, [join(ROOT, "scripts", "tts-sync.mjs")], { encoding: "utf8" });
+  const out = (r.stdout || "") + (r.stderr || "");
+  if (r.status !== 0) {
+    const lines = out.split("\n").filter((l) => l.trim() && !l.includes("修复："));
+    throw new Error(lines.slice(0, 3).map((l) => l.trim()).join(" / ") || "语音服务与 Worker 不同源");
+  }
+  const m = out.match(/算法段 (\d+) 行逐字一致/);
+  return { ok: true, msg: m ? "算法段 " + m[1] + " 行一致，令牌常量同值" : "通过" };
+});
+
 /* ---------- 4. 部署一致性：源码与待部署包是否同源 ---------- */
 if (!FAST) {
   const PY = process.platform === "win32" ? "python" : "python3";

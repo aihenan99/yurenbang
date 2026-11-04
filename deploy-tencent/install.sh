@@ -87,7 +87,55 @@ find "$SITE" -type d -exec chmod 755 {} +
 find "$SITE" -type f -exec chmod 644 {} +
 echo "文件数：$(find "$SITE" -type f | wc -l)"
 
-# ---------- 5. 写 nginx 配置 ----------
+# ---------- 5. 语音合成服务（本机 Node，替代回源 CF） ----------
+# 为什么要有这一步：原来 /yrbtts 是 proxy_pass 回源 Cloudflare 的 Worker，
+# 于是「境内机器」其实是半个独立——CF 一停，朗读就哑。这个 Node 服务把
+# 同一套 Edge TTS 逻辑搬到本机，境内站才算真的能自己跑。
+say "安装语音合成服务（yrbtts）"
+TTS_DIR="/opt/yrbtts"
+TTS_SVC="/etc/systemd/system/yrbtts.service"
+NODE_BIN="$(command -v node || true)"
+
+if [ -z "$NODE_BIN" ]; then
+  warn "未装 Node，尝试安装 Node.js 22（服务需要内置 WebSocket，Node 18 没有）"
+  if command -v apt-get >/dev/null 2>&1; then
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash - >/tmp/yrb-node-install.log 2>&1 \
+      || die "Node 源脚本执行失败，见 /tmp/yrb-node-install.log"
+    apt-get install -y nodejs >>/tmp/yrb-node-install.log 2>&1 || die "Node 安装失败，见 /tmp/yrb-node-install.log"
+  else
+    die "非 apt 系统请先手动装 Node.js >= 20，再重跑本脚本"
+  fi
+  NODE_BIN="$(command -v node || true)"
+  [ -n "$NODE_BIN" ] || die "Node 装完仍找不到 node 命令"
+fi
+
+# Node 18 没有全局 WebSocket，会静默连不上微软端点，必须先拦
+NODE_MAJOR="$("$NODE_BIN" -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
+echo "Node：$NODE_BIN（v$NODE_MAJOR）"
+[ "$NODE_MAJOR" -ge 20 ] 2>/dev/null || die "Node 版本过低（需 >= 20，当前 v$NODE_MAJOR），请升级后重跑"
+
+mkdir -p "$TTS_DIR"
+install -m 644 "$(dirname "$0")/tts/yrbtts.mjs" "$TTS_DIR/yrbtts.mjs"
+if [ -f "$(dirname "$0")/tts/README.md" ]; then
+  install -m 644 "$(dirname "$0")/tts/README.md" "$TTS_DIR/README.md"
+fi
+chown -R www-data:www-data "$TTS_DIR"
+
+# 单元里的 /usr/bin/node 换成实际路径（有的系统装在 /usr/local/bin）
+sed "s#/usr/bin/node#$NODE_BIN#g" "$(dirname "$0")/tts/yrbtts.service" > "$TTS_SVC"
+chmod 644 "$TTS_SVC"
+systemctl daemon-reload
+systemctl enable yrbtts >/dev/null 2>&1 || true
+systemctl restart yrbtts
+sleep 2
+if systemctl is-active --quiet yrbtts; then
+  echo "服务已启动：systemctl status yrbtts"
+else
+  warn "yrbtts 未启动，/yrbtts 会自动回源 CF 兜底（站点不受影响）"
+  journalctl -u yrbtts -n 20 --no-pager 2>/dev/null || true
+fi
+
+# ---------- 6. 写 nginx 配置 ----------
 say "安装 nginx 配置"
 mkdir -p /etc/nginx/snippets
 # 注意：片段里也有 __BUILD__，必须一起 sed，否则响应头会原样吐出 __BUILD__（实测踩过）
@@ -113,13 +161,13 @@ for d in /etc/nginx/sites-enabled/default /etc/nginx/conf.d/default.conf; do
   fi
 done
 
-# ---------- 6. SELinux（CentOS 系反代必需） ----------
+# ---------- 7. SELinux（CentOS 系反代必需） ----------
 if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" = "Enforcing" ]; then
   say "SELinux 为 Enforcing，放行 nginx 出网"
   setsebool -P httpd_can_network_connect 1 || warn "setsebool 失败，反代可能 502"
 fi
 
-# ---------- 7. 校验并生效 ----------
+# ---------- 8. 校验并生效 ----------
 say "nginx -t 校验"
 if ! nginx -t 2>&1 | tee /tmp/yrb-nginx-test.log | tail -3; then
   warn "配置校验失败，回滚到上一版配置"
@@ -132,13 +180,25 @@ systemctl reload nginx 2>/dev/null || systemctl restart nginx
 sleep 1
 systemctl is-active --quiet nginx || die "nginx 未启动，查 journalctl -u nginx -n 50"
 
-# ---------- 8. 自检 ----------
+# ---------- 9. 自检 ----------
 say "本机自检"
 IP="$(curl -s --max-time 3 https://api.ipify.org || hostname -I | awk '{print $1}')"
 for p in / /build.json /assets/app.css /yrbtapi-test; do
   code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 8 "http://127.0.0.1$p" || echo ERR)"
   printf '  %-22s %s\n' "$p" "$code"
 done
+
+# 语音合成单独验：不光看状态码，要看真的出了音频字节（有过「200 但 0 字节」的先例）
+TTS_HEAD="$(curl -s -o /tmp/yrb-tts-probe.mp3 -w '%{http_code} %{content_type}' --max-time 25 \
+  "http://127.0.0.1/yrbtts?t=%E4%BD%A0%E5%A5%BD&r=norm" || echo "ERR -")"
+TTS_BYTES="$(wc -c </tmp/yrb-tts-probe.mp3 2>/dev/null || echo 0)"
+printf '  %-22s %s (%s 字节)\n' "/yrbtts" "$TTS_HEAD" "$TTS_BYTES"
+if [ "$TTS_BYTES" -lt 2000 ] 2>/dev/null; then
+  warn "语音合成没出音频：先看 systemctl status yrbtts，再 journalctl -u yrbtts -n 30"
+  warn "若本机服务正常但仍无音频，可能是出口到微软端点不通——此时 nginx 会回源 CF 兜底"
+fi
+rm -f /tmp/yrb-tts-probe.mp3
+
 echo
 echo "站点根：$SITE"
 echo "构建号：$BUILD"

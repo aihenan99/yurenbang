@@ -10,19 +10,24 @@
 |---|---|
 | `/yrbapi*` → `yurenbang.app.workbuddy.host`（Origin 改写 + 同源校验 + 限流） | `location ^~ /yrbapi` + `proxy_set_header Origin` + `if` 同源判断 + `limit_req` |
 | `/sbapi*` → `nyqpovygnwinjsjoiadw.supabase.co` | 同上，`location ^~ /sbapi` |
-| `/yrbtts`（Edge TTS，需 Sec-MS-GEC 令牌 + WebSocket） | nginx 做不了 → 回源 `https://xn--gmqq09al6z.cn/yrbtts`，把 `Origin` 改成白名单域名以通过其同源校验 |
+| `/yrbtts`（Edge TTS，需 Sec-MS-GEC 令牌 + WebSocket） | nginx 做不了 → 本机 Node 服务 `tts/yrbtts.mjs` 直连微软端点；服务挂了才回源 CF 兜底 |
 | 静态资源 + 安全头 + Cache-Control | `root /var/www/yrb` + `include snippets/yrb-security.conf` |
 
-**不需要装 Node、不需要装数据库、不需要编译**，只依赖 nginx 一个包。轻量服务器 2核2G 跑这个站绰绰有余（纯静态，主要开销是回源的 TTS 音频）。
+**依赖极少**：nginx 一个包 + Node 22（只给语音合成用，装完 60MB 内存）。不需要数据库、
+不需要编译。轻量服务器 2核2G 跑这个站绰绰有余（纯静态，主要开销是语音合成的出口流量）。
 
 ## 目录
 
 ```
 deploy-tencent/
 ├── install.sh                  # 服务器上一键安装（幂等、先备份、nginx -t 不过就回滚配置）
-└── nginx/
-    ├── yrb-site.conf           # 站点配置（三条代理 + 静态 + 缓存/错误页）
-    └── yrb-security.conf       # 安全响应头（照抄 worker 的 secure()）
+├── nginx/
+│   ├── yrb-site.conf           # 站点配置（三条代理 + 静态 + 缓存/错误页）
+│   └── yrb-security.conf       # 安全响应头（照抄 worker 的 secure()）
+└── tts/
+    ├── yrbtts.mjs              # 本机语音合成服务（算法段自动生成，勿手改）
+    ├── yrbtts.service          # systemd 单元
+    └── README.md               # 接口约定、运维命令、排障对照
 ```
 
 ## 部署步骤
