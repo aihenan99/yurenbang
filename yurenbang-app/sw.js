@@ -22,6 +22,7 @@ const CORE = [
   '/assets/app.css', '/assets/app.js',
   '/assets/refine23.css', '/assets/refine23.js',
   '/assets/access.css', '/assets/access.js',
+  '/assets/navback.js',
   '/assets/capture.css', '/assets/capture.js',
   '/assets/cloud.css', '/assets/cloud.js', '/assets/yb-sb.js',
   '/assets/staticcases.css', '/assets/staticcases.js',

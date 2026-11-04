@@ -195,8 +195,8 @@ if (!trackedAssets) {
 /* ---------- 汇总 ---------- */
 console.log("");
 if (bad === 0) {
-  console.log(C.g + "✓ 四处登记一致 · 被引用的资源都已入库" + C.x + C.d + "（" + htmlLayers.length + " 层）" + C.x + "\n");
+  console.log(C.g + "✓ 五处登记一致 · 被引用的资源都已入库" + C.x + C.d + "（" + htmlLayers.length + " 层）" + C.x + "\n");
   process.exit(0);
 }
-console.log(C.r + "✗ " + bad + " 项不一致" + C.x + C.d + " —— 加层请对照 docs/开发手册.md 的「四处登记」，别忘 git add" + C.x + "\n");
+console.log(C.r + "✗ " + bad + " 项不一致" + C.x + C.d + " —— 加层请对照 docs/开发手册.md 第 4 节的「五处登记」，别忘 git add" + C.x + "\n");
 process.exit(1);

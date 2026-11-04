@@ -115,7 +115,7 @@ step("状态边界审计（契约 vs 实际写入）", () => {
   return { ok: true, msg: last.replace(/^✓\s*/, "") };
 });
 
-/* ---------- 3. 层登记一致性：加层四处登记有没有漏 ---------- */
+/* ---------- 3. 层登记一致性：加层五处登记有没有漏 ---------- */
 step("层登记一致性（html / sw / health / build.json）", () => {
   const r = spawnSync(process.execPath, [join(ROOT, "scripts", "layers-audit.mjs")], {
     encoding: "utf8"
@@ -339,7 +339,9 @@ const LINES = [
         /* 长辈模式三层（媒体全屏 / 图文编辑器 / PPT 全屏）——老年人可用性的回归底线 */
         ["长辈模式三层适配", "elder-test.js"],
         /* 层叠顺序：提示必须盖过全屏层（#toast 曾长期低于 #vpFull，全屏里「点了没反应」） */
-        ["层叠顺序与提示可见性", "layering-test.js"]
+        ["层叠顺序与提示可见性", "layering-test.js"],
+        /* 返回手势：手机侧滑/返回键退一级菜单，而不是退出整个页面（2026-11-04 用户反馈） */
+        ["侧滑/返回键退一级菜单", "navback-test.js"]
       ]
     }
   ];

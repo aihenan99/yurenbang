@@ -45,6 +45,9 @@
       probe: function () { return !!window.YRB_R23; } },
     { id: "access", file: "assets/access.js", flag: "YRB_MYLIST", severity: "major",
       probe: function () { return !!window.YRB_MYLIST; } },
+    /* 返回手势层：手机侧滑 / 返回键退一级菜单。缺了应用照常能用，只是又会「滑一下就退出」 */
+    { id: "navback", file: "assets/navback.js", flag: "YRB_NAVBACK", severity: "minor",
+      probe: function () { return !!(window.YRB_NAVBACK && window.YRB_NAVBACK.ready); } },
     { id: "yb-sb", file: "assets/yb-sb.js", flag: "YRB_SB", severity: "core",
       probe: function () {
         return !!(window.YRB_SB && typeof window.YRB_SB.createClient === "function");

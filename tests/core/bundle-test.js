@@ -45,6 +45,10 @@ function ck(name, cond, info) {
        绝对路径 /assets/x 在本地必然 404。这类不算缺陷——
        只要 deploy-cn 里确实有这个文件，就是路径前缀造成的假象。 */
     if (fs.existsSync(DEPLOY + u.pathname)) return;
+    /* 2026-11-04：/sbapi 是「同源云代理」，只有 _worker.js / nginx 才提供。
+       本地 python -m http.server 必然 404，这是环境差异不是部署包缺文件，
+       否则冒烟测试永远假红（2026-11-01 迁移到自建 Supabase 后就一直如此）。 */
+    if (u.pathname.indexOf("/sbapi/") === 0) return;
     missing.push(u.pathname + " " + r.status());
   });
 
