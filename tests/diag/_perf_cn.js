@@ -115,5 +115,26 @@ const URL = process.argv[2] || "http://118.89.185.37/";
     console.log("  " + String(r.dur).padStart(5) + "ms", String((r.size / 1024).toFixed(1)).padStart(7) + "KB", r.name.split("/sbapi")[1].slice(0, 90));
   }
 
+  /* ---- 回归断言（2026-11-04）----
+     首屏绝不该拉娇娇二维码：它是 149KB 的 base64，只在「娇娇」页显示。
+     曾经被 boot / cloud-ready / license 预热各拉一次，三次共 448KB、4.5 秒。
+     这里做成断言，谁改回去当场就能看见。 */
+  console.log("\n== 回归断言 ==");
+  const qr = rs.filter((r) => r.name.includes("jiaojiao_qr"));
+  if (qr.length) {
+    console.log("  ✗ 首屏仍在拉娇娇二维码 " + qr.length + " 次（"
+      + (qr.reduce((s, r) => s + r.size, 0) / 1024).toFixed(1) + "KB）—— 应改为进入娇娇页才拉");
+    process.exitCode = 1;
+  } else {
+    console.log("  ✓ 首屏未拉娇娇二维码");
+  }
+  const bigFetch = rs.filter((r) => r.type === "fetch" && r.size > 60 * 1024);
+  if (bigFetch.length) {
+    console.log("  ✗ 首屏有超过 60KB 的数据请求：" + bigFetch.map((r) => r.name.split("/sbapi")[1]?.slice(0, 40) + "=" + (r.size / 1024).toFixed(0) + "KB").join("，"));
+    process.exitCode = 1;
+  } else {
+    console.log("  ✓ 数据请求都在 60KB 以内");
+  }
+
   await browser.close();
 })().catch((e) => { console.error("FATAL", e); process.exit(1); });
