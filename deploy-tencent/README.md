@@ -47,6 +47,19 @@ bash /tmp/deploy-tencent/install.sh /tmp/yrb-release
 
 ## 验收清单
 
+**一条命令跑完**（推荐，2026-11-04 起）：
+
+```bash
+.venv/Scripts/python.exe temp/check_cn_site.py                 # 默认 http://118.89.185.37
+.venv/Scripts/python.exe temp/check_cn_site.py --base http://<IP或域名> --skip-tts
+```
+
+9 项：首页 200 且 no-cache、构建号与 `deploy-cn/build.json` 一致、首页资源全 200、
+静态资源带缓存头、`/yrbtts` 真出声、`/sbapi` 带 Referer 200 / 不带 403、
+云端帖子可读、404 落站内页、`/index.html` 可达。全通过才叫部署完成。
+
+手工对照（排查单项时用）：
+
 | 检查项 | 期望 |
 |---|---|
 | `curl -I http://<IP>/` | 200，含 `X-YRB-Edge: <构建号>`、`Cache-Control: no-cache` |
