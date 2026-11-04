@@ -138,6 +138,9 @@ fi
 # ---------- 6. 写 nginx 配置 ----------
 say "安装 nginx 配置"
 mkdir -p /etc/nginx/snippets
+# /sbapi 的匿名读缓存目录（见 yrb-site.conf 的 proxy_cache_path）。
+# nginx 以 root 启动时会自己建，但提前建好可以避免首次 reload 前的权限试探。
+mkdir -p /var/cache/nginx/yrb_sb
 # 注意：片段里也有 __BUILD__，必须一起 sed，否则响应头会原样吐出 __BUILD__（实测踩过）
 sed "s/__BUILD__/$BUILD/g" "$(dirname "$0")/nginx/yrb-security.conf" > "$SNIP"
 chmod 644 "$SNIP"
