@@ -253,6 +253,21 @@ step("层叠阶梯：z-index 落在契约区间且高层级已登记", () => {
   return { ok: true, msg: m ? `${m[1]} 处 / ${m[2]} 个值，高层级 ${m[3]} 处全部登记` : "通过" };
 });
 
+/* ---------- 4.7 白名单目录的独立守卫 ---------- */
+/* .gitleaks.toml 对 tests//docs/ 是**整目录放行**（里面假占位太多，逐条列太脆）。
+   副作用是"以后真往里写了真密钥，gitleaks 也不吭声"。这一项用高精度规则独立扫，
+   只看凭据形态、不看值真假——整目录放行的地方必须另有一道门。 */
+step("泄密守卫：被白名单放行的目录里没有真凭据形态", () => {
+  const r = spawnSync(process.execPath, [join(ROOT, "scripts", "secret-hygiene.mjs")], { encoding: "utf8" });
+  const out = (r.stdout || "") + (r.stderr || "");
+  if (r.status !== 0) {
+    const bad = out.split("\n").filter((l) => l.includes("✗")).map((l) => l.trim());
+    throw new Error(bad.slice(0, 3).join(" / ") || "守卫未通过");
+  }
+  const m = out.match(/（(\d+) 个文本文件，规则 (\d+) 条）/);
+  return { ok: true, msg: m ? m[1] + " 个文本文件 / " + m[2] + " 条规则，零命中" : "通过" };
+});
+
 /* ---------- 4. 部署一致性：源码与待部署包是否同源 ---------- */
 if (!FAST) {
   const PY = process.platform === "win32" ? "python" : "python3";

@@ -62,6 +62,9 @@ E:\育人帮\
 │   ├── verify.mjs           统一验证入口（npm run verify）
 │   ├── state-audit.mjs      状态边界静态审计
 │   ├── layers-audit.mjs     层登记四处对齐 + 资源入库校验 + 体积预算
+│   ├── zindex-audit.mjs     层叠阶梯（z-index 落区间 + 高层级必须登记）
+│   ├── privacy-audit.mjs    隐私合规回归（政策条款/同意闸门/零假开关）
+│   ├── secret-hygiene.mjs   白名单目录的真凭据守卫（tests/ docs/ temp/）
 │   ├── csp-rehearsal.mjs    CSP 转强制本地演练（npm run verify:csp，真浏览器零违规才算过）
 │   └── worker-headers.mjs   真的调一次 Worker 核对安全响应头
 │
@@ -349,6 +352,7 @@ npm run hooks          # = git config core.hooksPath .githooks
 | 依赖/泄密 | `npm audit` + gitleaks 全历史，push/PR/每周一体检 | `.github/workflows/security.yml` |
 | 私有配置 | 管理员手机号不在源码，`config/admin.local.json` → sync 注入 `window.YRB_ADMIN` | `config/` + `sync_deploy.py` |
 | 防回潮 | verify 仓库卫生：受管源码出现管理员手机号即失败 | `scripts/verify.mjs` |
+| 白名单补偿 | `tests/` `docs/` 被 gitleaks 整目录放行，另用 11 条高精度规则独立扫真凭据形态 | `scripts/secret-hygiene.mjs` |
 | 隐私合规 | 10 项回归自检（同意闸门/政策正文/限时签名/脱敏/零虚假状态/零装饰开关/政策条款/版本一致）+ 端到端 16 项 | `scripts/privacy-audit.mjs` + `tests/core/privacy-test.js` |
 | 政策正文 | `LG_DOCS.privacy` = 隐私政策 v2.0（14 节）、`LG_DOCS.child` = 儿童规则；设置页「隐私与个人信息」三个入口共用同一份文案，不重复抄 | `cloud.js` + `app.js` |
 | 阅读模式 | `YRB_CLOUD.openDoc(k,{readOnly:true})`：底部按钮为「关闭」，**不代勾**登录页同意框 | `cloud.js` |
