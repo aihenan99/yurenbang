@@ -43,6 +43,9 @@ temp/_worker_probe.mjs
 temp/_csp_rehearsal_worker.mjs
 *.log
 
+# ---------- 云端数据备份（含家长昵称与发布内容，绝不入库）----------
+backups/
+
 # ---------- 调试备份（*.bak_dbg 等，改文件前的人肉快照，可随时重做）----------
 *.bak
 *.bak_*
