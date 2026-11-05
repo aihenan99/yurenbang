@@ -260,7 +260,7 @@ function bindMic(btnId,btnRecHTML,btnNormalHTML,getTextTarget){
         与 2026-10-25 的错误分类（no-speech 静默续听、network 重试一次、权限类给指引）。 */
   const SRMSG={
     "audio-capture":"没有找到麦克风，请检查手机是否允许本网站使用麦克风 🎤",
-    "not-allowed":"麦克风权限被拒绝：请在浏览器设置里允许本网站使用麦克风",
+    "not-allowed":"麦克风权限被拒绝：请在手机「设置→应用管理→浏览器→权限」里允许麦克风，回来刷新再试",
     "service-not-allowed":"语音服务被浏览器限制，推荐用手机自带浏览器或 Chrome 再试",
     "language-not-supported":"当前浏览器不支持中文语音识别，推荐使用 Chrome / Edge"
   };
