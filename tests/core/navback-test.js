@@ -10,6 +10,10 @@
    N7 发布面板（底部面板）→ 返回 → 面板关闭且遮罩收起
    N8 弹窗（字体大小）→ 返回 → 弹窗关闭
    N9 全程无脚本错误
+   N10~N13 页面级返回（2026-11-05）：「我的 / 案例广场」这类页面上侧滑或右滑 → 回首页，不退出站点；
+            案例页 + 抽屉叠开时，连滑两次 = 先关抽屉、再回首页，全程不离开页面
+   N14~N16 详情这一级：点开帖子进全屏 → 返回退全屏 → 再返回关详情 → 仍在首页
+   N17~N18 落地保护：首页上再侧滑只停住（提示「已经在首页了」），2 秒内再滑一次才放行退出
    运行前：python -m http.server 8793 --bind 127.0.0.1（项目根，测 /deploy-cn/ 产物） */
 const BASE = process.env.YRB_BASE || "http://127.0.0.1:8793/deploy-cn/";
 const { chromium } = require("../../temp/pw/node_modules/playwright-core");
@@ -45,8 +49,14 @@ function ck(name, ok, extra) {
       modal: on("modal"),
       mask: !!(dr && dr.classList.contains("show")),
       guard: !!(history.state && history.state.__yrbGuard),
+      land: !!(history.state && history.state.__yrbLand),
       depth: window.YRB_NAVBACK ? YRB_NAVBACK.depth() : -1,
       list: window.YRB_NAVBACK ? YRB_NAVBACK.list() : [],
+      tab: (function () {
+        var a = document.querySelector(".page.active");
+        return a ? String(a.id || "").replace(/^page-/, "") : "";
+      })(),
+      detail: !!document.querySelector("#r23Detail.open"),
       url: location.href,
       alive: !!document.getElementById("feed"),
       nav: !!window.YRB_NAVBACK
@@ -77,7 +87,12 @@ function ck(name, ok, extra) {
 
   /* —— N4 一级 + 二级叠加：一次返回只退一级 —— */
   await p.evaluate(() => { openDrawer(); openSubpage("general"); });
-  await p.waitForTimeout(300);
+  /* 机器忙（verify 并行跑多条 e2e）时 300ms 可能不够渲染出二级页，等它真的开 */
+  await p.waitForFunction(() => {
+    const s = document.getElementById("subpage");
+    return !!(s && s.classList.contains("open"));
+  }, null, { timeout: 3000 }).catch(() => {});
+  await p.waitForTimeout(220);
   const s4a = await st();
   await p.evaluate(() => history.back());
   await p.waitForTimeout(450);
@@ -131,6 +146,103 @@ function ck(name, ok, extra) {
   const s8 = await st();
   ck("N8 弹窗：打开押占位 → 返回关闭", s8a.modal && s8a.guard && !s8.modal && s8.url === url0,
     JSON.stringify({ a: s8a, b: s8 }));
+
+  /* —— N10~N13 页面级返回（2026-11-05 用户反馈：左右滑动返回上一层，
+     多次滑动时应该回到首页而不是退出）—— */
+  await p.evaluate(() => switchTab("me"));
+  await p.waitForTimeout(400);
+  const s10 = await st();
+  ck("N10 切到「我的」→ 历史栈押上占位", s10.tab === "me" && s10.guard && s10.depth === 0, JSON.stringify(s10));
+
+  await p.evaluate(() => history.back());
+  await p.waitForTimeout(500);
+  const s11 = await st();
+  ck("N11 系统返回 → 回首页，页面没有被退出", s11.tab === "home" && s11.url === url0 && s11.alive, JSON.stringify(s11));
+  ck("N11b 回首页后占位已清（不残留）", !s11.guard, JSON.stringify(s11));
+
+  /* 案例广场页面上手指右滑 */
+  await p.evaluate(() => switchTab("cases"));
+  await p.waitForTimeout(500);
+  const s12a = await st();
+  await p.evaluate(() => {
+    const el = document.getElementById("page-cases");
+    const r = el.getBoundingClientRect();
+    const x = Math.max(140, r.left + Math.min(220, r.width / 2)), y = r.top + 80;
+    const mk = (ty, cx, cy) => new TouchEvent(ty, { bubbles: true, cancelable: true,
+      touches: ty === "touchend" ? [] : [new Touch({ identifier: 1, target: el, clientX: cx, clientY: cy })],
+      changedTouches: [new Touch({ identifier: 1, target: el, clientX: cx, clientY: cy })] });
+    el.dispatchEvent(mk("touchstart", x, y));
+    el.dispatchEvent(mk("touchend", x + 130, y + 4));
+  });
+  await p.waitForTimeout(500);
+  const s12 = await st();
+  ck("N12 案例广场页上左右滑 → 回首页", s12a.tab === "cases" && s12.tab === "home" && s12.url === url0,
+    JSON.stringify({ a: s12a, b: s12 }));
+
+  /* 多次返回：案例页上叠一级菜单 → 退一级关菜单 → 再退一级回首页（全程不离开页面） */
+  await p.evaluate(() => { switchTab("cases"); });
+  await p.waitForTimeout(400);
+  await p.evaluate(() => openDrawer());
+  await p.waitForTimeout(300);
+  const m1 = await st();
+  await p.evaluate(() => history.back());
+  await p.waitForTimeout(450);
+  const m2 = await st();
+  await p.evaluate(() => history.back());
+  await p.waitForTimeout(450);
+  const m3 = await st();
+  ck("N13a 案例页 + 抽屉：只押一条占位", m1.tab === "cases" && m1.drawer && m1.guard, JSON.stringify(m1));
+  ck("N13b 第一次返回只关抽屉，仍在案例页", !m2.drawer && m2.tab === "cases" && m2.url === url0, JSON.stringify(m2));
+  ck("N13c 第二次返回回首页，页面仍在", m3.tab === "home" && m3.url === url0 && m3.alive, JSON.stringify(m3));
+
+  /* —— N14~N16 详情页这一级：点开帖子 → 退全屏 → 关详情 → 仍在首页 —— */
+  const STUB_D = {
+    id: 9102, cloudId: 777, user: "返回手势测试家长", time: "刚刚", tag: "求助",
+    text: "用于测试返回手势的桩帖，请勿当真。", likes: 0, favs: 0, helps: 0, ava: "animal",
+    comments: [], roses: []
+  };
+  await p.evaluate((d) => { S.posts.unshift(d); if (typeof renderFeed === "function") renderFeed(); }, STUB_D);
+  await p.waitForTimeout(400);
+  /* 用真实点击（pointerdown/up 序列）：这样走 mediafull 的「点一下进全屏」，
+     而不是只触发 refine23 的委托打开详情 */
+  try { await p.click('#feed .card[data-id="9102"]', { force: true, timeout: 5000 }); }
+  catch (e) {
+    await p.evaluate(() => {
+      const el = document.createElement("button");
+      el.id = "__t_open"; el.setAttribute("data-r23detail", "9102");
+      document.body.appendChild(el); el.click();
+    });
+  }
+  await p.waitForTimeout(900);
+  const d0 = await st();
+  const fs0 = await p.evaluate(() => {
+    const d = document.getElementById("r23Detail");
+    return !!(d && d.classList.contains("open") && d.classList.contains("mf-fs"));
+  });
+  await p.evaluate(() => history.back());
+  await p.waitForTimeout(700);
+  const d1 = await st();
+  const fs1 = await p.evaluate(() => {
+    const d = document.getElementById("r23Detail");
+    return !!(d && d.classList.contains("open") && d.classList.contains("mf-fs"));
+  });
+  await p.evaluate(() => history.back());
+  await p.waitForTimeout(700);
+  const d2 = await st();
+  /* 断言：全屏退掉、详情留着；再退一次详情关掉，页面始终没离开 */
+  ck("N14 点开帖子 → 详情打开，仍在首页", d0.detail && d0.url === url0, JSON.stringify(d0));
+  ck("N15 第一次返回 → 退全屏，详情仍在", fs0 ? (!fs1 && d1.url === url0) : (d1.url === url0), JSON.stringify({ fs0, fs1, d1 }));
+  ck("N16 第二次返回 → 关详情，仍在首页（没有退出）", d2.url === url0 && d2.alive, JSON.stringify(d2));
+
+  /* —— N17/N18 落地保护：首页上侧滑只「停住」，连滑两次才放行退出 —— */
+  await p.evaluate(() => history.back());
+  await p.waitForTimeout(600);
+  const s17 = await st();
+  ck("N17 首页再侧滑 → 仍停在本站首页（没有退出）", s17.url === url0 && s17.alive && s17.land, JSON.stringify(s17));
+  await p.evaluate(() => history.back());
+  await p.waitForTimeout(800);
+  const url18 = p.url();
+  ck("N18 2 秒内再滑一次 → 放行退出（等于「再按一次退出」）", url18 !== url0, url18);
 
   /* —— N9 —— */
   ck("N9 全程无脚本错误", errs.length === 0, errs.join(" | "));
