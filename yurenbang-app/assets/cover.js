@@ -63,7 +63,7 @@ function applyCover(card, dataURL) {
 function firstBlockText(root) {
   var blocks = root.querySelectorAll ? root.querySelectorAll("h1,h2,h3,h4,p,li,blockquote") : [];
   var out = [], seen = {};
-  for (var i = 0; i < blocks.length && out.length < 4; i++) {
+  for (var i = 0; i < blocks.length && out.length < 8; i++) {
     var t = String(blocks[i].textContent || "").replace(/\s+/g, " ").trim();
     if (!t || t.length < 2) continue;
     if (seen[t]) continue;
@@ -131,20 +131,30 @@ function paintDocCard(card, c) {
   }
   var paper = document.createElement("div");
   paper.className = "c-paper";
-  if (info.head) {
-    var h = document.createElement("div");
-    h.className = "c-paper-h";
-    h.textContent = info.head;
-    paper.appendChild(h);
-  } else {
+  /* 大封面流（2026-11-05）：正文段落少（比如全文只有一段）时，纸面会只剩一行大标题、
+     下头大片空白。这时不再画单行标题，把首段改成多行正文铺满纸面 */
+  if (!info.rest.length && info.head) {
     paper.className = "c-paper c-paper-noh";
+    var lead = document.createElement("div");
+    lead.className = "c-paper-t c-paper-lead";
+    lead.textContent = info.head;
+    paper.appendChild(lead);
+  } else {
+    if (info.head) {
+      var h = document.createElement("div");
+      h.className = "c-paper-h";
+      h.textContent = info.head;
+      paper.appendChild(h);
+    } else {
+      paper.className = "c-paper c-paper-noh";
+    }
+    info.rest.forEach(function (t) {
+      var p = document.createElement("div");
+      p.className = "c-paper-t";
+      p.textContent = t;
+      paper.appendChild(p);
+    });
   }
-  info.rest.forEach(function (t) {
-    var p = document.createElement("div");
-    p.className = "c-paper-t";
-    p.textContent = t;
-    paper.appendChild(p);
-  });
   thumb.insertBefore(paper, thumb.firstChild);
 }
 

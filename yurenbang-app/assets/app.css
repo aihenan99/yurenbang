@@ -522,10 +522,15 @@ svg{display:block}
   display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:9px}
 .c-paper-t{font-size:11.5px;line-height:1.75;color:#6D5E52;margin-bottom:9px;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* 正文只有一段时的「铺满」形态：当正文用，放开行数，整块垂直居中更像刻意排版 */
+.c-paper-lead{font-size:14px;line-height:1.9;color:#5C4C3E;margin-bottom:0;
+  -webkit-line-clamp:7;font-weight:500}
+.c-paper.c-paper-noh{display:flex;flex-direction:column;justify-content:center}
 .c-paper:after{content:"";position:absolute;left:0;right:0;bottom:0;height:52px;
   background:linear-gradient(180deg,rgba(248,242,233,0),#F8F2E9)}
 #phone[data-elder="1"] .c-paper-h{font-size:17px}
 #phone[data-elder="1"] .c-paper-t{font-size:13.5px;line-height:1.8}
+#phone[data-elder="1"] .c-paper-lead{font-size:15px}
 /* 案例广场底部：静态案例库入口（长文，可被搜索引擎抓取） */
 .case-lib{display:flex;align-items:center;gap:12px;margin:18px 0 4px;padding:14px 16px;border-radius:16px;
   background:linear-gradient(135deg,#FFF6EC,#F0FAF7);border:1px solid #F2E4D6;text-decoration:none;transition:.16s}
