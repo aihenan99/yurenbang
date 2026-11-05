@@ -209,10 +209,12 @@ for (const [label, path] of PAGES) {
   ck(label + " · 无页面脚本异常", errs.length === 0, errs.slice(0, 2).join(" / "));
   ck(label + " · 无本地 404", notFound.length === 0, notFound.slice(0, 3).join(" / "));
   if (path === "/") {
+    /* 2026-11-05：YRB_PPT 已改为按需层（lazy.js 在真打开 PPT 时注入），
+       首页断言改用 YRB_LAZY —— 顺带锁住「按需层不许回到首屏」这件事。 */
     const layers = await p.evaluate(() =>
-      ["YRB_APP", "YRB_R23", "YRB_CLOUD", "YRB_FOOD", "YRB_PPT"].filter((k) => !window[k])
+      ["YRB_APP", "YRB_R23", "YRB_CLOUD", "YRB_FOOD", "YRB_LAZY"].filter((k) => !window[k])
     ).catch(() => ["evaluate failed"]);
-    ck("首页 · 五个核心层全部就绪", layers.length === 0, layers.join(","));
+    ck("首页 · 五个核心层全部就绪（含按需加载器）", layers.length === 0, layers.join(","));
     ck("首页 · 未触发自愈补载（一次加载成功）", heal === 0, "script[data-heal]=" + heal);
     /* PPT 引擎（vendor/pptx-preview）硬依赖动态求值：这条挂了 = 强制模式下 PPT 打不开 */
     const evalOk = await p.evaluate(() => { try { return new Function("return 7")() === 7; } catch (e) { return false; } });
