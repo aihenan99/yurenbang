@@ -22,7 +22,8 @@ const state={
   aState:"idle",      // idle | recording | done
   aStream:null, aRec:null, aTimer:null, aStart:0,
   help:null,          // {kind,name,title,why,steps[],actions[]} 失败说明卡
-  diag:null           // 最近一次环境自检结果
+  diag:null,          // 最近一次环境自检结果
+  perm:{camera:"unknown",microphone:"unknown"}   // 权限预检结果（面板打开时问一次）
 };
 
 /* ---------- 环境能力 ---------- */
@@ -118,6 +119,22 @@ async function permState(name){
     return st.state||"unknown";             /* granted | denied | prompt | unknown */
   }catch(e){return "unknown";}
 }
+/* 权限预检：面板一打开就先问一句，被拒时直接把「系统相机/录音机」变成主入口。
+   背景（2026-11-05 小米实机）：系统设置里已改成「允许」，网页侧仍被拦——
+   MIUI/国产浏览器还有一层「网站权限」记在浏览器自己身上，用户根本找不到。
+   与其让长辈反复撞「点了没反应」的墙，不如绕过网页权限走手机自带相机/录音机 */
+async function probePerms(){
+  try{
+    const cam=await permState("camera"), mic=await permState("microphone");
+    const changed=(cam!==state.perm.camera||mic!==state.perm.microphone);
+    state.perm={camera:cam,microphone:mic};
+    if(changed&&!state.help)refresh();       /* 失败卡打开时不打断它 */
+    return state.perm;
+  }catch(e){return state.perm;}
+}
+function kindDenied(kind){
+  return (kind==="voice"?state.perm.microphone:state.perm.camera)==="denied";
+}
 async function envDiag(){
   const d={
     url:location.href,
@@ -186,6 +203,9 @@ function explain(err,kind,d){
     const bn=uaBrowser();
     const app=bn?("「"+bn+"」"):"你正在用的浏览器";
     const sysSet="回手机桌面 → 打开「设置」→「应用管理」→ 找到"+app+" →「权限」→ 把「相机」「麦克风」都改成「允许」";
+    /* 小米/华为/OPPO/vivo/QQ/UC 这类浏览器还有一层「网站权限」记在浏览器自己身上，
+       系统设置里允许了也照样被拦——这是「设置已改还是不能用」的真正原因 */
+    const siteSet="浏览器自己的网站权限（关键）：打开"+app+"→ 右下角「我的/三条杠」→「设置」→「隐私与安全」→「网站权限」（有的叫「网站设置」）→ 相机、麦克风 → 找本网站改成「允许」；找不到就点「清除网站数据」再重开本页";
     return Object.assign(base,{
       title:word+"的权限被拒绝了",
       why:"上一次可能点了「拒绝」，浏览器记住了这个选择——所以这次连询问框都不弹了。"+
@@ -193,15 +213,16 @@ function explain(err,kind,d){
         "不想改设置？下面第一个按钮不用任何权限，点它就能继续发。",
       fallbackFirst:true,
       steps:isAndroid()?[
-        "安卓手机（最可靠的办法）："+sysSet,
-        "安卓手机（第二种）：点网址左边的小锁 🔒 → 权限 → 相机、麦克风改成「允许」",
+        sysSet,
+        siteSet,
+        "安卓手机（第三种）：点网址左边的小锁 🔒 → 权限 → 相机、麦克风改成「允许」",
         "改好后回到本页面，刷新一下，再点「重试」",
         "苹果手机的方法：设置 → Safari 浏览器 → 相机 / 麦克风 → 选「询问」或「允许」",
         "电脑的方法：点网址左边的小锁 🔒 → 摄像头 / 麦克风 → 允许；还不行就进 Windows「设置 → 隐私和安全性 → 相机 / 麦克风」，把开关都打开"
       ]:[
         "苹果手机：设置 → Safari 浏览器 → 相机 / 麦克风 → 选「询问」或「允许」，再刷新页面",
         "安卓手机（最可靠的办法）："+sysSet,
-        "安卓手机（第二种）：点网址左边的小锁 🔒 → 权限 → 相机、麦克风改成「允许」",
+        "安卓手机（第三种）：点网址左边的小锁 🔒 → 权限 → 相机、麦克风改成「允许」",
         "电脑：点网址左边的小锁 🔒 → 摄像头 / 麦克风 → 允许；还不行就进 Windows「设置 → 隐私和安全性 → 相机 / 麦克风」，把开关都打开",
         "改好后刷新页面，再点一次「重试」"
       ],
@@ -403,6 +424,7 @@ function helpHTML(h,type){
       : stepsHTML
         +`<div class="cap-help-act">${acts.map(a=>btn[a]||"").join("")}</div>`
         +altTitle+`<div class="cap-help-act">${extra}${closeBtn}</div>`}
+    <div class="cap-diagline">自检：摄像头 ${state.diag?state.diag.camera:state.perm.camera} ／ 麦克风 ${state.diag?state.diag.microphone:state.perm.microphone} ／ 浏览器 ${uaBrowser()||"未知"}${window.isSecureContext?"":" ／ 非 HTTPS"}</div>
     <div class="cap-help-note" data-cap-diag="${(state.diag&&diagText(state.diag).replace(/"/g,"'").replace(/\n/g,"｜"))||""}"></div>
   </div>`;
 }
@@ -439,6 +461,19 @@ function vidHTML(){
     </div>`;
     }
     const warn=blockWarn("video");
+    /* 权限已被拒（网页侧）：直接把「系统相机」摆成主按钮，不再让用户先撞一次错误页 */
+    if(kindDenied("video")){
+      return `<div class="cap-rec idle">
+      <div class="cap-warn">手机的<b>网页拍摄</b>权限被拦住了（在系统设置里允许了也可能被浏览器单独拦）。
+        用下面第一个「系统相机」拍，<b>不用任何权限</b>，一样能发布。</div>
+      <label class="cap-big syscam"><input type="file" accept="video/*" capture="environment" data-cap-in="video" hidden>📷 打开手机相机拍摄</label>
+      <div class="cap-alt-row">
+        <button class="cap-alt" data-cap-vid="start">🎥 再试试网页拍摄</button>
+        <label class="cap-alt"><input type="file" accept="video/*" data-cap-in="video" hidden>🖼️ 从相册选</label>
+      </div>
+      <div class="cap-hint">系统相机是手机自带的，不经过浏览器，任何设置都能用</div>
+    </div>`;
+    }
     return `<div class="cap-rec idle">
       <div class="cap-stage"><span class="cap-ph">🎥</span>
         <div class="cap-tip">点下面按钮现场拍摄，最长 <b>20 秒</b></div></div>
@@ -484,6 +519,19 @@ function voiceHTML(){
     </div>`;
     }
     const warn=blockWarn("voice");
+    /* 同上：麦克风被拒时，系统录音机做主入口（不需要网页权限） */
+    if(kindDenied("voice")){
+      return `<div class="cap-voice">
+      <div class="cap-warn">手机的<b>网页录音</b>权限被拦住了（在系统设置里允许了也可能被浏览器单独拦）。
+        用下面第一个「系统录音机」录，<b>不用任何权限</b>，一样能发布。</div>
+      <label class="cap-big sysmic"><input type="file" accept="audio/*" capture data-cap-in="audio" hidden>🎙️ 用手机录音机录一段</label>
+      <div class="cap-alt-row">
+        <button class="cap-alt" data-cap-aud="start">🎤 再试试网页录音</button>
+        <label class="cap-alt"><input type="file" accept="audio/*" data-cap-in="audio" hidden>🎵 选已有录音</label>
+      </div>
+      <div class="cap-hint">录音机是手机自带的，不经过浏览器，任何设置都能用</div>
+    </div>`;
+    }
     return `<div class="cap-voice">
       ${warn}
       <button class="cap-vmic" data-cap-aud="start">🎤</button>
@@ -626,6 +674,11 @@ async function fail(kind,err){
   state.diag=await envDiag();
   const h=explain(err,kind,state.diag);
   state.help=h;
+  /* 真撞到「被拒」就记下来：小米等浏览器 permissions.query 常报 unknown，
+     只有实际失败才可靠——记下后下次打开面板直接给系统相机/录音机 */
+  if(h.name==="NotAllowedError"||/NotAllowed/i.test(String(h.name))){
+    state.perm[kind==="voice"?"microphone":"camera"]="denied";
+  }
   if(kind==="video"){state.vState="idle";stopVideoStream();}else{state.aState="idle";stopAudioStream();}
   refresh();
   try{console.warn("[育人帮] 摄像头/麦克风不可用 →",h.title,"|",h.name,h.msg,"|",state.diag);}catch(e){}
@@ -804,6 +857,7 @@ window.YRB_CAPTURE={
     state.vState="idle";state.aState="idle";state.help=null;
     mountCtx={host,type,onDone:onDone||null};
     paintMount();
+    probePerms();          /* 异步预检：被拒则把系统相机/录音机顶成主按钮 */
   },
   unmount(){mountCtx=null;},
   validate(type){

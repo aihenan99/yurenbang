@@ -84,6 +84,11 @@
 .cap-help-btn:active{transform:scale(.98)}
 .cap-help-alt{margin:16px 0 0;font-size:13px;font-weight:700;color:var(--ink);border-top:1px dashed var(--rule);padding-top:12px}
 .cap-help-note{display:none}
+/* 可见的自检行：出问题时长辈截图即可看出「哪个浏览器、权限是什么状态」（2026-11-05） */
+.cap-diagline{margin-top:12px;font-size:11px;line-height:1.6;color:var(--ink2,#8a8a8a);word-break:break-all;opacity:.75}
+#phone[data-elder="1"] .cap-diagline{font-size:12px}
+.cap-big.sysmic{cursor:pointer;text-align:center;line-height:1.25}
+.cap-big.sysmic:active{transform:scale(.97)}
 #phone[data-elder="1"] .cap-help-t{font-size:19px}
 #phone[data-elder="1"] .cap-help-w,#phone[data-elder="1"] .cap-help-s,#phone[data-elder="1"] .cap-help-alt{font-size:15.5px;line-height:1.85}
 #phone[data-elder="1"] .cap-help-btn{font-size:17px;min-height:56px}
