@@ -59,6 +59,7 @@ assets/longimg.css
 assets/longimg.js
 assets/mediafull.css
 assets/mediafull.js
+assets/navback.js
 assets/pptview.css
 assets/pptview.js
 assets/profile.css
@@ -66,6 +67,7 @@ assets/profile.js
 assets/protect.css
 assets/protect.js
 assets/qr-share.png
+assets/recommend.js
 assets/refine23.css
 assets/refine23.js
 assets/reward.css
