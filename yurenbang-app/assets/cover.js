@@ -101,7 +101,8 @@ function docFirst(c) {
   var norm = function (t) { return String(t || "").replace(/[\s，。,.、：:；;！!？?…—\-]/g, ""); };
   var dup = lines.length && norm(lines[0]) === norm(c && c.t);
   var head = dup ? "" : (lines[0] || "");
-  var rest = dup ? lines.slice(1, 5) : lines.slice(1, 4);   /* 省掉的那行标题不补进正文 */
+  /* 大封面流（2026-11-05）后卡片约 260~310px 高，多画几行正文免得纸面下头大片空白 */
+  var rest = dup ? lines.slice(1, 7) : lines.slice(1, 6);   /* 省掉的那行标题不补进正文 */
   if (!head && !rest.length) return null;
   return { img: img, head: head, rest: rest };
 }
