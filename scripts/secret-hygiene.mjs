@@ -17,7 +17,7 @@
  *
  * 只读文件，不联网。退出码：0 干净；1 有命中。
  * ========================================================================== */
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, statSync, existsSync } from "node:fs";
 import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -48,6 +48,22 @@ const RULES = [
 ];
 
 const ALLOW_MARK = "secret-hygiene:allow";
+
+/* 管理员手机号（2026-11-05 加）：唯一合法出处是 config/admin.local.json（.gitignore 已屏蔽），
+   任何入库文件里出现真号都算泄露。加这条是因为 11-05 清理时发现 8 个历史诊断脚本
+   把号写死在代码里 —— gitleaks 对 tests/ 整目录放行，谁都没报。号从配置读，不写进本脚本。 */
+function adminPhoneDigits() {
+  try {
+    const p = join(ROOT, "config", "admin.local.json");
+    if (!existsSync(p)) return "";
+    const j = JSON.parse(readFileSync(p, "utf8"));
+    const d = String((j.phones || [])[0] || "").replace(/\D/g, "");
+    return d.length >= 7 ? d : "";
+  } catch (_) {
+    return "";
+  }
+}
+const ADMIN_DIGITS = adminPhoneDigits();
 const C = process.stdout.isTTY
   ? { g: "\x1b[32m", r: "\x1b[31m", y: "\x1b[33m", d: "\x1b[90m", b: "\x1b[1m", x: "\x1b[0m" }
   : { g: "", r: "", y: "", d: "", b: "", x: "" };
@@ -76,6 +92,10 @@ function walk(dir) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       if (line.includes(ALLOW_MARK)) continue;
+      /* 手机号单独判：允许 +86 / 空格 / 横线等写法差异，所以先抹掉非数字再找 */
+      if (ADMIN_DIGITS && line.replace(/\D/g, "").includes(ADMIN_DIGITS)) {
+        findings.push({ rel, line: i + 1, rule: "admin-phone", preview: "管理员手机号(已隐去)" });
+      }
       for (const [rule, re] of RULES) {
         const m = line.match(re);
         if (!m) continue;
@@ -91,7 +111,8 @@ console.log(C.b + "\n被白名单放行目录的独立泄密守卫" + C.x + C.d 
 for (const d of SCOPE) walk(join(ROOT, d));
 
 if (findings.length === 0) {
-  console.log("  " + C.g + "✓" + C.x + " 未发现真凭据形态 " + C.d + "（" + scanned + " 个文本文件，规则 " + RULES.length + " 条）" + C.x);
+  console.log("  " + C.g + "✓" + C.x + " 未发现真凭据形态 " + C.d + "（" + scanned + " 个文本文件，规则 " +
+    (RULES.length + (ADMIN_DIGITS ? 1 : 0)) + " 条" + (ADMIN_DIGITS ? "" : "；config/admin.local.json 缺失，手机号规则未启用") + "）" + C.x);
   console.log("\n" + C.g + "✓ 干净" + C.x + C.d + " —— tests//docs//temp/ 虽被 gitleaks 整目录放行，但这里独立把关" + C.x + "\n");
   process.exit(0);
 }

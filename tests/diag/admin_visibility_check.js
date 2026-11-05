@@ -5,6 +5,7 @@
    ③ 管理员登录 → 「管理后台」自动出现（无需重开应用），分享层区块可见
    ④ 管理员退出登录 → 入口自动消失 */
 const { chromium } = require("../../temp/pw/node_modules/playwright-core");
+const ADM = require("./_admin");            /* 管理员手机号从 config/admin.local.json 取，不入库 */
 const CHROME = 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe';
 const BASE = 'http://127.0.0.1:8765/yurenbang-app/yurenbang-app.html';
 const ADMIN_ID = '2110319594408247296';
@@ -99,13 +100,13 @@ async function goMe(page) { await page.click('.tb-item[data-p="me"]'); await pag
 
   /* ③ 管理员用手机号登录（从"我的→登录/注册"进入）→ 入口自动出现 */
   {
-    const adminSess = sess(user(ADMIN_ID, { phone_number: '+86 18037345855' }));
+    const adminSess = sess(user(ADMIN_ID, { phone_number: ADM.spaced }));
     const { ctx, page, errs } = await boot(b, null, adminSess);
     await goMe(page);
     out.case3_admin = { before: await snap(page) };
     await page.click('#clAcct'); await page.waitForTimeout(900);        /* 打开登录面板 */
     await page.click('#lgCk');  await page.waitForTimeout(150);          /* 勾选协议 */
-    await page.fill('#lgPhone', '18037345855');
+    await page.fill('#lgPhone', ADM.phone);
     await page.click('#lgSend'); await page.waitForTimeout(1200);        /* 获取验证码 */
     await page.fill('#lgCode', '123456');
     await page.click('#lgSubmit'); await page.waitForTimeout(2500);      /* 提交登录 */

@@ -1,4 +1,5 @@
 const https = require('https');
+const ADM = require('./_admin');   /* 管理员手机号从 config/admin.local.json 取，不入库 */
 function req(method, u, headers, body) {
   return new Promise((res) => {
     const r = https.request(u, { method, headers }, x => {
@@ -17,7 +18,7 @@ function req(method, u, headers, body) {
   const O = 'https://xn--gmqq09al6z.cn';
   const tests = [
     ['GET', '/yrbapi/.cloud/auth/v1/user/me', {}],
-    ['POST', '/yrbapi/.cloud/auth/v1/verification', { phone_number: '+8618037345855', target: 'ANY' }],
+    ['POST', '/yrbapi/.cloud/auth/v1/verification', { phone_number: ADM.e164, target: 'ANY' }],
   ];
   for (const [m, p, body] of tests) {
     const h = { 'Origin': O, 'Content-Type': 'application/json', 'x-wb-webapp-access-key': KEY };

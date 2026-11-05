@@ -2,12 +2,14 @@
    - 若返回 "User not exist" → 说明该手机号从未完成过注册（登录从未成功过）
    - 若返回 invalid_grant/session 错误 → 账号存在，是令牌交换层拒绝 */
 const PK = "wbpk_Lt4Zxzyd4j1x3DZdRFyFF9_mGfhreB3aiE9eS2lsMIzIG6z3V4E1O01";
+const ADM = require("../_admin");   /* 管理员手机号从 config/admin.local.json 取，不入库 */
 const DIRECT = "https://yurenbang.app.workbuddy.host/.cloud/auth";
 (async () => {
+  if (!ADM.spaced) { console.log("缺 config/admin.local.json 里的管理员手机号，跳过"); return; }
   const r = await fetch(DIRECT + "/v1/signin", {
     method: "POST",
     headers: { "content-type": "application/json", "x-wb-webapp-access-key": PK },
-    body: JSON.stringify({ username: "+86 18037345855", verification_token: "probe-invalid-token" })
+    body: JSON.stringify({ username: ADM.spaced, verification_token: "probe-invalid-token" })
   });
   console.log("status:", r.status);
   console.log("body:", await r.text());

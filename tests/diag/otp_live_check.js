@@ -1,5 +1,6 @@
 /* 线上登录流程验收：打开 .cn → 登录面板 → 获取验证码 */
 const { chromium } = require("../../temp/pw/node_modules/playwright-core");
+const ADM = require("./_admin");            /* 管理员手机号从 config/admin.local.json 取，不入库 */
 const CHROME = "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe";
 const BASE = process.env.YRB_BASE || "https://xn--gmqq09al6z.cn/";
 let pass = 0, fail = 0;
@@ -35,7 +36,7 @@ function check(name, ok, extra) {
   check("登录面板已打开", !!vis);
 
   // 填手机号（管理员的号），点「获取验证码」
-  await page.fill("#lgPhone", "18037345855");
+  await page.fill("#lgPhone", ADM.phone);
   await page.evaluate(() => { const c = document.querySelector("#lgAgree"); if (c && !c.classList.contains("on")) c.click(); });
   await page.waitForTimeout(300);
   await page.evaluate(() => { const s = document.querySelector("#lgSend"); if (s) s.click(); });

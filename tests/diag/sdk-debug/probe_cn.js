@@ -1,6 +1,6 @@
 /* .cn 端点连通性 + 一次完整 OTP 流程探测（真实下发短信到用户手机号，用户正在登录） */
 const PK = "wbpk_Lt4Zxzyd4j1x3DZdRFyFF9_mGfhreB3aiE9eS2lsMIzIG6z3V4E1O01";
-const PHONE = "+86 18037345855";
+const PHONE = require("../_admin").spaced;   /* 管理员手机号从 config/admin.local.json 取，不入库 */
 const PROXY = "https://xn--gmqq09al6z.cn/yrbapi/.cloud/auth";
 const DIRECT = "https://yurenbang.app.workbuddy.host/.cloud/auth";
 async function post(base, path, body) {

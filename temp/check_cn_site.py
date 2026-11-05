@@ -12,11 +12,13 @@
   2. 首页引用的资源（部署包是 bundle.js + 若干 css）全部可下载
   3. 静态资源带缓存头（部署包用 max-age=0,must-revalidate + ?v= 版本化，合格）
   4. 构建号与本地 deploy-cn/build.json 一致（不一致说明线上不是这份产物）
-  5. /yrbtts 真能出声（200 + audio/mpeg + 有字节）
-  6. /sbapi 同源校验：带 Referer 200、不带 Referer 403（不能被当成开放代理）
-  7. /sbapi 数据可读（真实帖子数 > 0）
-  8. 未知路径 404 且落到站内 error.html
-  9. /index.html 可达（CF 版是 308 跳首页，nginx 版直接 200，两种都算正常）
+  5. 版本标记三处一致：首页 meta[yrb-build] / ?v= / bundle.js 里的 window.YRB_BUILD
+     （只改一处会被升级层判定为新旧混载，每次打开自动刷新两次）
+  6. /yrbtts 真能出声（200 + audio/mpeg + 有字节）
+  7. /sbapi 同源校验：带 Referer 200、不带 Referer 403（不能被当成开放代理）
+  8. /sbapi 数据可读（真实帖子数 > 0）
+  9. 未知路径 404 且落到站内 error.html
+  10. /index.html 可达（CF 版是 308 跳首页，nginx 版直接 200，两种都算正常）
 
 用法：
   python temp/check_cn_site.py                    # 默认 http://118.89.185.37
@@ -121,6 +123,39 @@ def main():
         return True, f"本地与线上同为 {local}"
 
     check("构建号与 deploy-cn 一致", c_build)
+
+    def c_build_marks():
+        """2026-11-05 加的：只换 URL 上的 ?v= 不算同步完。
+
+        当时手工同步境内站，sed 只替换了 ?v=，漏了 <meta name="yrb-build">，
+        而 bundle.js 里的 window.YRB_BUILD 已经是新号 —— 升级层判定「新旧混载」，
+        每次打开自动刷新两次（实测 3 次导航）。页面看起来正常，只是白闪、多耗流量，
+        巡检也全绿，因为巡检当时只看 ?v=。这个检查专门盯这类「半个版本号」。
+        """
+        with open(os.path.join(ROOT, "deploy-cn", "build.json"), encoding="utf-8") as f:
+            local = json.load(f)["build"]
+        marks = set(re.findall(r'(?<!\d)(\d{14})(?!\d)', home["html"]))
+        meta = re.search(r'name="yrb-build"\s+content="(\d{14})"', home["html"])
+        st, _, js = http(base + "/assets/bundle.js")
+        wb = re.search(rb'window\.YRB_BUILD\s*=\s*"(\d{14})"', js[:2000]) if st == 200 else None
+        bad = []
+        if not meta:
+            bad.append("首页缺 <meta name=yrb-build>")
+        elif meta.group(1) != local:
+            bad.append(f"meta={meta.group(1)}（应为 {local}）")
+        if marks and marks != {local}:
+            bad.append("页面里还有旧构建号 " + ",".join(sorted(marks - {local})))
+        if st != 200:
+            bad.append(f"bundle.js → {st}")
+        elif not wb:
+            bad.append("bundle.js 里没有 window.YRB_BUILD")
+        elif wb.group(1).decode() != local:
+            bad.append(f"bundle.js 构建号={wb.group(1).decode()}（应为 {local}）")
+        if bad:
+            return False, "；".join(bad) + " ← 会触发升级层自动刷新（每次打开多刷两次）"
+        return True, f"meta / ?v= / bundle 三处同为 {local}"
+
+    check("版本标记三处一致（不会自触发刷新）", c_build_marks)
 
     # 首页引用的资源（部署包是 bundle.js，源码线才是 30 个分层脚本）
     refs = re.findall(r'(?:src|href)="(assets/[A-Za-z0-9._-]+\.(?:js|css))(?:\?[^"]*)?"', home["html"])
