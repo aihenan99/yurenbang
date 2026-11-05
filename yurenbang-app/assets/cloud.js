@@ -952,6 +952,10 @@ function signCachePut(p,u){
   signCache.set(p,{url:u,exp:Date.now()+SIGN_CACHE_MS});
 }
 function clearSignCache(){try{signCache.clear();}catch(_){}}
+/* 匿名签名被拒的冷却点：未放开时若无脑重试，11 条帖几十张图会各发一次失败请求，
+   把匿名首屏拖慢。被拒一次就安静 5 分钟，期间直接按「看不到图」处理。 */
+let guestSignFailAt=0;
+const GUEST_SIGN_COOLDOWN=5*60*1000;
 async function signPaths(paths){
   const map={};
   /* 2026-11-05：不再要求登录。产品规则是「任何人可以浏览」，未登录访客也该看到
@@ -959,6 +963,8 @@ async function signPaths(paths){
      （见 db/supabase/05-storage-guest-media.sql），前端不重复设卡。
      未放开时签名会被拒，这里静默失败，卡片照旧走「🔒 登录后可查看」。 */
   if(!cloud||!paths||!paths.length)return map;
+  const guest=!session;
+  if(guest&&guestSignFailAt&&Date.now()-guestSignFailAt<GUEST_SIGN_COOLDOWN)return map;
   const uniq=[...new Set(paths.filter(Boolean))];
   if(!uniq.length)return map;
   const need=[];
@@ -977,7 +983,12 @@ async function signPaths(paths){
         if(p&&u){map[p]=u;signCachePut(p,u);}
       });
     }
-  }catch(e){}
+  }catch(e){
+    /* 整批就失败了：匿名态别再逐个重试（那才是几十次请求的来源） */
+    if(guest){guestSignFailAt=Date.now();return map;}
+  }
+  /* 没抛错但一张都没签出来（RLS 挡掉时接口回空表而不是报错）：同样短路 */
+  if(guest&&need.length&&!Object.keys(map).length){guestSignFailAt=Date.now();return map;}
   for(const p of need.filter(k=>!map[k])){
     try{
       const r=await withTimeout(cloud.storage.createSignedUrl(p,3600),12000,"获取图片地址");
