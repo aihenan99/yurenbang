@@ -375,6 +375,16 @@ function bindMic(btnId,btnRecHTML,btnNormalHTML,getTextTarget){
 }
 
 /* ============ 8. 装饰：朗读按钮 / 认证徽标 / 年龄徽标 / 科学贴士 / 免责声明 ============ */
+/* 图片异步解码（2026-11-05）：只补属性不动结构，重复调用无副作用 */
+function asyncDecode(root){
+  if(!root)return;
+  $$(".real-img",root).forEach(img=>{
+    if(img.dataset.da)return;
+    img.dataset.da="1";
+    img.decoding="async";
+    if(!img.getAttribute("loading"))img.loading="lazy";
+  });
+}
 function decorateFeed(){
   const feed=$("#feed");if(!feed)return;
   /* 科学育儿贴士（每日轮换） */
@@ -388,6 +398,8 @@ function decorateFeed(){
   }
   $$("#feed .card").forEach(card=>{
     const p=S.posts.find(x=>x.id===+card.dataset.id);if(!p)return;
+    /* 2026-11-05：图片异步解码 + cloud.css 的 4:3 占位，避免慢机被大图顶掉帧 */
+    asyncDecode(card);
     /* 2026-10-24：♥ / ⭐ / 🔊 移到内容框右侧竖排悬浮列（p-side），
        底部操作行只剩「帮忙数 + 帮忙 + 查看完整求助」，清爽不挤。
        幂等：side 建一次；按钮已在其内就不再搬，避免与 MutationObserver 死循环 */
@@ -430,7 +442,6 @@ function decorateProNames(){
   });
 }
 function decorateAll(){decorateFeed();decorateProNames();}
-
 /* ============ 9. 适老设置弹窗 ============ */
 function openA11yModal(){
   modal(`<div class="md-title">👁 适老 · 无障碍</div>
@@ -482,8 +493,8 @@ function bindAll(){
 /* ============ 11. 装饰观察器 ============ */
 function observeAll(){
   new MutationObserver(decorateAll).observe($("#feed"),{childList:true,subtree:true});
-  new MutationObserver(decorateProNames).observe($("#commentSheet"),{childList:true,subtree:true});
-  const dt=$("#r23Detail");if(dt)new MutationObserver(decorateProNames).observe(dt,{childList:true,subtree:true});
+  new MutationObserver(function(){decorateProNames();asyncDecode($("#commentSheet"));}).observe($("#commentSheet"),{childList:true,subtree:true});
+  const dt=$("#r23Detail");if(dt)new MutationObserver(function(){decorateProNames();asyncDecode(dt);}).observe(dt,{childList:true,subtree:true});
 }
 
 /* ============ 启动 ============ */

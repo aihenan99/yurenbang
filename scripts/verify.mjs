@@ -283,29 +283,6 @@ step("语音服务同源：本地 TTS 的令牌算法与 Worker 逐字一致", (
   return { ok: true, msg: m ? "算法段 " + m[1] + " 行一致，令牌常量同值" : "通过" };
 });
 
-/* ---------- 4.9 部署包体积预算 ---------- */
-/* 为什么有这一项：bundle 是把 31 层合成一个文件的产物，加功能时体积只会涨，
-   涨到某天用户首次打开要多等两秒才会有人注意。2026-11-05 实测 799.3 KiB，
-   离 800 KiB 预算只剩 0.7 KiB —— 不显式盯着，下一个功能就会无声越线。
-   预算按 KiB（1024）算，与构建脚本打印的 KB 口径不同，这里统一写明。 */
-step("部署包体积预算：bundle.js ≤ 800 KiB / bundle.css ≤ 220 KiB", () => {
-  const LIM = { js: 800 * 1024, css: 220 * 1024 };
-  const f = (n) => (n / 1024).toFixed(1) + " KiB";
-  const sz = (p) => (existsSync(p) ? statSync(p).size : -1);
-  const js = sz(join(ROOT, "deploy-cn", "assets", "bundle.js"));
-  const css = sz(join(ROOT, "deploy-cn", "assets", "bundle.css"));
-  if (js < 0 || css < 0) throw new Error("deploy-cn 产物缺失，先跑一次 temp/sync_deploy.py");
-  const bad = [];
-  if (js > LIM.js) bad.push("bundle.js " + f(js) + " 超 " + f(LIM.js));
-  if (css > LIM.css) bad.push("bundle.css " + f(css) + " 超 " + f(LIM.css));
-  if (bad.length) {
-    throw new Error(bad.join("；") + " —— 必须拆分（例如 admin.js 仅管理员用，可改按需加载）或按流程提额并写清理由");
-  }
-  const left = LIM.js - js;
-  const tight = left < 8 * 1024 ? "，余 " + f(left) + "：下一个功能前必须先拆层" : "";
-  return { ok: true, msg: "bundle.js " + f(js) + " / " + f(LIM.js) + "，bundle.css " + f(css) + " / " + f(LIM.css) + tight };
-});
-
 /* ---------- 4. 部署一致性：源码与待部署包是否同源 ---------- */
 if (!FAST) {
   const PY = process.platform === "win32" ? "python" : "python3";

@@ -142,8 +142,11 @@ for (const [file, budget] of [["bundle.js", BUDGET.bundleJs], ["bundle.css", BUD
   const p = join(depAssets, file);
   if (!existsSync(p)) { warn(file + " 不存在，跳过体积检查（跑 npm run sync 生成）"); continue; }
   const s = statSync(p).size;
-  if (s > budget) no(file + " 体积在预算内（≤ " + kb(budget) + "）", kb(s));
-  else ok(file + " 体积在预算内", kb(s) + " / " + kb(budget));
+  if (s > budget) no(file + " 体积在预算内（≤ " + kb(budget) + "）", kb(s) +
+    " —— 必须拆分（例如 admin.js 只有管理员用，可改按需加载）或按流程提额并写清理由");
+  else ok(file + " 体积在预算内", kb(s) + " / " + kb(budget) +
+    /* 余量少于 8KB 就提前打招呼：等它真越线才发现在功能做完之后，返工最贵 */
+    (budget - s < 8 * 1024 ? "（余量 " + ((budget - s) / 1024).toFixed(1) + "KB，下一个功能前先拆层或提额）" : ""));
 }
 
 /* G. 反向检查：assets 里有、但既不在 html 也没被任何层引用的孤儿脚本

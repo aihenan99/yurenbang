@@ -94,8 +94,15 @@
 #phone[data-elder="1"] .up-t{font-size:18px}
 
 /* ---------- 真实媒体（云端上传 / 本机采集） ---------- */
+/* 2026-11-05 滚动卡顿的真凶：单图原来写 aspect-ratio:auto + max-height:420px，
+   而 img 又没有 width/height 属性 —— 图片在**加载完成前占 0 高度**（实测
+   getBoundingClientRect().height = 0），字节一到就撑开最多 420px。快速滑动时
+   图片接连落地，下面的内容被反复推下去，浏览器还得不停做滚动锚定补偿，
+   表现就是「滑得越快卡得越狠」。改成固定 4:3 盒子 + contain（不裁切），
+   空间先占住，加载只填内容，不再引起任何位移。 */
+.media{contain:layout}
 .media .real-img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#111}
-.m-imgs.n1 .real-img{aspect-ratio:auto;max-height:420px;object-fit:contain}
+.m-imgs.n1 .real-img{aspect-ratio:4/3;max-height:420px;object-fit:contain;background:#111}
 .m-realvideo{position:relative;background:#000;border-radius:0;overflow:hidden;
   /* 2026-10-25：通栏满宽展示——左越 14px 卡片内边距、右越 62px 侧边列内边距，铺满卡片 */
   margin:4px -62px 10px -14px}
@@ -105,7 +112,8 @@
 .m-realvoice audio{flex:1;min-width:0}
 .m-realvoice .rv-ic{font-size:20px;flex:none}
 .r23-dimgs .di .real-img{width:100%;display:block;aspect-ratio:1;object-fit:cover}
-.r23-dimgs.one .di .real-img{aspect-ratio:auto;max-height:440px;object-fit:contain;background:#111}
+/* 同上（详情页单图）：留出 4:3 的空间再加载，避免详情页打开时先塌后撑 */
+.r23-dimgs.one .di .real-img{aspect-ratio:4/3;max-height:440px;object-fit:contain;background:#111}
 .r23-dvideo.real{height:auto;background:#000}
 .r23-dvideo.real video{position:relative;width:100%;height:auto;max-height:420px;display:block;background:#000;border-radius:14px}
 .r23-dvoice.real audio{flex:1;min-width:0}
