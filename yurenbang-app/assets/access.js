@@ -53,6 +53,25 @@ function load(){
   }catch(e){}
 }
 load();
+/* 换账号清场（2026-11-05）：收藏与浏览历史存在本机同一个键里，家里共用一台手机时
+   第二个账号会看到第一个人的收藏 —— 这属于个人数据串号。这里记住上次登录的 uid，
+   发现换人就清空这两项（退出登录不算换人，收藏仍留在本机）。 */
+(function(){
+  function uidNow(){try{return (window.YRB_CLOUD&&YRB_CLOUD.uid&&YRB_CLOUD.uid())||"";}catch(e){return "";}}
+  function guard(){
+    var u=uidNow(); if(!u)return;
+    var prev=""; try{prev=localStorage.getItem("yrb_uid")||"";}catch(e){}
+    if(prev&&prev!==u){
+      S.favIds=[];S.history=[];
+      (S.posts||[]).forEach(function(p){p.faved=false;});
+      save();
+      if(window.YRB_MYLIST&&YRB_MYLIST.refresh)YRB_MYLIST.refresh();
+    }
+    try{localStorage.setItem("yrb_uid",u);}catch(e){}
+  }
+  window.addEventListener("yrb-auth",function(){setTimeout(guard,60);});
+  setTimeout(guard,1200);
+})();
 /* 长辈模式标记同时落两处（2026-10-29 三层适配）：
    #phone 供既有全部适老 CSS 使用；html 供**挂在 body 下的全屏层**使用
    （pptview 的 #vpFull 由 document.body.appendChild 创建，不在 #phone 内，
@@ -523,6 +542,9 @@ let curKind=null;
 
 /* ---------- 基础读取 ---------- */
 function meName(){try{if(window.YRB_CLOUD&&YRB_CLOUD.signedIn())return YRB_CLOUD.name();}catch(e){}return "阳阳爸爸";}
+/* 云服务是否可用于判定登录（SDK 没就绪时不要把人挡在门外，与 gate.js 同口径） */
+function signedIn(){try{return !!(window.YRB_CLOUD&&YRB_CLOUD.signedIn&&YRB_CLOUD.signedIn());}catch(e){return false;}}
+function cloudReady(){try{var C=window.YRB_CLOUD;return !!(C&&typeof C.ensureLogin==="function"&&(typeof C.enabled!=="function"||C.enabled()));}catch(e){return false;}}
 function posts(){return (typeof S!=="undefined"&&Array.isArray(S.posts))?S.posts:[];}
 function byId(id){return posts().find(p=>String(p.id)===String(id));}
 function history(){if(typeof S==="undefined")return [];if(!Array.isArray(S.history))S.history=[];return S.history;}
@@ -609,6 +631,13 @@ function render(){
   body.innerHTML=listHTML(curKind);
 }
 function open(kind){
+  /* 我的求助 / 我的帮忙 / 我的收藏都是"个人数据"，未登录时必然是空的——
+     与其打开一个空列表让人以为"没数据"，不如直接引导登录。浏览历史是本机的，不受限。 */
+  if(kind!=="hist"&&!signedIn()&&cloudReady()){
+    if(window.toast)toast("登录后才有你的收藏与记录哦～");
+    Promise.resolve(YRB_CLOUD.ensureLogin()).then(ok=>{if(ok)open(kind);});
+    return;
+  }
   curKind=kind;
   applyFavs();
   const t=$("#spTitle");if(t)t.textContent=TITLE[kind]||"我的";
@@ -684,4 +713,68 @@ applyFavs();
 window.YRB_MYLIST={open,close,refresh:render,current:()=>curKind,
   count:k=>collect(k).length,
   _debug:{recordHistory,isFaved,setFaved}};
+})();
+
+/* =========================================================
+   分享与深链层（2026-11-05）
+   —— 分享"这一条求助"而不是整站：链接带 ?p=<id>，朋友点开直接落到同一条。
+   —— 未登录同样能打开（浏览免费），这样"任何人可分享"才真的成立。
+   ========================================================= */
+(function(){
+"use strict";
+function linkFor(id){
+  try{const u=new URL(location.href);u.hash="";u.search="";u.searchParams.set("p",id);return u.toString();}
+  catch(e){return location.origin+location.pathname+"?p="+id;}
+}
+window.YRB_POSTLINK=linkFor;   /* app.js 的「⋯ 转发」也用它，避免两处各拼一套 */
+
+function copy(txt){
+  const done=ok=>{if(window.toast)toast(ok?"链接已复制，去粘贴给朋友吧 🔗":"请长按地址栏复制链接");return ok;};
+  const fallback=()=>{
+    try{
+      const ta=document.createElement("textarea");
+      ta.value=txt;ta.style.cssText="position:fixed;top:0;left:0;opacity:0";
+      document.body.appendChild(ta);ta.select();
+      const ok=document.execCommand("copy");document.body.removeChild(ta);done(ok);
+    }catch(e){done(false);}
+  };
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(txt).then(()=>done(true),fallback);
+  }catch(e){}
+  fallback();
+}
+
+function sharePost(id,title){
+  const url=linkFor(id);
+  if(navigator.share){
+    return navigator.share({title:String(title||"求助").slice(0,24)+" · 育人帮",
+      text:"有位家长在育人帮发了求助，看看能不能帮上忙：",url:url})
+      .catch(err=>{if(!err||err.name!=="AbortError")copy(url);});
+  }
+  return copy(url);
+}
+window.YRB_SHAREPOST=sharePost;
+
+/* 详情页「分享」接管：refine23 原本调整站二维码层，改成分享当前这条 */
+document.addEventListener("click",e=>{
+  const b=e.target.closest('#r23Detail [data-db="share"]');
+  if(!b)return;
+  e.stopPropagation();
+  let p=null;
+  try{p=(S.posts||[]).find(x=>String(x.id)===String(S.curPost));}catch(err){}
+  sharePost(p?p.id:b.dataset.p,p&&(p.title||p.text));
+},true);
+
+/* 深链：?p=<id> → 等云端帖子合并进来后自动打开详情（最多等 12 秒） */
+let want="";
+try{const v=new URLSearchParams(location.search).get("p");if(v&&/^\d{1,12}$/.test(v))want=v;}catch(e){}
+if(want){
+  let n=0;
+  (function tick(){
+    const el=document.querySelector('[data-r23detail="'+want+'"]');
+    if(el){el.click();return;}
+    if(++n<40){setTimeout(tick,300);return;}
+    if(window.toast)toast("这条求助可能已被删除或还在审核中");
+  })();
+}
 })();

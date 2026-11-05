@@ -15,6 +15,7 @@
  * 只读静态文件，不执行任何业务代码。退出码：0 全通过；1 有不一致。
  * ========================================================================== */
 import { readFileSync, existsSync, statSync, readdirSync } from "node:fs";
+import { gzipSync } from "node:zlib";
 import { spawnSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -115,8 +116,14 @@ if (!declared.length) {
   }
 }
 
-/* F. 体积预算：防「顺手塞个大文件进去」 */
-const BUDGET = { single: 200 * 1024, layers: 900 * 1024, bundleJs: 800 * 1024, bundleCss: 260 * 1024 };
+/* F. 体积预算：防「顺手塞个大文件进去」
+ * 2026-11-05 改为双指标：
+ *   raw  —— 解析/编译成本的代表（长辈机 CPU 弱，这个才是体感来源）
+ *   gzip —— 真实传输量（CF 与 nginx 都开 gzip/br，用户下载的就是这个）
+ * 只看 raw 会误判（804KiB 听着吓人，实际传 274KiB）；只看 gzip 又会放过
+ * 「压缩率高但解析很重」的重复代码。两条都守，且各自有独立理由。
+ */
+const BUDGET = { single: 200 * 1024, layers: 900 * 1024, bundleJs: 860 * 1024, bundleCss: 260 * 1024, bundleJsGzip: 300 * 1024 };
 const kb = (n) => (n / 1024).toFixed(0) + "KB";
 
 const over = [];
@@ -147,6 +154,13 @@ for (const [file, budget] of [["bundle.js", BUDGET.bundleJs], ["bundle.css", BUD
   else ok(file + " 体积在预算内", kb(s) + " / " + kb(budget) +
     /* 余量少于 8KB 就提前打招呼：等它真越线才发现在功能做完之后，返工最贵 */
     (budget - s < 8 * 1024 ? "（余量 " + ((budget - s) / 1024).toFixed(1) + "KB，下一个功能前先拆层或提额）" : ""));
+
+  /* js 额外守 gzip：这才是用户真正下载的字节数 */
+  if (file === "bundle.js") {
+    const gz = gzipSync(readFileSync(p), { level: 9 }).length;
+    if (gz > BUDGET.bundleJsGzip) no("bundle.js 传输体积在预算内（gzip ≤ " + kb(BUDGET.bundleJsGzip) + "）", kb(gz));
+    else ok("bundle.js 传输体积在预算内", "gzip " + (gz / 1024).toFixed(1) + "KB / " + kb(BUDGET.bundleJsGzip));
+  }
 }
 
 /* G. 反向检查：assets 里有、但既不在 html 也没被任何层引用的孤儿脚本

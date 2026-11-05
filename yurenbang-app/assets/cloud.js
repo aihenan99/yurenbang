@@ -1866,6 +1866,9 @@ window.YRB_CLOUD={
   enabled(){return !!cloud;},
   ready(){return ready;},
   signedIn(){return !!session;},
+  /* 2026-11-05：本机存档（收藏 / 浏览历史）是全站共用键，换账号必须能识别"换人了"。
+     只暴露 uid，不暴露会话对象。 */
+  uid(){try{return (session&&session.user&&session.user.id)||"";}catch(e){return "";}},
   name:myName,
   ensureLogin,
   openLogin,

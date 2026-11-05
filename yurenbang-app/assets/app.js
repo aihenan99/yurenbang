@@ -461,7 +461,7 @@ const MINIS=[["📝","作业打卡"],["📚","绘本馆"],["📏","生长曲线"
 function renderDropdown(){
   let html=DD.map(([g,items])=>`<div class="dd-h">${g}</div>`+items.map(([k,ic,t])=>`<button class="dd-item" data-k="${k}"><span class="ic">${ic}</span>${t}<span class="arr">›</span></button>`).join("")).join("");
   html+=`<div class="dd-h">常用小程序</div><div class="dd-minis">${MINIS.map(([ic,t])=>`<button class="mini" data-k="mini"><span class="mi">${ic}</span>${t}</button>`).join("")}</div>`;
-  html+=`<div class="dd-foot">🚧 <b>预留升级架构</b> · 设置模块插槽（智能提醒 / 家庭守护…）持续升级</div>`;
+  html+=`<div class="dd-foot">🚧 <b>还在准备中</b> · 智能提醒、家庭守护这些功能，会一步一步开放</div>`;
   $("#dropdown").innerHTML=html;
 }
 
@@ -476,7 +476,7 @@ const DRAWER=[["home","🏠","首页",0],["hot","🔥","爆火",0],["cases","�
 const DRAWER_HIDDEN=["class","tree","market","map","atlas"];
 function renderDrawer(){
   $("#drBody").innerHTML=DRAWER.filter(d=>DRAWER_HIDDEN.indexOf(d[0])<0)
-    .map(([k,ic,t,soon])=>`<button class="dr-item" data-k="${k}"><span class="ic">${ic}</span>${t}${soon?'<span class="soon">预留升级</span>':""}</button>`).join("");
+    .map(([k,ic,t,soon])=>`<button class="dr-item" data-k="${k}"><span class="ic">${ic}</span>${t}${soon?'<span class="soon">即将上线</span>':""}</button>`).join("");
 }
 
 /* ================= 设置二级页 / 弹窗 ================= */
@@ -505,7 +505,7 @@ const SUBPAGES={
   feedback:{t:"反馈与帮助",html:spRows([{ic:"❓",t:"常见问题"},{ic:"✍️",t:"意见反馈"},{ic:"💬",t:"联系在线客服",chip:"9:00-21:00"}])+`<div class="sp-note">你的每一条建议都会被产品团队认真阅读</div>`},
   license:{t:"资质证照",html:`<div class="sp-note">营业执照、ICP 备案、EDI 许可证等正在办理中，取得后会在此公示证照编号与扫描件。<br><b>当前暂无已取得的证照可展示</b>，所以不放「查看」按钮——不给你点了没反应的入口。需要核验请通过「反馈与帮助」联系。</div>`},
   agreement:{t:"用户协议",html:`<div class="sp-sec" style="padding:16px;font-size:13.5px;line-height:1.9"><b>育人帮用户协议（摘要）</b><br>1. 本平台致力于关心下一代、呵护成长，倡导善意互助；<br>2. 求助与帮忙内容需遵守法律法规，禁止任何危害未成年人的行为；<br>3. 平台对图片 / PPT / 微视频（≤30s）与帮忙评论（文字 / 语音 / 微视频 ≤20s）进行安全审核；<br>4. 头像效果（小动物 / 马赛克 / 变形）用于保护用户隐私；<br>5. 「赠人玫瑰，手留余香」——你的每次帮忙被点赞，都会收到社区的玫瑰感谢。</div>`},
-  mini:{t:"常用小程序",html:`<div class="sp-sec">`+MINIS.map(([ic,t])=>`<button class="sp-row"><span class="ic">${ic}</span>${t}<span class="sub">›</span></button>`).join("")+`</div><div class="sp-note">🚧 小程序平台为预留升级架构，开放能力持续接入中</div>`}
+  mini:{t:"常用小程序",html:`<div class="sp-sec">`+MINIS.map(([ic,t])=>`<button class="sp-row"><span class="ic">${ic}</span>${t}<span class="sub">›</span></button>`).join("")+`</div><div class="sp-note">🚧 这些小程序还在准备中，能用了会陆续放进来</div>`}
 };
 function openSubpage(k){
   const sp=SUBPAGES[k];if(!sp)return;
@@ -832,7 +832,7 @@ $("#drawer").addEventListener("click",e=>{
   else if(k==="growth")switchTab("growth");
   else if(k==="jiaojiao")switchTab("jiaojiao");
   else if(k==="mini")openSubpage("mini");
-  else toast(`「${DRAWER.find(d=>d[0]===k)[2]}」为预留升级架构模块，即将上线 🚧`);
+  else toast(`「${DRAWER.find(d=>d[0]===k)[2]}」还在准备中，马上就来 🚧`);
 });
 
 $("#tabbar").addEventListener("click",e=>{
@@ -898,7 +898,9 @@ function cardMore(p){
     <button class="btn-a big" id="cmReport" style="background:#fff;color:#c2452d;box-shadow:inset 0 0 0 1.5px var(--rule)">🛡 举报该内容</button>`);
   $("#cmShare").addEventListener("click",()=>{
     closeModal();
-    const link=location.origin+location.pathname;
+    /* 2026-11-05：原来只复制站点首页，朋友点开落在信息流里找不到这条。
+       改为带 ?p=<id> 的深链（助手在 access.js，未加载时退回首页链接）。 */
+    const link=window.YRB_POSTLINK?YRB_POSTLINK(p.id):location.origin+location.pathname+"?p="+p.id;
     const done=()=>toast("链接已复制，去粘贴给朋友吧 🔗");
     try{
       if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(link).then(done,()=>fallbackCopy(link,done));
