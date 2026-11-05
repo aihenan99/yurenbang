@@ -1375,6 +1375,55 @@ function mergeCloudPosts(){
   if(typeof renderFeed==="function")renderFeed();
 }
 
+/* ---------- 云端搜索（2026-11-05「实用」专项） ----------
+   首页搜索框原先只过滤「已加载进信息流」的卡片，翻页之前的旧帖搜不到。
+   这里补一层云端兜底：本地无结果时按标题/正文 ilike 查 yb_posts，
+   命中的帖子并进 cloudPosts（走同一条渲染管道，图片签名/点赞收藏状态齐全），
+   信息流重绘后 access.js 的 DOM 过滤自然能看到它们。 */
+async function searchPosts(kw){
+  kw=String(kw||"").trim();
+  if(!cloud||!ready||!kw)return 0;
+  /* PostgREST 的 or(...) 里逗号和括号是语法字符，先清掉；%/_ 是通配符要转义 */
+  const safe=kw.replace(/[,()]/g," ").trim();
+  if(!safe)return 0;
+  const known=new Set(cloudPosts.map(p=>p.cloudId));
+  try{
+    const q="%"+safe.replace(/([%_\\])/g,"\\$1")+"%";
+    const r=await withTimeout(cloud.database.from("yb_posts")
+      .select("*").or("title.ilike."+q+",body.ilike."+q)
+      .order("created_at",{ascending:false}).limit(20),15000,"搜索求助");
+    if(r&&r.error)throw r.error;
+    const rows=((r&&r.data)||[]).filter(x=>!x.hidden&&!known.has(x.id));
+    if(!rows.length)return 0;
+    const paths=[];rows.forEach(x=>(x.media||[]).forEach(m=>{if(!m)return;if(m.thumb)paths.push(m.thumb);if(m.path)paths.push(m.path);}));
+    const um=await signPaths(paths);
+    const mine=await myReacts();
+    const mapped=rows.map(x=>{
+      const cid=Number(x.id), rl=!!mine[cid+"|like"], rf=!!mine[cid+"|fav"];
+      return {
+        id:100000+cid,cloudId:x.id,__cloud:true,
+        mine:!!(session&&x.owner_id===session.user.id),
+        user:x.owner_name||"家长",flag:x.owner_flag||"",ava:"animal",
+        type:x.type||"img",
+        media:(x.media||[]).map(m=>Object.assign({},m,{url:um[m.path]||"",thumbUrl:(m.thumb&&um[m.thumb])||""})),
+        title:x.title||"",text:x.body||"",
+        tag:x.tag||"求助",tagFull:x.tag||"求助",age:x.age||"",
+        urg:x.urg||1,vis:x.vis||0,loc:x.loc||"",time:relTime(x.created_at),
+        ts:Date.parse(x.created_at)||0,
+        likes:Math.max(0,(x.likes||0)-(rl?1:0)),liked:rl,
+        favs:Math.max(0,(x.favs||0)-(rf?1:0)),faved:rf,helps:x.helps||0,
+        comments:[],roses:[],r23Status:x.status==="solved"?"solved":"open"
+      };
+    });
+    cloudPosts=mapped.concat(cloudPosts);
+    mergeCloudPosts();
+    return mapped.length;
+  }catch(e){
+    try{console.warn("[云端搜索] 失败：",e&&(e.code||e.status),e&&e.message||e);}catch(_){}
+    return 0;
+  }
+}
+
 /* ---------- 案例广场（2026-10-20）：真实上传 + 云端同步 ----------
    表 yb_cases：SELECT 全员可见（案例内容公开），INSERT 仅登录作者本人；
    素材上传复用帖子的 storage 通道（case/ 目录）。 */
@@ -1979,6 +2028,8 @@ window.YRB_CLOUD={
   },
   publishPost,
   loadCloudPosts,
+  /* 首页搜索的云端兜底：本地卡片无结果时查旧帖（2026-11-05） */
+  searchPosts,
   /* 「我的—账号」里改密码用（2026-11-01 新增，自建库无短信通道） */
   changePassword: openChangePwd,
   solvePost,

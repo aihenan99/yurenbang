@@ -101,19 +101,31 @@
    表现就是「滑得越快卡得越狠」。改成固定 4:3 盒子 + contain（不裁切），
    空间先占住，加载只填内容，不再引起任何位移。 */
 .media{contain:layout}
-.media .real-img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#111}
-.m-imgs.n1 .real-img{aspect-ratio:4/3;max-height:420px;object-fit:contain;background:#111}
-.m-realvideo{position:relative;background:#000;border-radius:0;overflow:hidden;
+/* 占位底色用暖米色（2026-11-05 实机截图反馈：慢网下大片 #111 黑块像坏了；
+   暖色与卡片底一致，加载中只是「淡淡的空格子」，加载完自然被内容盖住） */
+.media .real-img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#efe9e1}
+.m-imgs.n1 .real-img{aspect-ratio:4/3;max-height:420px;object-fit:contain;background:#efe9e1}
+.m-realvideo{position:relative;border-radius:0;overflow:hidden;
+  background:linear-gradient(160deg,#3d434d,#232830);
   /* 2026-10-25：通栏满宽展示——左越 14px 卡片内边距、右越 62px 侧边列内边距，铺满卡片 */
   margin:4px -62px 10px -14px}
 .m-realvideo video{width:100%;max-height:62vh;display:block;background:#000}
+/* 老帖没有封面图：preload=none 的 <video> 是一块纯黑。藏起 video 本体，
+   摆一个「🎬 视频 · 点开看」的占位层（不挡点击，点的还是 video 区域）；
+   mediafull 接管全屏前会把 video 透明度还原，全屏画面不受影响 */
+.m-realvideo.novid video{opacity:0}
+.m-realvideo.novid .v-play{display:none}   /* 占位层自带图标+文字，别再叠播放圆点 */
+.m-realvideo .v-ph{position:absolute;inset:0;display:flex;flex-direction:column;gap:8px;
+  align-items:center;justify-content:center;color:#e8e2d8;pointer-events:none;font-size:42px}
+.m-realvideo .v-ph b{font-size:15px;letter-spacing:1px}
+.m-realvideo .v-ph i{font-size:12px;opacity:.75;font-style:normal}
 .m-realvideo .v-dur{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,.55);color:#fff;font-size:11px;border-radius:99px;padding:2px 8px}
 .m-realvoice{display:flex;align-items:center;gap:10px;padding:10px 12px;background:linear-gradient(135deg,rgba(87,199,181,.12),rgba(47,163,147,.1));border-radius:14px}
 .m-realvoice audio{flex:1;min-width:0}
 .m-realvoice .rv-ic{font-size:20px;flex:none}
-.r23-dimgs .di .real-img{width:100%;display:block;aspect-ratio:1;object-fit:cover}
+.r23-dimgs .di .real-img{width:100%;display:block;aspect-ratio:1;object-fit:cover;background:#efe9e1}
 /* 同上（详情页单图）：留出 4:3 的空间再加载，避免详情页打开时先塌后撑 */
-.r23-dimgs.one .di .real-img{aspect-ratio:4/3;max-height:440px;object-fit:contain;background:#111}
+.r23-dimgs.one .di .real-img{aspect-ratio:4/3;max-height:440px;object-fit:contain;background:#efe9e1}
 .r23-dvideo.real{height:auto;background:#000}
 .r23-dvideo.real video{position:relative;width:100%;height:auto;max-height:420px;display:block;background:#000;border-radius:14px}
 .r23-dvoice.real audio{flex:1;min-width:0}

@@ -171,7 +171,10 @@ function injectAll(){
   $("#banner").setAttribute("role","alert");
 }
 
-/* ============ 5. 搜索（不侵入 renderFeed，渲染后按 DOM 过滤） ============ */
+/* ============ 5. 搜索（不侵入 renderFeed，渲染后按 DOM 过滤） ============
+   2026-11-05 补云端兜底：本地卡片无命中时自动查云端旧帖（cloud.js searchPosts），
+   命中的帖子并进信息流，重绘后再走一遍本函数就能看到。 */
+let cloudSearchKw="";
 function applySearch(){
   const inp=$("#a11ySearch");if(!inp)return;
   const q=inp.value.trim();
@@ -187,6 +190,16 @@ function applySearch(){
   let empty=$("#a11yNoRes");
   if(q&&!vis){
     if(!empty)$("#feed").insertAdjacentHTML("beforeend",`<div class="empty" id="a11yNoRes">没有找到相关求助，换个关键词试试～</div>`);
+    if(q!==cloudSearchKw&&window.YRB_CLOUD&&YRB_CLOUD.searchPosts&&YRB_CLOUD.ready&&YRB_CLOUD.ready()){
+      cloudSearchKw=q;
+      const tip=$("#a11yNoRes");
+      if(tip)tip.textContent="正在云端查找「"+q+"」…";
+      Promise.resolve(YRB_CLOUD.searchPosts(q)).then(n=>{
+        const now=$("#a11yNoRes");
+        if(n>0){ if(now)now.remove(); }
+        else if(now)now.textContent="没有找到相关求助，换个关键词试试～";
+      }).catch(()=>{});
+    }
   }else if(empty)empty.remove();
 }
 

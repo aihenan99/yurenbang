@@ -358,6 +358,9 @@ document.addEventListener("click", function (e) {
   e.stopPropagation();
   e.preventDefault();
   try { v.pause(); } catch (x) {}
+  /* 无封面老帖的 video 本体是透明的（.novid 占位层在显示），全屏前还原，
+     否则全屏里只有声音没有画面 */
+  try { v.style.opacity = "1"; } catch (x) {}
   var ok = false;
   try { ok = fullVideo(v); } catch (x) {}
   if (!ok) { try { v.play(); } catch (x) {} }   /* 极端环境不支持全屏时退回内联播放 */

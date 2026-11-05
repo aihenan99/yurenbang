@@ -86,7 +86,7 @@ function mediaHTML(p){
   const rm=(p.media||[]).filter(m=>m&&m.url);
   if(rm.length){
     if(p.type==="img")return `<div class="media m-imgs n${Math.min(rm.length,3)}">${rm.slice(0,9).map((m,i)=>`<img class="real-img" src="${esc(m.thumbUrl||m.url)}" data-full="${esc(m.url)}" alt="求助图片${i+1}" loading="lazy">`).join("")}</div>`;
-    if(p.type==="video")return `<div class="media m-realvideo"><video src="${esc(rm[0].url)}" playsinline preload="none"${rm[0].thumbUrl?` poster="${esc(rm[0].thumbUrl)}"`:""}></video><span class="v-play"><svg viewBox="0 0 24 24"><path d="M7 4 L20 12 L7 20 Z"/></svg></span><span class="v-dur">▶ ${esc(p.dur||"")} · 点画面全屏</span></div>`;
+    if(p.type==="video"){const hasPoster=!!rm[0].thumbUrl;return `<div class="media m-realvideo${hasPoster?"":" novid"}"><video src="${esc(rm[0].url)}" playsinline preload="none"${hasPoster?` poster="${esc(rm[0].thumbUrl)}"`:""}></video>${hasPoster?"":`<span class="v-ph">🎬<b>视频</b><i>点画面全屏观看</i></span>`}<span class="v-play"><svg viewBox="0 0 24 24"><path d="M7 4 L20 12 L7 20 Z"/></svg></span><span class="v-dur">▶ ${esc(p.dur||"")} · 点画面全屏</span></div>`;}
     if(p.type==="voice")return `<div class="media m-realvoice"><span class="rv-ic">🎙️</span><audio src="${esc(rm[0].url)}" controls preload="metadata"></audio><span class="vd-chip">${esc(p.dur||"")}</span></div>`;
   }
   /* 云端帖确实带素材、但当前未登录拿不到访问地址：明确说清楚，别用示意图让人误会 */
