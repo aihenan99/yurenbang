@@ -1,0 +1,317 @@
+# 育人帮 · 轻量应用服务器（Lighthouse）站点配置
+# 等价实现：deploy-cn/_worker.js
+#   /yrbapi*  → 云端网关 yurenbang.app.workbuddy.host（Origin 改写为上游白名单值）
+#   /sbapi*   → Supabase 直连
+#   /yrbtts   → 本机 Node 语音服务（127.0.0.1:8791），失败才回源 Cloudflare 兜底
+#   其余       → /var/www/yrb 静态文件（内容即 deploy-cn 产物）
+#
+# 占位符（由 install.sh 替换）：
+#   20261103201845        构建号
+#   118.89.185.37  本机 IP + 可选域名（valid_referers server_names 依赖它）
+
+# 限流：nginx 是全局计数，比 worker 的每实例计数更准（对应审计条目 H4 的一半）
+limit_req_zone $binary_remote_addr zone=yrbapi_rl:10m rate=120r/m;
+limit_req_zone $binary_remote_addr zone=yrbtts_rl:10m rate=20r/m;
+# 2026-11-05 滑动卡顿第四轮：图片字节请求独立限流（此前与接口共用 120r/m，
+# 未登录看图放开后快速滑几屏就可能吃满配额，图片 429、前端重试 → 越滑越卡）
+limit_req_zone $binary_remote_addr zone=yrbimg_rl:10m rate=300r/m;
+
+# 本机语音合成服务（systemd: yrbtts.service，见 deploy-tencent/tts/）
+# max_fails=2 fail_timeout=30s：连挂两次就暂时不问它，请求直接走 CF 兜底，
+# 避免每次朗读都先等一个 connection refused。
+upstream yrbtts_local {
+    server 127.0.0.1:8791 max_fails=2 fail_timeout=30s;
+    keepalive 8;
+}
+
+# 境外 Supabase 上游：**必须显式 keepalive**。
+# 2026-11-04 实测（用户反馈「浏览非常慢」时查出）：不加 keepalive 时，连续 5 次
+# 同一接口耗时 892/821/801/774/833ms 几乎不下降 —— 说明每个请求都在重新做
+# TCP + TLS 握手（跨境单程握手就要 300~500ms）。nginx 默认不保持到上游的连接，
+# 即使配了 proxy_http_version 1.1 + Connection "" 也一样，必须靠 upstream keepalive 池。
+# 首屏要打三个数据接口（帖子/案例/首页栏目），复用后能省下约 1 秒。
+#
+# 注意：upstream 里的域名只在 nginx 启动/reload 时解析一次。Supabase 用的地址
+# 长期稳定，但万一换 IP 会出现 502 —— 处理办法就是 systemctl reload nginx。
+upstream yrb_sb {
+    server nyqpovygnwinjsjoiadw.supabase.co:443;
+    keepalive 16;
+    keepalive_requests 300;
+    keepalive_timeout 60s;
+}
+
+# ---------- 匿名公开读缓存：把 400~800ms 的跨境往返压到毫秒 ----------
+# 2026-11-04 用户反馈「浏览非常慢」。实测 nginx → Supabase 单程 RTT 就有 400~800ms
+# （keepalive 省掉握手后依然如此，这是物理距离决定的），而首屏要打三个接口
+# （帖子 / 案例 / 首页栏目）。这类公开数据 20 秒内重复回源没有意义。
+#
+# 只缓存**匿名身份**的 GET：登录用户带的是真 JWT，数据随人而定且变化快，
+# 一律回源、绝不缓存 —— 这是防串号的硬边界，不是性能取舍。
+# 写操作（POST/PATCH/DELETE）不缓存：proxy_cache_methods 默认只含 GET/HEAD。
+proxy_cache_path /var/cache/nginx/yrb_sb levels=1:2 keys_zone=yrb_sb_cache:16m max_size=256m inactive=10m use_temp_path=off;
+
+# 2026-11-05：图片字节缓存。签名 URL 本来就一小时有效、客户端 50 分钟内复用同一条，
+# 所以按「方法 + 路径 + token」缓存 1 小时是安全的（不放宽 Supabase 的鉴权）。
+proxy_cache_path /var/cache/nginx/yrb_img levels=1:2 keys_zone=yrb_img_cache:16m max_size=1g inactive=3d use_temp_path=off;
+
+map $http_authorization $yrb_sb_anon {
+    default 0;
+    "~*^Bearer sb_publishable_" 1;
+}
+map $request_uri $yrb_sb_pub_uri {
+    default 0;
+    "~^/sbapi/rest/v1/yb_(posts|cases|settings)" 1;
+}
+map "$yrb_sb_anon:$yrb_sb_pub_uri" $yrb_sb_zone {
+    default "";
+    "1:1"   "yrb_sb_cache";
+}
+
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name 118.89.185.37;
+
+    root /var/www/yrb;
+    index index.html;
+    charset utf-8;
+    client_max_body_size 32m;
+
+    access_log /var/log/nginx/yrb.access.log;
+    error_log  /var/log/nginx/yrb.error.log warn;
+
+    gzip on;
+    gzip_vary on;
+    gzip_comp_level 5;
+    gzip_min_length 1k;
+    gzip_types text/plain text/css application/javascript application/json application/manifest+json image/svg+xml;
+
+    # 未知路径 → 站内错误页，状态码保持 404（对应 worker 的 notFound()）
+    error_page 404 =404 /error.html;
+    location = /error.html {
+        internal;
+        include /etc/nginx/snippets/yrb-security.conf;
+        add_header Cache-Control "no-store" always;
+    }
+
+    # ---------- 1. 云端网关 /yrbapi ----------
+    # 同源校验（对应 worker 的审核 H3）。三个坑都在这里踩过：
+    #   a) nginx 的 `if ($x ~ 正则)` 正则在配置解析期编译，**不插值变量**——
+    #      写 "^https?://$host$" 只会匹配字面量 $host，结果是把所有人都拒掉；
+    #      所以改用「=」全等比较（右侧变量会插值）。
+    #   b) 有 Origin → 必须等于本站 $scheme://$host；
+    #      无 Origin（同源 GET 的常态）→ 退回看 Referer，交由 valid_referers 判定；
+    #      两者都没有 → 403，脚本直连打不通。
+    #   c) valid_referers server_names 依赖 server_name 里有真实主机名（见 server_name 行）。
+    location ^~ /yrbapi {
+        include /etc/nginx/snippets/yrb-security.conf;
+        limit_req zone=yrbapi_rl burst=60 nodelay;
+        limit_req_status 429;
+
+        valid_referers server_names;
+        set $yrb_ok 0;
+        set $yrb_site $scheme://$host;
+        if ($http_origin = $yrb_site) { set $yrb_ok 1; }
+        if ($http_origin = "") { set $yrb_ok 0; }
+        if ($invalid_referer = "") { set $yrb_ok 1; }
+        if ($yrb_ok = 0) { return 403 '{"error":"forbidden_origin","message":"请从育人帮站点内使用"}'; }
+
+        rewrite ^/yrbapi/?(.*)$ /$1 break;
+        proxy_pass https://yurenbang.app.workbuddy.host;
+        proxy_ssl_server_name on;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host yurenbang.app.workbuddy.host;
+        proxy_set_header Origin https://yurenbang.app.workbuddy.host;
+        proxy_set_header Referer https://yurenbang.app.workbuddy.host/;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_redirect off;
+
+        add_header X-YRB-Proxy 1 always;
+        add_header Access-Control-Allow-Origin $http_origin always;
+        add_header Access-Control-Allow-Credentials true always;
+    }
+
+    # ---------- 2. Supabase 直连 /sbapi ----------
+    location ^~ /sbapi {
+        include /etc/nginx/snippets/yrb-security.conf;
+        limit_req zone=yrbapi_rl burst=60 nodelay;
+        limit_req_status 429;
+
+        valid_referers server_names;
+        set $yrb_sb_ok 0;
+        set $yrb_site $scheme://$host;
+        if ($http_origin = $yrb_site) { set $yrb_sb_ok 1; }
+        if ($http_origin = "") { set $yrb_sb_ok 0; }
+        if ($invalid_referer = "") { set $yrb_sb_ok 1; }
+        if ($yrb_sb_ok = 0) { return 403 '{"error":"forbidden_origin","message":"请从育人帮站点内使用"}'; }
+
+        rewrite ^/sbapi/?(.*)$ /$1 break;
+        proxy_pass https://yrb_sb;
+        proxy_ssl_server_name on;
+        proxy_ssl_name nyqpovygnwinjsjoiadw.supabase.co;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+
+        # 匿名公开读走缓存（见文件顶部 map 定义）；登录用户 $yrb_sb_zone 为空 → 直连回源
+        proxy_ignore_headers Set-Cookie Cache-Control Expires;
+        proxy_cache $yrb_sb_zone;
+        proxy_cache_key "$request_method $request_uri";
+        proxy_cache_valid 200 60s;
+        proxy_cache_lock on;
+        proxy_cache_lock_timeout 8s;
+        proxy_cache_use_stale error timeout updating;
+        proxy_cache_background_update on;
+        add_header X-YRB-Cache $upstream_cache_status always;
+        proxy_set_header Host nyqpovygnwinjsjoiadw.supabase.co;
+        proxy_set_header Origin https://nyqpovygnwinjsjoiadw.supabase.co;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 60s;
+        proxy_redirect off;
+
+        add_header X-YRB-Proxy sb1 always;
+        add_header Access-Control-Allow-Origin $http_origin always;
+        add_header Access-Control-Allow-Credentials true always;
+    }
+
+    # ---------- 2b. 图片字节 /sbapi/storage/v1/object/sign/* ----------
+    # 2026-11-05 滑动卡顿第四轮：此前图片 GET 与接口共用 120r/m 限流、且从不缓存——
+    # 每次看图都跨境回源（400ms+ RTT / 几 MB 原图），快速滑动时图片迟迟出不来。
+    # 现在：独立 300r/m 限流 + 缓存 1 小时（与签名 URL 的 TTL 对齐）。
+    # 缓存键带 token（客户端 50 分钟内复用同一签名 URL，同 token 必命中）；
+    # token 不在缓存键里的部分照样回源由 Supabase 鉴权，本地不做任何鉴权兜底。
+    location ^~ /sbapi/storage/v1/object/sign/ {
+        include /etc/nginx/snippets/yrb-security.conf;
+        limit_req zone=yrbimg_rl burst=120 nodelay;
+        limit_req_status 429;
+
+        valid_referers server_names;
+        set $yrb_sb_ok 0;
+        set $yrb_site $scheme://$host;
+        if ($http_origin = $yrb_site) { set $yrb_sb_ok 1; }
+        if ($http_origin = "") { set $yrb_sb_ok 0; }
+        if ($invalid_referer = "") { set $yrb_sb_ok 1; }
+        if ($yrb_sb_ok = 0) { return 403 '{"error":"forbidden_origin","message":"请从育人帮站点内使用"}'; }
+
+        rewrite ^/sbapi/?(.*)$ /$1 break;
+        proxy_pass https://yrb_sb;
+        proxy_ssl_server_name on;
+        proxy_ssl_name nyqpovygnwinjsjoiadw.supabase.co;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+
+        proxy_ignore_headers Set-Cookie Cache-Control Expires;
+        proxy_cache yrb_img_cache;
+        proxy_cache_key "$request_method $uri $arg_token";
+        proxy_cache_valid 200 1h;
+        proxy_cache_lock on;
+        proxy_cache_lock_timeout 8s;
+        proxy_cache_use_stale error timeout updating;
+        proxy_cache_background_update on;
+        add_header X-YRB-Cache $upstream_cache_status always;
+        proxy_set_header Host nyqpovygnwinjsjoiadw.supabase.co;
+        proxy_set_header Origin https://nyqpovygnwinjsjoiadw.supabase.co;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_read_timeout 120s;
+        proxy_redirect off;
+
+        add_header X-YRB-Proxy sb-img always;
+        add_header Cache-Control "public, max-age=3600" always;
+        add_header Access-Control-Allow-Origin $http_origin always;
+        add_header Access-Control-Allow-Credentials true always;
+    }
+
+    # ---------- 3. 语音合成 /yrbtts ----------
+    # 主路：本机 Node 服务（deploy-tencent/tts/yrbtts.mjs，systemd 常驻）。
+    #   Edge TTS 要 Sec-MS-GEC 动态令牌 + WebSocket，nginx 做不了，所以由 Node 直连
+    #   微软端点。好处是境内站不再依赖 Cloudflare —— 原来这段是 proxy_pass 回源 CF，
+    #   看似独立的境内机器其实 CF 一停朗读就哑。
+    # 兜底：本机服务挂了（502/504）自动转 @yrbtts_cf 回源 CF。
+    #   双保险的意义在于「降级而不是报错」：朗读不出来时前端还会退回本机语音，
+    #   但如果这里能兜住，长辈听到的就还是真人音色。
+    location = /yrbtts {
+        include /etc/nginx/snippets/yrb-security.conf;
+        limit_req zone=yrbtts_rl burst=10 nodelay;
+        limit_req_status 429;
+
+        proxy_pass http://yrbtts_local;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_read_timeout 40s;
+        proxy_redirect off;
+
+        # 只有 502/504 才降级：400（无文本）和 429（限流）是客户端问题，
+        # 转给 CF 也一样，白跑一趟还多耗一次出口。
+        proxy_intercept_errors on;
+        error_page 502 504 = @yrbtts_cf;
+
+        add_header X-YRB-TTS-Bridge 1 always;
+        add_header Access-Control-Allow-Origin $http_origin always;
+    }
+
+    # 兜底：回源 Cloudflare 边缘（Origin 改成其白名单域名，绕过同源校验）
+    #
+    # 为什么用变量 + resolver：Cloudflare 的 Anycast IP 会变，静态域名只在启动时解析一次，
+    # 长期运行会拿到过期 IP；代价是必须显式配 resolver，否则报
+    # "no resolver defined to resolve ..." 并 502（实测）。
+    location @yrbtts_cf {
+        resolver 127.0.0.53 223.5.5.5 valid=300s ipv6=off;
+        set $yrb_cf xn--gmqq09al6z.cn;
+
+        proxy_pass https://$yrb_cf$request_uri;
+        proxy_ssl_server_name on;
+        proxy_ssl_name $yrb_cf;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $yrb_cf;
+        proxy_set_header Origin https://$yrb_cf;
+        proxy_set_header Referer https://$yrb_cf/;
+        proxy_read_timeout 40s;
+        proxy_redirect off;
+
+        add_header X-YRB-TTS-Bridge 2 always;
+        add_header Access-Control-Allow-Origin $http_origin always;
+    }
+
+    # ---------- 4. 静态文件 ----------
+    # 首页与所有 HTML：no-cache 强制回源校验（微信 WebView 缓存旧页面的老问题）
+    location = / {
+        include /etc/nginx/snippets/yrb-security.conf;
+        add_header Cache-Control "no-cache" always;
+        try_files /index.html =404;
+    }
+
+    location ~* \.html$ {
+        include /etc/nginx/snippets/yrb-security.conf;
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    location = /sw.js {
+        include /etc/nginx/snippets/yrb-security.conf;
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    # JS/CSS：允许缓存但每次协商（etag 命中 304，避免「打开的是上个星期的网站」）
+    location ^~ /assets/ {
+        include /etc/nginx/snippets/yrb-security.conf;
+        add_header Cache-Control "public, max-age=0, must-revalidate" always;
+        try_files $uri =404;
+    }
+
+    # 其余静态资源（图片、sitemap、robots、案例库无扩展名路径等）
+    location / {
+        include /etc/nginx/snippets/yrb-security.conf;
+        add_header Cache-Control "public, max-age=3600" always;
+        try_files $uri $uri.html $uri/ =404;
+    }
+}

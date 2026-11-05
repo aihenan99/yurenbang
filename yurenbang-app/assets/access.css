@@ -207,7 +207,11 @@
    底部操作行只留「帮忙数 + 帮忙 + 查看完整求助」
    2026-10-25 调整：侧边列垂直居中下移；头部信息缩小淡化；
    底部行修复「查看完整求助 width:100% 把帮忙按钮挤成竖条大块」的问题 */
-#feed .card{position:relative;padding-right:62px}
+/* 2026-11-05 滑动卡顿第四轮：快速滑动时屏幕外的卡片整块跳过渲染
+   （布局/绘制都不做），快到视口前一刻才真正渲染；
+   contain-intrinsic-size 给一个兜底高度（auto=渲染过就记住真实高度），
+   保证滚动条长度基本稳定、不跳。 */
+#feed .card{position:relative;padding-right:62px;content-visibility:auto;contain-intrinsic-size:auto 360px}
 .p-side{position:absolute;right:12px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:9px;z-index:5}
 .p-side .pa-btn{width:42px;height:42px;justify-content:center;align-items:center;padding:0;margin:0;
   border-radius:50%;background:var(--bg2);box-shadow:0 3px 12px rgba(70,45,30,.16);

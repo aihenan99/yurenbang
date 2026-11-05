@@ -62,6 +62,21 @@ function isAndroid(){
   return /Android/i.test(navigator.userAgent||"");
 }
 function wxAndroid(){return isWx()&&isAndroid();}
+/* 从 UA 猜浏览器名：权限被拒时告诉长辈「去设置里找哪个应用」。
+   注意顺序——微信/QQ 的 UA 里也含 Chrome/Safari，必须先判国产壳再判通用内核 */
+function uaBrowser(){
+  const u=navigator.userAgent||"";
+  const list=[["MicroMessenger","微信"],["QQ浏览器","QQ浏览器"],["MQQBrowser","QQ浏览器"],
+    ["UCBrowser","UC浏览器"],["UBrowser","UC浏览器"],["Quark","夸克浏览器"],
+    ["baiduboxapp","百度App"],["baidubrowser","百度浏览器"],["Baidu","百度"],
+    ["HeyTapBrowser","OPPO浏览器"],["VivoBrowser","vivo浏览器"],["HeyTap","OPPO浏览器"],
+    ["HuaweiBrowser","华为浏览器"],["HMSCore","华为浏览器"],["HM Browser","华为浏览器"],
+    ["MiuiBrowser","小米浏览器"],["XiaoMi","小米浏览器"],["MeiZu","魅族浏览器"],
+    ["SamsungBrowser","三星浏览器"],["Edg/","Edge"],["OPR/","Opera"],["FxiOS","Firefox"],["Firefox","Firefox"],
+    ["CriOS","Chrome"],["Chrome","Chrome"],["Safari","Safari"]];
+  for(const [k,v] of list)if(u.indexOf(k)>-1)return v;
+  return "";
+}
 function hasRecorder(){return typeof window.MediaRecorder!=="undefined";}
 /* =========================================================
    环境自诊断：先判断「为什么用不了」，再给出能照做的解决办法
@@ -145,6 +160,7 @@ function explain(err,kind,d){
       why:"这是微信内置浏览器的限制，不是手机的问题——同一个网址换到手机浏览器里就能正常用。",
       steps:["点右上角「···」→「在浏览器打开」，再"+(kind==="voice"?"点话筒录音":"点开始拍摄"),
         "不想换浏览器：拍摄用下面的「手机相机」，录音用「手机录音机」，一样能继续发布"],
+      fallbackFirst:true,
       actions:["open","diag"]});
   }
   if(!d.hasMediaDevices||!d.safeOrigin){
@@ -164,11 +180,18 @@ function explain(err,kind,d){
   if(name==="NotAllowedError"||d[kind==="voice"?"microphone":"camera"]==="denied"){
     /* 2026-11-05 用户实机反馈「全部被拒」：安卓长辈在询问框点了「拒绝（不再询问）」后，
        浏览器记住选择、此后连询问框都不弹。指引改为安卓优先；
-       且很多国产浏览器没有「小锁」入口，把最可靠的「系统设置→应用→权限」放第一条 */
-    const sysSet="回手机桌面 → 打开「设置」→「应用管理」→ 找到你正在用的浏览器（或打开本网页的应用）→「权限」→ 把「相机」「麦克风」都改成「允许」";
+       且很多国产浏览器没有「小锁」入口，把最可靠的「系统设置→应用→权限」放第一条。
+       同日再反馈「无法授权」：备用方式（系统相机/录音机，不走网页权限）提到面板最上方，
+       并用 UA 认出浏览器名，方便长辈在设置里找到对应应用 */
+    const bn=uaBrowser();
+    const app=bn?("「"+bn+"」"):"你正在用的浏览器";
+    const sysSet="回手机桌面 → 打开「设置」→「应用管理」→ 找到"+app+" →「权限」→ 把「相机」「麦克风」都改成「允许」";
     return Object.assign(base,{
       title:word+"的权限被拒绝了",
-      why:"上一次可能点了「拒绝」，浏览器记住了这个选择——所以这次连询问框都不弹了，改回「允许」就能用。",
+      why:"上一次可能点了「拒绝」，浏览器记住了这个选择——所以这次连询问框都不弹了。"+
+        (bn?("你现在用的是"+bn+"，改权限时在设置里就找它。"):"")+
+        "不想改设置？下面第一个按钮不用任何权限，点它就能继续发。",
+      fallbackFirst:true,
       steps:isAndroid()?[
         "安卓手机（最可靠的办法）："+sysSet,
         "安卓手机（第二种）：点网址左边的小锁 🔒 → 权限 → 相机、麦克风改成「允许」",
@@ -202,6 +225,7 @@ function explain(err,kind,d){
     title:"无法打开"+word,
     why:"浏览器报错："+(name||"未知错误")+(msg?"（"+String(msg).slice(0,80)+"）":""),
     steps:["先点「重试」再试一次","仍不行就点「在新窗口打开」，用独立窗口打开本应用","也可以用下面的备用方式继续发布"],
+    fallbackFirst:true,
     actions:["retry","open","diag"]});
 }
 function secureHint(){
@@ -366,15 +390,19 @@ function helpHTML(h,type){
        </label>
        <label class="cap-help-btn fallback"><input type="file" accept="audio/*" data-cap-in="audio" hidden>🎵 选已有的录音文件
        </label>`;
+  const altTitle=`<div class="cap-help-alt">用不了${word}？可以先用这些方式（不需要任何权限）：</div>`;
+  const closeBtn=`<button class="cap-help-btn ghost" data-cap-help="close">↩︎ 返回</button>`;
+  const stepsHTML=(h.steps&&h.steps.length)?`<ol class="cap-help-s">${h.steps.map(s=>`<li>${s}</li>`).join("")}</ol>`:"";
   return `<div class="cap-help" role="alertdialog" aria-label="为什么用不了${word}">
     <div class="cap-help-ic">🔒</div>
     <div class="cap-help-t">${h.title}</div>
     <div class="cap-help-w">${h.why||""}</div>
-    ${(h.steps&&h.steps.length)?`<ol class="cap-help-s">${h.steps.map(s=>`<li>${s}</li>`).join("")}</ol>`:""}
-    <div class="cap-help-act">${acts.map(a=>btn[a]||"").join("")}</div>
-    <div class="cap-help-alt">用不了${word}？可以先用这些方式：</div>
-    <div class="cap-help-act">${extra}
-      <button class="cap-help-btn ghost" data-cap-help="close">↩︎ 返回</button></div>
+    ${h.fallbackFirst
+      ? altTitle+`<div class="cap-help-act">${extra}</div>`+stepsHTML
+        +`<div class="cap-help-act">${acts.map(a=>btn[a]||"").join("")}${closeBtn}</div>`
+      : stepsHTML
+        +`<div class="cap-help-act">${acts.map(a=>btn[a]||"").join("")}</div>`
+        +altTitle+`<div class="cap-help-act">${extra}${closeBtn}</div>`}
     <div class="cap-help-note" data-cap-diag="${(state.diag&&diagText(state.diag).replace(/"/g,"'").replace(/\n/g,"｜"))||""}"></div>
   </div>`;
 }

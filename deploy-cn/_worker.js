@@ -16,7 +16,7 @@
  */
 const UPSTREAM = "https://yurenbang.app.workbuddy.host";
 const PREFIX = "/yrbapi";
-const BUILD_TAG = "20261105135526-build";
+const BUILD_TAG = "20261105153524-build";
 
 /* ============================================================
    /sbapi —— 自建 Supabase 同源代理（2026-11-01 迁移第一步）
@@ -380,7 +380,7 @@ function forbiddenOrigin(url) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
     /* 方法白名单：探测类方法直接拒绝 */
@@ -438,11 +438,33 @@ export default {
     }
 
     if (url.pathname === SB_PREFIX || url.pathname.startsWith(SB_PREFIX + "/")) {
-      /* Supabase 代理限流：120 次/分/IP（与 /yrbapi 同口径） */
-      if (!rateLimit(ip + "|sb", 120, 60000)) return tooMany(url, "请求太频繁，请稍后再试");
+      /* 2026-11-05 滑动卡顿第四轮：图片字节请求单独限额 + 边缘缓存。
+         此前图片 GET 与接口共用 120 次/分/IP——未登录看图放开后，快速滑几屏
+         就可能吃满配额，图片开始 429、前端重试，感知就是「越滑越卡」；
+         且每张图都跨境回源 Supabase（400ms+ RTT / 几 MB 原图），重复浏览全是冤枉路。 */
+      const isImgGet = request.method === "GET" &&
+        url.pathname.startsWith(SB_PREFIX + "/storage/v1/object/sign/");
+      if (isImgGet) {
+        if (!rateLimit(ip + "|img", 600, 60000)) return tooMany(url, "请求太频繁，请稍后再试");
+      } else if (!rateLimit(ip + "|sb", 120, 60000)) return tooMany(url, "请求太频繁，请稍后再试");
       if (!sameOriginOk(request, url)) return forbiddenOrigin(url);
       const sub = url.pathname.slice(SB_PREFIX.length) || "/";
       const target = SB_UPSTREAM + sub + url.search;
+
+      /* 边缘缓存：签名 URL 一小时有效，缓存键剥掉 token（同路径同字节，
+         谁先访问谁回源，同站点一小时内全部命中边缘）。 */
+      let imgCacheKey = null;
+      if (isImgGet && typeof caches !== "undefined" && caches.default) {
+        imgCacheKey = new Request(url.origin + url.pathname, { method: "GET" });
+        try {
+          const hit = await caches.default.match(imgCacheKey);
+          if (hit) {
+            const h2 = new Headers(hit.headers);
+            h2.set("x-yrb-proxy", "sb-edge");
+            return new Response(hit.body, { status: hit.status, statusText: hit.statusText, headers: h2 });
+          }
+        } catch (e) {}
+      }
 
       const headers = new Headers(request.headers);
       for (const h of STRIP) headers.delete(h);
@@ -458,6 +480,18 @@ export default {
         const out = new Headers(resp.headers);
         out.set("access-control-allow-origin", url.origin);
         out.set("x-yrb-proxy", "sb1");
+        /* 命中图片字节：给浏览器和边缘都留一小时缓存（与签名 TTL 对齐） */
+        if (isImgGet && resp.ok && /^(image|video|audio)\//.test(resp.headers.get("content-type") || "")) {
+          out.set("cache-control", "public, max-age=3600");
+          out.delete("set-cookie");
+          out.delete("vary");
+          if (imgCacheKey && resp.body) {
+            const [toClient, toCache] = resp.body.tee();
+            const put = caches.default.put(imgCacheKey, new Response(toCache, { status: resp.status, statusText: resp.statusText, headers: new Headers(out) }));
+            if (ctx && typeof ctx.waitUntil === "function") ctx.waitUntil(put); else await put;
+            return new Response(toClient, { status: resp.status, statusText: resp.statusText, headers: secure(out) });
+          }
+        }
         return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers: secure(out) });
       } catch (err) {
         /* 同 M12：对外固定文案，原文进边缘日志 */
