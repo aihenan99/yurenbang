@@ -60,7 +60,13 @@ if (existsSync(pyPath)) {
   declared = [...block.matchAll(/"([A-Za-z0-9._-]+)"/g)].map((m) => m[1]);
 }
 
-console.log(C.b + "\n层登记一致性审计" + C.x + C.d + "（html / sw.js / health.js / sync_deploy.py 四处对齐）" + C.x + "\n");
+/* ⑤ 按需层（lazy.js 的 MAP）：不在 html 首屏里、也不该进 sw 预缓存 */
+const lazySrc = read(join(SRC, "assets", "lazy.js"));
+const lazyLayers = [...lazySrc.matchAll(/([A-Za-z0-9_-]+)\s*:\s*\{\s*js:\s*"assets\/([^"]+)\.js"/g)]
+  .map((m) => m[1]);
+const lazySet = new Set(lazyLayers);
+
+console.log(C.b + "\n层登记一致性审计" + C.x + C.d + "（html / sw.js / health.js / sync_deploy.py 四处对齐 + 按需层）" + C.x + "\n");
 
 /* ---------- 2. 校验 ---------- */
 
@@ -90,14 +96,29 @@ else {
     " / html=" + htmlOrder.slice(i, i + 3).join("→"));
 }
 
-/* D. 离线可用：每个层的 js/css 都要在 sw CORE 里 */
+/* C2. 按需层自洽：不在首屏包里、文件存在、health 标了 lazy:true
+      （任一条不成立 → 要么按需没生效，要么它缺席时会被免疫系统误判为故障） */
+const lazyBad = [];
+for (const id of lazySet) {
+  if (htmlLayers.includes(id)) lazyBad.push(id + " 仍在 html 首屏");
+  if (!existsSync(join(SRC, "assets", id + ".js"))) lazyBad.push(id + " 文件缺失");
+  const h = healthLayers.find((L) => L.id === id);
+  if (!h) lazyBad.push(id + " 未登记 health");
+  else if (!new RegExp('id:\\s*"' + id + '"[^}]*?lazy:\\s*true').test(health)) lazyBad.push(id + " 未标 lazy:true");
+}
+if (lazyBad.length) no("按需层自洽（不进首屏 / 有文件 / health 标 lazy）", lazyBad.join("；"));
+else ok("按需层自洽（不进首屏 / 有文件 / health 标 lazy）", lazySet.size ? [...lazySet].join(",") : "无按需层");
+
+/* D. 离线可用：每个层的 js/css 都要在 sw CORE 里
+     例外：按需层不进预缓存 —— 预缓存等于把它重新下载一遍，按需省流量的意义就没了。
+     它们的样式已并入 bundle.css（bundle.css 在 CORE 里），脚本走运行时缓存。 */
 const coreJsSet = new Set(coreJs);
-const notCached = htmlLayers.filter((n) => !coreJsSet.has(n + ".js"));
+const notCached = htmlLayers.filter((n) => !coreJsSet.has(n + ".js") && !lazySet.has(n));
 if (notCached.length) no("所有层脚本都在 sw 预缓存里", "缺：" + notCached.join(", "));
-else ok("所有层脚本都在 sw 预缓存里", coreJs.length + " 个 js");
+else ok("所有层脚本都在 sw 预缓存里", coreJs.length + " 个 js" + (lazySet.size ? "（按需层 " + lazySet.size + " 个豁免）" : ""));
 
 const coreCssSet = new Set(coreCss);
-const cssNotCached = htmlCss.filter((n) => !coreCssSet.has(n + ".css"));
+const cssNotCached = htmlCss.filter((n) => !coreCssSet.has(n + ".css") && !lazySet.has(n));
 if (cssNotCached.length) no("所有层样式都在 sw 预缓存里", "缺：" + cssNotCached.join(", "));
 else ok("所有层样式都在 sw 预缓存里", htmlCss.length + " 个 css");
 
@@ -105,8 +126,9 @@ else ok("所有层样式都在 sw 预缓存里", htmlCss.length + " 个 css");
 if (!declared.length) {
   warn("未能从 sync_deploy.py 解析出 layers 声明", "跳过该项");
 } else {
-  const missingInDecl = htmlLayers.filter((n) => !declared.includes(n));
-  const extraInDecl = declared.filter((n) => !htmlLayers.includes(n));
+  const allowed = [...htmlLayers, ...lazyLayers];
+  const missingInDecl = allowed.filter((n) => !declared.includes(n));
+  const extraInDecl = declared.filter((n) => !allowed.includes(n));
   if (missingInDecl.length || extraInDecl.length) {
     no("build.json 的 layers 声明与真实层一致",
       (missingInDecl.length ? "少声明 " + missingInDecl.length + " 个：" + missingInDecl.join(",") : "") +

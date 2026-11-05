@@ -39,6 +39,10 @@
       probe: function () { return !!window.YRB_STATE_SCHEMA; } },
     { id: "state", file: "assets/state.js", flag: "YRB_STATE", severity: "minor",
       probe: function () { return !!(window.YRB_STATE && typeof window.YRB_STATE.report === "function"); } },
+    /* 按需加载器（2026-11-05）：把「只在特定操作才用」的层推迟到用到时再下载。
+       它本身必须在首屏包里 —— 少了它，按需层就永远进不来。 */
+    { id: "lazy", file: "assets/lazy.js", flag: "YRB_LAZY", severity: "minor",
+      probe: function () { return !!(window.YRB_LAZY && typeof window.YRB_LAZY.load === "function"); } },
     /* 推荐排序层：缺了只是退回发布时间序，不影响可用；存在时首页顺序每次打开都不同 */
     { id: "recommend", file: "assets/recommend.js", flag: "YRB_RECO", severity: "minor",
       probe: function () { return !!(window.YRB_RECO && window.YRB_RECO.ready && typeof window.YRB_RECO.order === "function"); } },
@@ -68,7 +72,10 @@
       probe: function () { return !!window.YRB_REWARD; } },
     { id: "jiaojiao", file: "assets/jiaojiao.js", flag: "YRB_JJ", severity: "major",
       probe: function () { return !!window.YRB_JJ; } },
-    { id: "pptview", file: "assets/pptview.js", flag: "YRB_PPT", severity: "minor",
+    /* lazy:true = 按需层。没被调用过时缺席是**正常状态**，巡检不得把它当故障去补载
+       ——否则每个访客一进首页就被自动补上一个 27.5KB 的 pptview，按需形同虚设。
+       调用过仍缺席才算真失败（此时 down 到 degraded，lazy.js 自己留了重试）。 */
+    { id: "pptview", file: "assets/pptview.js", flag: "YRB_PPT", severity: "minor", lazy: true,
       probe: function () { return !!window.YRB_PPT; } },
     { id: "admin", file: "assets/admin.js", flag: "YRB_CONSOLE", severity: "minor",
       probe: function () { return !!window.YRB_CONSOLE; } },
@@ -136,6 +143,10 @@
     var hasFlag = L.flag ? !!window[L.flag] : true;
     return hasFlag ? "degraded" : "missing";
   }
+  /* 按需层且从未被调用过：缺席是正常状态（还没轮到），既不算故障也不算待补载 */
+  function idleLazy(L) {
+    return !!(L.lazy && !(window.YRB_LAZY ? window.YRB_LAZY.isRequested(L.id) : false));
+  }
   function stateOf(L) { return (ST[L.id] && ST[L.id].state) || "ok"; }
   function setState(L, s, why) {
     var prev = stateOf(L);
@@ -196,6 +207,12 @@
   function sweep(reason) {
     var missing = [], degraded = [];
     LAYERS.forEach(function (L) {
+      /* 按需层：没被调用过就不进巡检（它不是「缺」，是「还没轮到」）；
+         调用过仍缺席才交给下面的补载/降级流程处理。 */
+      if (idleLazy(L)) {
+        if (stateOf(L) !== "ok") { setState(L, "ok"); }
+        return;
+      }
       var d = diagnose(L);
       if (d === "ok") {
         if (stateOf(L) !== "ok") { setState(L, "ok"); log("recovered", L.id, "巡检确认正常"); }
@@ -386,7 +403,7 @@
     setTimeout(function () { sweep("启动首检"); }, 1500);
     /* 二次确认：弱网下脚本可能晚到 */
     setTimeout(function () {
-      var bad = LAYERS.filter(function (L) { return !probeOne(L); });
+      var bad = LAYERS.filter(function (L) { return !idleLazy(L) && !probeOne(L); });
       if (bad.length) { sweep("启动复查"); }
     }, 6000);
     /* 回到前台 / 切页回来：手机浏览器常在后台杀脚本上下文，回到前台要确认还活着 */
@@ -396,7 +413,7 @@
     window.addEventListener("focus", function () { rebuildSkeleton(); });
     setInterval(function () {
       if (document.visibilityState !== "visible") { return; }
-      var bad = LAYERS.filter(function (L) { return !probeOne(L); });
+      var bad = LAYERS.filter(function (L) { return !idleLazy(L) && !probeOne(L); });
       if (bad.length) { sweep("心跳巡检"); } else { rebuildSkeleton(); banner(); }
     }, HEARTBEAT);
     log("boot", "", "免疫系统就绪，监控 " + LAYERS.length + " 层");
@@ -415,8 +432,9 @@
     status: function () {
       var out = { at: Date.now(), ok: 0, bad: [], degraded: [], detail: {} };
       LAYERS.forEach(function (L) {
-        var d = diagnose(L);
-        if (d === "ok") { out.ok++; } else { out.bad.push(L.id); }
+        /* 按需层未调用 → state 记 lazy（既不计健康也不计故障，便于排查时区分） */
+        var d = idleLazy(L) ? "lazy" : diagnose(L);
+        if (d === "ok") { out.ok++; } else if (d !== "lazy") { out.bad.push(L.id); }
         if (d === "degraded") { out.degraded.push(L.id); }
         out.detail[L.id] = {
           state: d,

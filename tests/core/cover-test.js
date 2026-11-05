@@ -22,14 +22,24 @@ function ck(name, cond, extra) {
   await p.evaluate(() => { try { enterApp(); } catch (e) {} });
   await p.waitForTimeout(700);
 
-  /* T1 层就绪 + 健康层收录 */
-  const t1 = await p.evaluate(() => ({
-    flag: !!window.YRB_COVER,
-    pptThumb: !!(window.YRB_PPT && typeof YRB_PPT.thumb === "function"),
-    inHealth: window.YRB_HEALTH ? YRB_HEALTH.layers().indexOf("cover") >= 0 : false
-  }));
+  /* T1 层就绪 + 按需加载（2026-11-05：pptview 已移出首屏包，改由 lazy.js 注入） */
+  const t1 = await p.evaluate(async () => {
+    const before = !!window.YRB_PPT;                  /* 首屏不该有它，否则按需等于白做 */
+    let thumb = false, err = "";
+    try {
+      await window.YRB_LAZY.load("pptview");
+      thumb = !!(window.YRB_PPT && typeof YRB_PPT.thumb === "function");
+    } catch (e) { err = String((e && e.message) || e); }
+    return {
+      flag: !!window.YRB_COVER,
+      lazy: !!(window.YRB_LAZY && YRB_LAZY.isRequested("pptview")),
+      before, thumb, err,
+      inHealth: window.YRB_HEALTH ? YRB_HEALTH.layers().indexOf("cover") >= 0 : false
+    };
+  });
   ck("cover 层就绪", t1.flag);
-  ck("pptview 暴露 thumb API", t1.pptThumb);
+  ck("pptview 首屏未加载（按需生效）", t1.before === false);
+  ck("lazy.load 能取到 pptview.thumb", t1.thumb && t1.lazy, t1.err);
   ck("免疫系统已收录 cover", t1.inHealth);
 
   /* T2 PPT 案例 → 第一页渲染为封面 */

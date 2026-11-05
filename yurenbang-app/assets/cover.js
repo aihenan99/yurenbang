@@ -175,13 +175,20 @@ function paintCard(card, c) {
   var idx = card.dataset.i;
   enqueue(function () {
     return new Promise(function (res) {
-      if (!window.YRB_PPT || !YRB_PPT.thumb) return res();
-      YRB_PPT.thumb(m).then(function (d) {
-        requestAnimationFrame(function () {
-          var card2 = document.querySelector('.case-card[data-i="' + idx + '"]');
-          if (card2) applyCover(card2, d);
-        });
-      }).catch(function () { /* 保持 📄 占位 */ }).then(res);
+      /* 2026-11-05：pptview 已移出首屏包。只有当案例广场里真的出现 PPT 案例时才把它
+         拉进来（正常图文案例不会触发，懒加载的意义才保得住）；拉不到就保持 📄 占位。 */
+      var go = function () {
+        if (!window.YRB_PPT || !YRB_PPT.thumb) return res();
+        YRB_PPT.thumb(m).then(function (d) {
+          requestAnimationFrame(function () {
+            var card2 = document.querySelector('.case-card[data-i="' + idx + '"]');
+            if (card2) applyCover(card2, d);
+          });
+        }).catch(function () { /* 保持 📄 占位 */ }).then(res);
+      };
+      if ((!window.YRB_PPT || !YRB_PPT.thumb) && window.YRB_LAZY) {
+        YRB_LAZY.load("pptview").then(go).catch(go);
+      } else { go(); }
     });
   });
 }

@@ -21,7 +21,9 @@ const DEPLOY = require("node:path").resolve(__dirname, "..", "..", "deploy-cn");
 const PAGE = "http://127.0.0.1:8793/deploy-cn/index.html?bt=" + Date.now();
 const LAYERS = [
   ["app", "YRB_APP"], ["r23", "YRB_R23"], ["jj", "YRB_JJ"], ["gate", "YRB_GATE"],
-  ["cloud", "YRB_CLOUD"], ["food", "YRB_FOOD"], ["access", "YRB_MYLIST"], ["ppt", "YRB_PPT"]
+  ["cloud", "YRB_CLOUD"], ["food", "YRB_FOOD"], ["access", "YRB_MYLIST"],
+  /* 2026-11-05：pptview 改为按需层（首屏不该有），首屏包完整性改由 lazy.js 代表 */
+  ["lazy", "YRB_LAZY"]
 ];
 
 let pass = 0, fail = 0;
@@ -71,6 +73,10 @@ function ck(name, cond, info) {
 
   /* 2. 资源完整性 */
   ck("本地资源无 404", missing.length === 0, missing.slice(0, 4).join(", "));
+
+  /* 2b. 按需层确实不在首屏（2026-11-05）——它若又回到首屏，等于按需白做 */
+  const s2b = await p.evaluate(() => ({ ppt: !!window.YRB_PPT }));
+  ck("pptview 未进首屏包（按需加载生效）", s2b.ppt === false, "YRB_PPT=" + s2b.ppt);
 
   /* 3. 一次加载成功，无需自愈 */
   ck("未触发自愈补载", s1.heal === 0, "data-heal 脚本 " + s1.heal + " 个");

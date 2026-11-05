@@ -28,7 +28,8 @@ const CORE = [
   '/assets/staticcases.css', '/assets/staticcases.js',
   '/assets/reward.css', '/assets/reward.js',
   '/assets/jiaojiao.css', '/assets/jiaojiao.js',
-  '/assets/pptview.css', '/assets/pptview.js',
+  /* 2026-11-05：pptview 改按需（lazy.js 注入），不再预缓存 —— 预缓存会把它重新下载一遍，
+     省流量的意义就没了。样式已并入 bundle.css，单文件只作运行时缓存（用过后即缓存）。 */
   '/assets/admin.css', '/assets/admin.js',
   '/assets/adminguard.css', '/assets/adminguard.js',
   '/assets/gate.css', '/assets/gate.js',
@@ -40,7 +41,7 @@ const CORE = [
   '/assets/mediafull.css', '/assets/mediafull.js', '/assets/cover.js',
   '/assets/casedit.css', '/assets/casedit.js',
   '/assets/longimg.css', '/assets/longimg.js',
-  '/assets/state.schema.js', '/assets/state.js', '/assets/recommend.js',
+  '/assets/state.schema.js', '/assets/state.js', '/assets/lazy.js', '/assets/recommend.js',
   '/assets/chips.js', '/assets/account.js', '/assets/health.js', '/assets/upgrade.js',
   '/assets/guard.js', '/assets/vendor/cloud-sdk.global.js',
   '/assets/icon-192.png', '/assets/icon-512.png'

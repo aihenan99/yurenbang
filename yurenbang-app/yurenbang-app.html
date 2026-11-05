@@ -367,6 +367,8 @@ if ("serviceWorker" in navigator) {
      契约(state.schema.js) → 守卫(state.js)，两者都不改动任何业务逻辑。 -->
 <script src="assets/state.schema.js"></script>
 <script src="assets/state.js"></script>
+<!-- 按需加载器：给「只在特定操作才用」的层一个统一入口，把下载与解析推迟到用到时 -->
+<script src="assets/lazy.js"></script>
 <!-- 推荐排序：只提供「打分+排序」纯函数，由 app.js 的 renderFeed 一行钩子调用 -->
 <script src="assets/recommend.js"></script>
 <script src="assets/capture.js"></script>
@@ -383,8 +385,10 @@ if ("serviceWorker" in navigator) {
 <script src="assets/reward.js"></script>
 <!-- 家教服务层：顶部栏目「家教」入口 + 家教需求登记（需登录后提交，云端入库） -->
 <script src="assets/jiaojiao.js"></script>
-<!-- PPT 在线翻页浏览层：案例里的 .pptx 自动展开为逐页浏览（引擎按需懒加载） -->
-<script src="assets/pptview.js"></script>
+<!-- PPT 在线翻页浏览层：案例里的 .pptx 自动展开为逐页浏览（引擎按需懒加载）。
+     2026-11-05：本层已移出首屏包（27.5KB 原始 / 9.6KB gzip），改由 lazy.js
+     在「真的打开一个 PPT」时注入；未打开过 PPT 的访客不再为它付下载与解析成本。
+     调用点：app.js 打开案例、cover.js 取 PPT 封面；失败各自走原有降级分支。 -->
 <!-- 运营控制台：分享层（二维码/链接）+ 社区管理后台（数据总览/内容下架恢复删除） -->
 <script src="assets/admin.js"></script>
 <script src="assets/adminguard.js"></script>

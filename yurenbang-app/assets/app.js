@@ -750,13 +750,26 @@ function openViewer(c){
         :vwLock())+stats;
       $("#viewer").classList.add("open");
       if(f.url){
-        if(window.YRB_PPT)YRB_PPT.mount($("#vpWrap"),{url:f.url,path:f.path||"",name:fname});
-        else{
+        /* 2026-11-05：pptview 已移出首屏包，改由 lazy.js 按需注入
+           （27.5KB 原始 / 9.6KB gzip，只在真的打开一个 PPT 时才下载）。
+           注入期间 #vpWrap 是空的，到位后原地 mount，不做额外骨架。 */
+        const pptFail=()=>{
+          const wrap=$("#vpWrap");
+          if(!wrap)return;                 /* 用户已经关掉了查看器 */
           const isAdmin=(()=>{try{return !!(window.YRB_CONSOLE&&YRB_CONSOLE.isAdmin&&YRB_CONSOLE.isAdmin())||!!(window.YRB_ADMINGUARD&&YRB_ADMINGUARD.unlocked&&YRB_ADMINGUARD.unlocked());}catch(e){return false;}})();
-          $("#vpWrap").innerHTML=`<div class="vp-fail"><b>📄</b><span>${esc(fname)}</span>
+          wrap.innerHTML=`<div class="vp-fail"><b>📄</b><span>${esc(fname)}</span>
             ${isAdmin?`<a class="btn-a" href="${esc(f.url)}" target="_blank" rel="noopener">打开文件</a>`:""}
             <i>内容暂时无法展开，请稍后重试</i></div>`;
-        }
+        };
+        const pptMount=()=>{
+          const wrap=$("#vpWrap");
+          if(!wrap)return;
+          if(window.YRB_PPT)YRB_PPT.mount(wrap,{url:f.url,path:f.path||"",name:fname});
+          else pptFail();
+        };
+        if(window.YRB_PPT)pptMount();
+        else if(window.YRB_LAZY)YRB_LAZY.load("pptview").then(pptMount).catch(pptFail);
+        else pptFail();
       }
       return;
     }else{

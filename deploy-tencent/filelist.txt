@@ -53,6 +53,7 @@ assets/img-worker.js
 assets/jiaojiao-qr.png
 assets/jiaojiao.css
 assets/jiaojiao.js
+assets/lazy.js
 assets/license.css
 assets/license.js
 assets/longimg.css

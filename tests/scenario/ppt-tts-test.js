@@ -40,12 +40,19 @@ const PPTX_FILE = "E:/育人帮/temp/ppt-test/sample_fixed.pptx";
   await p.evaluate(() => { try { enterApp(); } catch (e) {} });
   await p.waitForTimeout(700);
 
-  /* T1 API 就绪 */
-  const t1 = await p.evaluate(() => ({
-    ppt: !!window.YRB_PPT && typeof YRB_PPT.pagesFor === "function",
-    mf: !!window.YRB_MEDIAFULL
-  }));
-  ck("YRB_PPT.pagesFor API 就绪", t1.ppt);
+  /* T1 API 就绪（2026-11-05：pptview 已移出首屏包，按需层要先显式请求） */
+  const t1 = await p.evaluate(async () => {
+    const before = !!window.YRB_PPT;
+    let err = "";
+    try { await window.YRB_LAZY.load("pptview"); } catch (e) { err = String((e && e.message) || e); }
+    return {
+      before, err,
+      ppt: !!window.YRB_PPT && typeof YRB_PPT.pagesFor === "function",
+      mf: !!window.YRB_MEDIAFULL
+    };
+  });
+  ck("pptview 首屏未加载（按需生效）", t1.before === false);
+  ck("YRB_PPT.pagesFor API 就绪（按需加载后）", t1.ppt, t1.err);
   ck("mediafull 层就绪", t1.mf);
 
   /* T2 全文提取：真实 pptx → 至少 1 页、每页都有文字 */
