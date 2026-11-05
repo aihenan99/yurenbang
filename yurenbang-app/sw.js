@@ -29,8 +29,10 @@ const CORE = [
   '/assets/reward.css', '/assets/reward.js',
   '/assets/jiaojiao.css', '/assets/jiaojiao.js',
   /* 2026-11-05：pptview 改按需（lazy.js 注入），不再预缓存 —— 预缓存会把它重新下载一遍，
-     省流量的意义就没了。样式已并入 bundle.css，单文件只作运行时缓存（用过后即缓存）。 */
-  '/assets/admin.css', '/assets/admin.js',
+     省流量的意义就没了。样式已并入 bundle.css，单文件只作运行时缓存（用过后即缓存）。
+     admin.js 同理（后台只有管理员用）；admin.css 里还带着分享面板的样式，继续留在首屏。 */
+  '/assets/share.js',
+  '/assets/admin.css',
   '/assets/adminguard.css', '/assets/adminguard.js',
   '/assets/gate.css', '/assets/gate.js',
   '/assets/license.css', '/assets/license.js',

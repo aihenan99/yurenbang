@@ -23,7 +23,10 @@
 
   /* 按需层登记表：id → 文件 + 就位标记（与 health.js 的 LAYERS 同名同标记） */
   var MAP = {
-    pptview: { js: "assets/pptview.js", flag: "YRB_PPT" }
+    pptview: { js: "assets/pptview.js", flag: "YRB_PPT" },
+    /* 后台管理（2026-11-05 从 admin.js 拆出分享层后）：只有管理员会打开，
+       63.9KB 原始 / 21KB gzip，不该让每个家长替它付首屏成本 */
+    admin: { js: "assets/admin.js", flag: "YRB_ADMIN_CONSOLE" }
   };
 
   var PENDING = {};   /* id → Promise（成功后保留） */

@@ -76,6 +76,7 @@ assets/reward.js
 assets/rose.css
 assets/rose.js
 assets/seo.css
+assets/share.js
 assets/state.js
 assets/state.schema.js
 assets/staticcases.css

@@ -101,23 +101,24 @@ E:\育人帮\
 | 10 | `reward.js` | 积分、称号、玫瑰 | 激励不显示 |
 | 11 | `jiaojiao.js` | 教学引导 | 引导不出 |
 | 12 | `pptview.js` | PPT 在线翻页（pptx-preview 懒加载）——**2026-11-05 起改为按需层**，不在首屏包里 | PPT 打不开（降级为文件卡片） |
-| 13 | `admin.js` | 后台（数据/案例/栏目管理） | 后台不可用 |
-| 14 | `adminguard.js` | 后台第二道门（管理密码 bcrypt） | 后台无密码保护 |
-| 15 | `gate.js` | 访问门槛：看免费，回帖/发布需登录 | 匿名可发布 |
-| 16 | `license.js` | 未成年人保护公约 | 发布前无确认 |
-| 17 | `profile.js` | 个人主页 | 个人页空 |
-| 18 | `food.js` | 家常菜（独立小功能） | 该页不可用 |
-| 19 | `account.js` | 自建账号体系（注册/登录/改密） | 登录不可用 |
-| 20 | `chips.js` | 首页栏目配置（后台可改） | 栏目固定 |
-| 21 | `rose.js` | 点赞送玫瑰给发布者 | 无赠礼 |
-| 22 | `protect.js` | 内容保护（禁复制/下载/打印，管理员豁免） | 内容可被复制 |
-| 23 | `mediafull.js` | 视频全屏、图片放大、**全文朗读**（`/yrbtts`） | 朗读失效 |
-| 24 | `cover.js` | 案例封面（PPT 首页栅格化） | 封面缺省 |
-| 25 | `casedit.js` | 图文案例编辑器（粘贴清洗、插图、发布） | 该发布方式不可用 |
-| 26 | `longimg.js` | 分享长图（canvas 现生成，不落库；`YRB_LONGIMG`） | 长图分享入口消失 |
-| 27 | `guard.js` | 全局异常兜底 | 异常不收敛 |
-| 28 | `health.js` | 免疫系统：探针 + 自动补载 | 弱网缺层无人补救 |
-| 29 | `upgrade.js` | 构建号一致性 + 新版本温和提示 | 用户可能长期跑旧缓存 |
+| 13 | `share.js` | **分享层 + 管理员身份**（二维码/链接/系统分享、`is_admin()` 判定、`YRB_CONSOLE` 门面）——2026-11-05 从 `admin.js` 拆出，留在首屏 | 分享面板打不开、后台入口消失 |
+| 14 | `admin.js` | 后台（数据/案例/栏目管理）——**2026-11-05 起改为按需层**，由 `share.js` 的 `YRB_CONSOLE.openAdmin()` 拉起 | 后台不可用（点入口才加载） |
+| 15 | `adminguard.js` | 后台第二道门（管理密码 bcrypt） | 后台无密码保护 |
+| 16 | `gate.js` | 访问门槛：看免费，回帖/发布需登录 | 匿名可发布 |
+| 17 | `license.js` | 未成年人保护公约 | 发布前无确认 |
+| 18 | `profile.js` | 个人主页 | 个人页空 |
+| 19 | `food.js` | 家常菜（独立小功能） | 该页不可用 |
+| 20 | `account.js` | 自建账号体系（注册/登录/改密） | 登录不可用 |
+| 21 | `chips.js` | 首页栏目配置（后台可改） | 栏目固定 |
+| 22 | `rose.js` | 点赞送玫瑰给发布者 | 无赠礼 |
+| 23 | `protect.js` | 内容保护（禁复制/下载/打印，管理员豁免） | 内容可被复制 |
+| 24 | `mediafull.js` | 视频全屏、图片放大、**全文朗读**（`/yrbtts`） | 朗读失效 |
+| 25 | `cover.js` | 案例封面（PPT 首页栅格化） | 封面缺省 |
+| 26 | `casedit.js` | 图文案例编辑器（粘贴清洗、插图、发布） | 该发布方式不可用 |
+| 27 | `longimg.js` | 分享长图（canvas 现生成，不落库；`YRB_LONGIMG`） | 长图分享入口消失 |
+| 28 | `guard.js` | 全局异常兜底 | 异常不收敛 |
+| 29 | `health.js` | 免疫系统：探针 + 自动补载 | 弱网缺层无人补救 |
+| 30 | `upgrade.js` | 构建号一致性 + 新版本温和提示 | 用户可能长期跑旧缓存 |
 
 ### 按需层（2026-11-05 起）
 
@@ -125,9 +126,25 @@ E:\育人帮\
 的层开一个统一入口：`YRB_LAZY.load("pptview").then(...)`。它不改变任何业务层内部结构，
 只把下载与解析推迟到真正用到的那一刻。
 
-首个迁移的是 `pptview`（27.5 KB 原始 / 9.6 KB gzip）：触发点只有两处——
-`app.js` 打开 PPT 案例、`cover.js` 取 PPT 封面；两处都保留了原来的降级分支
-（引擎到不了就显示「打开文件」，管理员可见）。首屏 `bundle.js` 从 814.7 KB 降到 793.3 KB。
+目前两个按需层：
+
+| 层 | 体积（原始 / gzip） | 触发点 |
+|---|---|---|
+| `pptview` | 27.5 / 9.6 KB | `app.js` 打开 PPT 案例、`cover.js` 取 PPT 封面（都有「打开文件」降级） |
+| `admin` | 63.9 / 21.0 KB | `share.js` 的 `YRB_CONSOLE.openAdmin()`：我的→管理后台、分享层入口、`#admin` 直达 |
+
+后台能被按需，前提是**先把自己拆干净**：分享面板、管理员身份判定、「我的」页入口
+原本都长在 `admin.js` 里（全员要用），2026-11-05 迁到新层 `share.js`（19.8 / 7.7 KB）。
+代价是首屏先多 7.7 KB、再省 21.0 KB，净省 13.3 KB gzip；`bundle.js` 793.3 → 736.6 KB。
+
+拆分留下的口径变化（改代码时别踩）：
+
+- 就位标记换了：`admin.js` 现在挂 `window.YRB_ADMIN_CONSOLE`（`open/close/reload/healthHTML`），
+  `window.YRB_CONSOLE` 是 `share.js` 的门面（`openShare/isAdmin/openAdmin/reload`），**永远在第一屏**；
+- 管理员判定只有一份（`share.js`），后台内部统一问 `YRB_CONSOLE.isAdmin()`，所以
+  `YRB_CONSOLE.isAdmin = () => true` 这种测试打桩仍然有效；
+- `openAdmin()` 变成异步（先加载再打开）。测试里要么 `await`，要么等几百毫秒再断言；
+- `assets/admin.css` 里同时放着分享面板与后台的样式，暂时整份留在首屏（gzip 3.6 KB）；
 
 按需层比普通层多三条硬要求，任一条不满足，按需都会静默失效或被误判成故障：
 
@@ -383,9 +400,9 @@ npm run hooks          # = git config core.hooksPath .githooks
 **CSP 现状**：观测模式，不阻断。本地已演练过强制模式（`npm run verify:csp`，17 项断言
 零违规）；正式切换按 `docs/CSP转强制预案.md` P1→P4 走，转强制只需改一个字符串。
 
-**管理员识别**：`admin.js` 两行常量——`ADMIN_IDS`（`auth.users.sub`，主判据，公开无害）+
-`ADMIN_PHONES`（读注入值，源码为空）。**前端只决定界面入口**，真正的写权限在数据库
-RLS / `is_admin()`。彻底方案：云端 `is_admin()` RPC，前端不再持有任何号码（待恢复）。
+**管理员识别**：`share.js` 两行常量——`ADMIN_IDS`（`auth.users.sub`，主判据，公开无害）+
+`ADMIN_PHONES`（读注入值，源码为空；注入目标是 `share.js` 不是 `admin.js`，因为它要第一屏就生效）。
+**前端只决定界面入口**，真正的写权限在数据库 RLS / `is_admin()`。
 
 **别忘了**：`protect.css` 里 video 必须保持 `pointer-events: auto`，否则原生播放控件失效（已踩过）。
 

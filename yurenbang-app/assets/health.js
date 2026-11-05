@@ -77,8 +77,14 @@
        调用过仍缺席才算真失败（此时 down 到 degraded，lazy.js 自己留了重试）。 */
     { id: "pptview", file: "assets/pptview.js", flag: "YRB_PPT", severity: "minor", lazy: true,
       probe: function () { return !!window.YRB_PPT; } },
-    { id: "admin", file: "assets/admin.js", flag: "YRB_CONSOLE", severity: "minor",
-      probe: function () { return !!window.YRB_CONSOLE; } },
+    /* 分享层：全员要用（二维码/链接/系统分享），留在首屏；缺了分享面板打不开，
+       但浏览与求助不受影响，所以是 minor 不是 core。 */
+    { id: "share", file: "assets/share.js", flag: "YRB_SHARE", severity: "minor",
+      probe: function () { return !!(window.YRB_SHARE && typeof window.YRB_SHARE.openShare === "function"); } },
+    /* 后台管理：只有管理员会用，2026-11-05 起改按需（见 lazy.js 的 MAP.admin）。
+       就位标记是 YRB_ADMIN_CONSOLE（YRB_CONSOLE 是首屏 share.js 的门面，永远在）。 */
+    { id: "admin", file: "assets/admin.js", flag: "YRB_ADMIN_CONSOLE", severity: "minor", lazy: true,
+      probe: function () { return !!(window.YRB_ADMIN_CONSOLE && typeof window.YRB_ADMIN_CONSOLE.open === "function"); } },
     { id: "adminguard", file: "assets/adminguard.js", flag: "YRB_ADMINGUARD", severity: "minor",
       probe: function () { return !!window.YRB_ADMINGUARD; } },
     { id: "gate", file: "assets/gate.js", flag: "YRB_GATE", severity: "major",

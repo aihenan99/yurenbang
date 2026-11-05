@@ -23,7 +23,9 @@ const LAYERS = [
   ["app", "YRB_APP"], ["r23", "YRB_R23"], ["jj", "YRB_JJ"], ["gate", "YRB_GATE"],
   ["cloud", "YRB_CLOUD"], ["food", "YRB_FOOD"], ["access", "YRB_MYLIST"],
   /* 2026-11-05：pptview 改为按需层（首屏不该有），首屏包完整性改由 lazy.js 代表 */
-  ["lazy", "YRB_LAZY"]
+  ["lazy", "YRB_LAZY"],
+  /* 分享层从 admin.js 拆出来后，它是全员要用的那一半，必须在首屏 */
+  ["share", "YRB_SHARE"]
 ];
 
 let pass = 0, fail = 0;
@@ -75,8 +77,9 @@ function ck(name, cond, info) {
   ck("本地资源无 404", missing.length === 0, missing.slice(0, 4).join(", "));
 
   /* 2b. 按需层确实不在首屏（2026-11-05）——它若又回到首屏，等于按需白做 */
-  const s2b = await p.evaluate(() => ({ ppt: !!window.YRB_PPT }));
+  const s2b = await p.evaluate(() => ({ ppt: !!window.YRB_PPT, adm: !!window.YRB_ADMIN_CONSOLE }));
   ck("pptview 未进首屏包（按需加载生效）", s2b.ppt === false, "YRB_PPT=" + s2b.ppt);
+  ck("admin 未进首屏包（点入口才加载）", s2b.adm === false, "YRB_ADMIN_CONSOLE=" + s2b.adm);
 
   /* 3. 一次加载成功，无需自愈 */
   ck("未触发自愈补载", s1.heal === 0, "data-heal 脚本 " + s1.heal + " 个");

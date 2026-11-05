@@ -1,10 +1,13 @@
 /* =========================================================
-   育人帮 · 运营控制台层
-   1) 分享层：二维码 / 网址 / 复制 / 保存 / 系统分享
-   2) 社区管理后台：概览统计 + 求助管理（下架/恢复/删除）+ 帮忙管理（删除）
-   权限：界面按管理员手机号显示入口；真正的权限由数据库 RLS（is_admin()）把关，
+   育人帮 · 运营控制台层（按需加载，2026-11-05 起）
+   社区管理后台：概览统计 + 求助管理（下架/恢复/删除）+ 帮忙管理（删除）
+                + 举报处理 / 案例管理 / 家教登记 / 资质证照 / 首页栏目 / 系统健康
+   加载时机：点「我的 → 管理后台」或分享层「进入管理后台」或打开 #admin→
+            由 share.js 的 YRB_CONSOLE.openAdmin() 用 lazy.js 拉起本文件。
+   前置：分享层与管理员身份判定在 share.js（第一屏），本层不再重复实现。
+   权限：界面入口按管理员身份显示；真正的权限由数据库 RLS（is_admin()）把关，
         普通账号即使误入也只能看到数据，操作会被数据库拒绝。
-   依赖：cloud.js（YRB_CLOUD，登录/云数据库）；不改 app.js/refine23.js 结构
+   依赖：cloud.js（YRB_CLOUD，登录/云数据库）、share.js（身份/复制）；不改 app.js/refine23.js 结构
    ========================================================= */
 (function () {
 "use strict";
@@ -12,93 +15,26 @@ const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-const APP_URL = "https://yurenbang.app.workbuddy.host/";
-/* 管理员识别（与本库 is_admin() 函数保持一致的账号，新增管理员需同步改这里 + 数据库函数）
-   ADMIN_IDS：auth.users.sub，最可靠——SDK 会话对象一定带 id，不依赖手机号能否读出来
-   ADMIN_PHONES：库中手机号后 11 位，作为兼容兜底（会话里能取到手机号时生效）。
-     ★ 源码里不再写死手机号（本仓库公开，硬编码等于把号码发布到全世界）。
-       发布时由 temp/sync_deploy.py 从本地私有配置 config/admin.local.json
-       （已 gitignore，不入库）注入 window.YRB_ADMIN.phones；源码/测试环境为空数组，
-       管理员识别仍走 ADMIN_IDS 主判据，功能不受影响。
-       彻底方案：云恢复后改用数据库 is_admin() RPC，前端只看结果。 */
-const ADMIN_IDS = ["2110319594408247296"];
-const ADMIN_PHONES = (window.YRB_ADMIN && window.YRB_ADMIN.phones) || [];
-
 /* ---------- 工具 ---------- */
 function db() {
   const c = window.YRB_CLOUD;
   try { return (c && c.enabled() && c.client && c.client.database) || null; } catch (e) { return null; }
 }
-function digits(s) { return String(s || "").replace(/\D/g, ""); }
 function me() {
   try { return (window.YRB_CLOUD && YRB_CLOUD.who && YRB_CLOUD.who()) || null; } catch (e) { return null; }
 }
+/* 管理员判定搬去了 share.js（含问库 is_admin()、按账号缓存、换账号作废）。
+   这里统一问 YRB_CONSOLE.isAdmin()：一是单一口径，二是测试里
+   `YRB_CONSOLE.isAdmin = () => true` 这种打桩仍然生效。 */
 function isAdmin() {
-  try {
-    const w = me();
-    if (!w) return false;
-    /* 1) 旧平台账号 ID（迁移前的遗留判断，留着不碍事） */
-    if (ADMIN_IDS.some(id => String(w.id || "") === id)) return true;
-    /* 2) 本次会话里已问过数据库：以答案为准 */
-    if (adminProbeResult === true) return true;
-    if (adminProbeResult === false) return false;
-    /* 3) 刷新后还没问完：先用上回缓存，避免入口闪一下才出现 */
-    if (adminCached()) return true;
-    /* 4) 兼容：手机号后 11 位（旧平台会话能取到号码时生效） */
-    const d = digits(w.phone);
-    return d.length >= 7 && ADMIN_PHONES.some(p => d.endsWith(digits(p)));
-  } catch (e) { return false; }
+  try { return !!(window.YRB_CONSOLE && YRB_CONSOLE.isAdmin && YRB_CONSOLE.isAdmin()); } catch (e) { return false; }
 }
-
-/* ---------- 管理员身份：改问数据库（2026-11-01 迁移自建库后） ----------
-   新库只认 public.yb_admins（is_admin() 函数），前端再也拿不到手机号可比对。
-   做法：登录后异步调 is_admin() RPC，结果按账号缓存到 localStorage。
-   ★ 缓存只影响「入口是否显示」，真正的增删改权限永远由数据库 RLS 判定，
-     就算有人手工改 localStorage 把入口点亮，操作也会被数据库拒绝。 */
-const ADMIN_CACHE = "yrb_admin_ok:";
-let adminProbe = null;        /* 进行中的请求（并发去重） */
-let adminProbeResult = null;  /* 本次会话的复核结果：true / false / null(未定) */
-
-function adminCacheKey() { const w = me(); return w ? ADMIN_CACHE + String(w.id || "") : null; }
-function adminCached() {
-  try { const k = adminCacheKey(); return !!k && localStorage.getItem(k) === "1"; } catch (e) { return false; }
-}
-function adminSetCache(ok) {
-  try {
-    const k = adminCacheKey(); if (!k) return;
-    ok ? localStorage.setItem(k, "1") : localStorage.removeItem(k);
-  } catch (e) {}
-}
-function probeAdmin(force) {
-  try {
-    if (!window.YRB_CLOUD || !YRB_CLOUD.signedIn()) { adminProbeResult = false; return Promise.resolve(false); }
-    if (adminProbe && !force) return adminProbe;
-    const c = db();
-    if (!c || typeof c.rpc !== "function") return Promise.resolve(isAdmin());
-    adminProbe = c.rpc("is_admin", {}).then(r => {
-      if (!r || r.error) return isAdmin();               /* 异常：沿用现有判断，不误降权 */
-      const v = r.data === true || r.data === "true";
-      const changed = v !== adminCached();
-      adminProbeResult = v;
-      adminSetCache(v);
-      if (changed) {
-        try { syncAdminEntry(); } catch (e) {}
-        try { if (typeof renderFuncRow === "function") renderFuncRow(); } catch (e) {}
-        try { window.dispatchEvent(new CustomEvent("yrb-admin-changed", { detail: { admin: v } })); } catch (e) {}
-      }
-      return v;
-    }).catch(() => isAdmin()).then(v => { adminProbe = null; return v; });
-    return adminProbe;
-  } catch (e) { return Promise.resolve(false); }
-}
-/* 账号一变，本会话的结论立刻作废，避免换了账号还顶着上一个账号的权限 */
-function resetAdminProbe() { adminProbe = null; adminProbeResult = null; }
-/* 当前账号的可读标识，用于提示文案（便于排查"为什么不是管理员"） */
 function meLabel() {
-  const w = me(); if (!w) return "未登录";
-  const d = digits(w.phone);
-  const who = w.name || ("账号" + String(w.id || "").slice(-4));
-  return d.length >= 11 ? `${who}（${d.slice(0, 3)}****${d.slice(-4)}）` : who;
+  try { return (window.YRB_SHARE && YRB_SHARE.meLabel && YRB_SHARE.meLabel()) || "未登录"; } catch (e) { return "未登录"; }
+}
+function copyText(t) {
+  try { return (window.YRB_SHARE && YRB_SHARE.copyText) ? YRB_SHARE.copyText(t) : Promise.resolve(false); }
+  catch (e) { return Promise.resolve(false); }
 }
 function relTime(iso) {
   const t = new Date(iso).getTime(); if (!t) return "";
@@ -111,109 +47,16 @@ function relTime(iso) {
 }
 function kindLabel(k) { return { text: "文字", voice: "语音", video: "视频", image: "图片" }[k] || (k || "文字"); }
 
-/* ---------- DOM 注入（一次性） ---------- */
+/* ---------- DOM 注入（一次性） ----------
+   只注入后台自己的容器。分享层与引导弹层的 DOM 在 share.js（第一屏就在用）。 */
 function ensureShell() {
-  const phone = $("#phone"); if (!phone || $("#shareLayer")) return;
+  const phone = $("#phone"); if (!phone || $("#adLayer")) return;
   phone.insertAdjacentHTML("beforeend", `
-  <div id="shareLayer">
-    <div class="sl-head"><button class="sl-back" id="slBack">‹</button><b>分享「育人帮」</b></div>
-    <div class="sl-body">
-      <img class="sl-qr" id="slQr" src="assets/qr-share.png?v=2" alt="育人帮二维码">
-      <div class="sl-name">🌱 育人帮 · 家长互助社区</div>
-      <div class="sl-slogan">关心下一代，呵护成长 —— 有困惑，发一条，很多家长愿意伸手帮你</div>
-      <div class="sl-url"><span id="slUrl">${APP_URL}</span><button class="ad-act" id="slCopy" style="flex:none;padding:8px 14px">复制</button></div>
-      <div class="sl-tip">
-        <b>📲 像 APP 一样装到手机桌面（无需应用商店）</b><br>
-        · 安卓（Chrome/Edge 等）：扫二维码打开后，点菜单「添加到主屏幕 / 安装应用」<br>
-        · iPhone（Safari 扫码）：点分享按钮 →「添加到主屏幕」<br>
-        · 也可以直接<b>长按上方二维码 → 保存到相册</b>，转发到家长群
-      </div>
-      <button class="sl-btn" id="slShare">📤 立即分享给家长群 / 好友</button>
-      <button class="sl-btn ghost" id="slInstall" style="display:none">📲 安装到手机桌面（像 APP 一样全屏）</button>
-      <button class="sl-btn ghost" id="slSave">⬇️ 保存二维码图片</button>
-      <div class="sl-admin" id="slAdminBox" style="display:none">
-        <div class="t">🛠 社区管理后台</div>
-        <div class="d">求助与帮忙内容管理（下架 / 恢复 / 删除）、家教登记名单、社区数据总览。仅管理员账号可操作。</div>
-        <button class="sl-btn ghost" id="slAdmin" style="margin-top:0">进入管理后台 →</button>
-      </div>
-    </div>
-  </div>
-  <div id="shGuide"></div>
   <div id="adLayer">
     <div class="ad-head"><button class="ad-back" id="adBack">‹</button><b>🛠 管理后台</b><button class="ad-refresh" id="adRefresh">刷新</button></div>
     <div class="ad-body" id="adBody"></div>
     <div id="adCaseEdit" hidden></div>
   </div>`);
-}
-
-/* ---------- 分享层 ---------- */
-function openShare() { ensureShell(); $("#shareLayer").classList.add("open"); refreshInstallBtn(); }
-function closeShare() { const l = $("#shareLayer"); if (l) l.classList.remove("open"); }
-/* PWA 一键安装（2026-10-23b）：Chrome/Edge/华为等支持 beforeinstallprompt 的浏览器
-   会出现「安装到手机桌面」按钮，点了直接生成桌面图标像 APP 一样全屏——
-   恢复「微信扫码 → 生成一款 APP」的体验；iPhone/微信没有此事件，按钮保持隐藏 */
-let installEvt = null;
-window.addEventListener("beforeinstallprompt", e => {
-  e.preventDefault();
-  installEvt = e;
-  refreshInstallBtn();
-});
-window.addEventListener("appinstalled", () => { installEvt = null; refreshInstallBtn(); });
-function refreshInstallBtn() {
-  const b = $("#slInstall");
-  if (b) b.style.display = installEvt ? "flex" : "none";
-}
-/* 分享引导弹层（2026-10-23）：微信内置浏览器 / 老安卓 WebView 没有 navigator.share，
-   直接 toast「浏览器不支持」会让用户无从下手 → 改为图文引导：
-   微信内教「右上角 ··· → 发送给朋友」，其他浏览器自动复制网址 + 提示去微信粘贴。
-   兜底还有「长按二维码保存图片转发」，在没有分享能力的容器里最稳。 */
-function isWeChat() { return /MicroMessenger/i.test(navigator.userAgent || ""); }
-function closeShareGuide() { const el = $("#shGuide"); if (el) el.classList.remove("open"); }
-function shareGuide() {
-  ensureShell();
-  const el = $("#shGuide"); if (!el) return;
-  const wx = isWeChat();
-  /* 桌面图标指引（通用）：安卓微信走 ···菜单，普通浏览器走菜单安装，iPhone 走 Safari */
-  const DESKTOP_TIP = wx
-    ? "想在桌面生成「育」字图标（像 APP 一样）：点右上角「···」→「添加到桌面」（安卓微信支持）；iPhone 请用 Safari 打开后「添加到主屏幕」。"
-    : "想在桌面生成「育」字图标（像 APP 一样）：浏览器菜单「添加到主屏幕 / 安装应用」即可；iPhone 用 Safari 打开后点分享按钮选「添加到主屏幕」。";
-  el.innerHTML = `
-    <div class="shg-mask" data-shg="close"></div>
-    <div class="shg-card">
-      <div class="shg-bar"></div>
-      <div class="shg-t">📤 分享给家长群 / 好友</div>
-      ${wx
-        ? `<div class="shg-steps">
-             <div class="shg-step"><b>1</b>点屏幕<b>右上角「···」</b></div>
-             <div class="shg-step"><b>2</b>选<b>「发送给朋友」</b>或「分享到朋友圈」</div>
-           </div>
-           <div class="shg-note">当前是微信内置浏览器，系统不允许网页直接弹出分享面板，用右上角菜单发送即可。<br>${DESKTOP_TIP}</div>`
-        : `<div class="shg-steps">
-             <div class="shg-step"><b>1</b>网址<b>已自动复制</b></div>
-             <div class="shg-step"><b>2</b>打开微信 / QQ，<b>粘贴</b>发送给家长群</div>
-           </div>
-           <div class="shg-note">当前浏览器不支持一键分享，复制粘贴同样快；也可以把下面的二维码当图片转发。<br>${DESKTOP_TIP}</div>`}
-      <img class="shg-qr" src="assets/qr-share.png?v=2" alt="育人帮二维码">
-      <div class="shg-scan">长按二维码 →「保存图片」，可直接发到家长群</div>
-      <div class="shg-url">${esc(APP_URL)}</div>
-      <div class="shg-acts">
-        <button class="shg-btn" data-shg="copy">📋 复制网址</button>
-        <button class="shg-btn ghost" data-shg="close">关闭</button>
-      </div>
-    </div>`;
-  el.classList.add("open");
-  if (!wx) copyText(APP_URL).then(ok => { if (ok && typeof toast === "function") toast("网址已复制，打开微信粘贴发送 ✅"); });
-}
-async function copyText(t) {
-  try { await navigator.clipboard.writeText(t); return true; }
-  catch (e) {
-    try {
-      const ta = document.createElement("textarea");
-      ta.value = t; ta.style.cssText = "position:fixed;opacity:0";
-      document.body.appendChild(ta); ta.select();
-      const ok = document.execCommand("copy"); ta.remove(); return ok;
-    } catch (e2) { return false; }
-  }
 }
 
 /* ---------- 管理后台：数据 ---------- */
@@ -946,8 +789,11 @@ async function loadAndRender() {
 }
 function openAdmin() {
   ensureShell();
-  /* 先问一次数据库「我是不是管理员」，再决定要不要弹管理密码（2026-11-01） */
-  probeAdmin().then(() => openAdminNow());
+  /* 身份判定在 share.js：本层被拉起前，YRB_CONSOLE.openAdmin() 已经问过一遍库；
+     这里再问一次是幂等的（share 侧有并发去重与会话内缓存），
+     换来的是「后台自己也能独立打开」（#admin 直达、测试直接调）。 */
+  const S = window.YRB_SHARE;
+  (S && S.probeAdmin ? S.probeAdmin() : Promise.resolve(true)).then(() => openAdminNow());
 }
 function openAdminNow() {
   /* 二次验证：管理员账号登录后，进后台还需输入管理密码（见 adminguard.js）
@@ -1196,11 +1042,8 @@ async function licClear(key) {
 }
 
 /* ---------- 事件 ---------- */
+/* 只管后台自己的元素：分享层与「我的」页入口的点击在 share.js。 */
 document.addEventListener("click", e => {
-  /* 「我的」页两个新入口 */
-  if (e.target.closest("#mmShare")) { e.stopPropagation(); e.preventDefault(); openShare(); return; }
-  if (e.target.closest("#mmAdmin")) { e.stopPropagation(); e.preventDefault(); openAdmin(); return; }
-
   const b = e.target.closest("[data-ad]");
   if (b) { e.stopPropagation(); act(b); return; }
   /* 案例编辑面板内部动作（工具栏 / 保存 / 取消） */
@@ -1316,61 +1159,6 @@ document.addEventListener("click", e => {
     toast && toast("已锁定后台，下次进入需重新输入管理密码 🔒");
     return;
   }
-  if (e.target.closest("#slInstall")) {
-    if (installEvt && typeof installEvt.prompt === "function") {
-      const evt = installEvt; installEvt = null; refreshInstallBtn();
-      try {
-        evt.prompt();
-        Promise.resolve(evt.userChoice).then(ch => {
-          if (typeof toast === "function") toast(ch && ch.outcome === "accepted" ? "已开始安装，桌面出现「育」字图标 🎉" : "已取消安装，可随时再来");
-        }).catch(() => {});
-      } catch (err) { shareGuide(); }
-    } else {
-      shareGuide();
-    }
-    return;
-  }
-  if (e.target.closest("#slBack")) { closeShare(); return; }
-  if (e.target.closest("#slCopy")) {
-    copyText(APP_URL).then(ok => toast && toast(ok ? "网址已复制，去粘贴给家长吧 ✅" : "复制失败，请长按网址手动复制"));
-    return;
-  }
-  if (e.target.closest("#slSave")) {
-    const a = document.createElement("a");
-    a.href = "assets/qr-share.png"; a.download = "育人帮-分享二维码.png"; a.click();
-    toast && toast("二维码已开始下载（长按图片也可保存）");
-    return;
-  }
-  if (e.target.closest("#slShare")) {
-    /* 先试系统分享（支持 canShare 时校验）；不支持 / 被拒 / 出错 → 走图文引导弹层 */
-    const data = { title: "育人帮 · 家长互助社区", text: "关心下一代，呵护成长。有困惑发一条，很多家长愿意伸手帮你 →", url: APP_URL };
-    let launched = false;
-    if (typeof navigator.share === "function") {
-      try {
-        if (typeof navigator.canShare !== "function" || navigator.canShare(data)) {
-          navigator.share(data).then(() => {}).catch(err => {
-            /* AbortError = 用户自己取消，不打扰；其他错误才提示引导 */
-            if (!err || err.name !== "AbortError") shareGuide();
-          });
-          launched = true;
-        }
-      } catch (err) { launched = false; }
-    }
-    if (!launched) shareGuide();
-    return;
-  }
-  /* 分享引导弹层的按钮 */
-  const shg = e.target.closest("[data-shg]");
-  if (shg) {
-    const a = shg.dataset.shg;
-    if (a === "close") { closeShareGuide(); return; }
-    if (a === "copy") {
-      copyText(APP_URL).then(ok => toast && toast(ok ? "网址已复制，去微信粘贴给家长吧 ✅" : "复制失败，请长按上方网址手动复制"));
-      return;
-    }
-    return;
-  }
-  if (e.target.closest("#slAdmin")) { closeShare(); openAdmin(); return; }
 }, true);
 /* 二维码文件选择（change 事件不冒泡到 click 委托里，单独绑） */
 document.addEventListener("change", e => {
@@ -1385,90 +1173,27 @@ document.addEventListener("change", e => {
   }
 }, true);
 
-/* 登录 / 退出后自动刷新：①后台界面（若正打开）②「我的」页入口的显隐 */
+/* 登录 / 退出后自动刷新后台：入口显隐与身份判定在 share.js，
+   这里只负责「后台正开着就重新拉一次数据」。 */
 window.addEventListener("yrb-auth", () => {
   const l = $("#adLayer");
   if (l && l.classList.contains("open")) loadAndRender();
-  setTimeout(syncAdminEntry, 80);   /* 等 renderAccount() 把菜单刷新完再判定 */
 });
-/* 兜底：登录面板关闭 / 退出登录时也同步一次（老逻辑选错了按钮 id，已一并修正） */
 document.addEventListener("click", e => {
   if (!e.target.closest("#lgX, #loginMask, #loginClose, #clOut")) return;
   setTimeout(() => {
     if ($("#adLayer") && $("#adLayer").classList.contains("open")) loadAndRender();
-    syncAdminEntry();
   }, 600);
 }, true);
 
-/* 「我的」页菜单：注入「分享」入口（所有人可见）；
-   管理后台入口**仅对管理员显示**——管理员手机号/账号登录后自动出现，普通用户完全看不到。
-   登录、退出、切换账号都会通过 cloud.js 广播的 yrb-auth 事件即时刷新，无需重开应用。 */
-function adminBtnHTML() {
-  return `<button class="me-item" id="mmAdmin"><span class="ic">🛠</span>管理后台<span class="arr">数据与内容管理</span></button>`;
-}
-function syncAdminEntry() {
-  const on = isAdmin();
-  /* 1) 「我的」页入口：只有管理员看得到 */
-  const menu = $("#meMenu");
-  if (menu) {
-    const has = $("#mmAdmin");
-    if (on && !has) {
-      const anchor = $("#mmShare");
-      if (anchor) anchor.insertAdjacentHTML("afterend", adminBtnHTML());
-      else menu.insertAdjacentHTML("beforeend", adminBtnHTML());
-    } else if (!on && has) {
-      has.remove();
-    }
-  }
-  /* 2) 分享层里的后台说明区块：同样只对管理员显示（分享页发给家长群，不暴露后台） */
-  const box = $("#slAdminBox");
-  if (box) box.style.display = on ? "" : "none";
-  /* 3) 退出登录 / 换成普通账号后，若后台正开着则自动退回 */
-  const layer = $("#adLayer");
-  if (!on && layer && layer.classList.contains("open")) closeAdmin();
-}
-function injectMenu() {
-  const menu = $("#meMenu"); if (!menu) return;
-  if (!$("#mmShare")) {
-    menu.insertAdjacentHTML("beforeend", `
-    <button class="me-item" id="mmShare"><span class="ic">📤</span>分享APP给家长<span class="arr">二维码 · 链接</span></button>`);
-  }
-  syncAdminEntry();
-}
-/* 观察 #meMenu 被重建（切换「我的」页会重刷菜单），重建后自动补回并重新判定权限 */
-new MutationObserver(() => { if ($("#meMenu")) injectMenu(); })
-  .observe($("#phone") || document.body, { childList: true, subtree: true });
-setTimeout(injectMenu, 400);
-/* 启动即问一次身份：已登录的管理员刷新页面后入口马上出现（缓存先顶着，答案回来后校正） */
-setTimeout(() => { probeAdmin().then(() => { try { syncAdminEntry(); } catch (e) {} }); }, 900);
-
-/* 支持 yurenbang-app.html#admin 直达后台（管理员的备用入口：即使未登录也能打开登录引导） */
-function hashRoute() {
-  if (/^#admin/.test(location.hash)) setTimeout(openAdmin, 1200);
-}
-window.addEventListener("hashchange", hashRoute);
-window.addEventListener("load", hashRoute);
-if (document.readyState !== "loading") hashRoute();
-
-/* 对外接口 */
-window.YRB_CONSOLE = { openShare, openAdmin, isAdmin, reload: loadAndRender,
+/* 对外接口：share.js 的 YRB_CONSOLE.openAdmin() 加载完本层后调这里。
+   名字用 YRB_ADMIN_CONSOLE，避免与第一屏的 YRB_CONSOLE 门面混淆；
+   它同时是 health.js 判断「本层是否就位」的标记（lazy:true）。 */
+window.YRB_ADMIN_CONSOLE = {
+  open: openAdmin,
+  close: closeAdmin,
+  reload: loadAndRender,
   /* 自测钩子：后台「系统健康」面板的渲染入口（便于自动化验证，不参与业务） */
-  healthHTML: healthTabHTML };
-
-/* 会话就绪/登录登出后重渲染首页栏目行：
-   「＋添加」按钮仅管理员可见（app.js renderFuncRow 运行时判定），
-   而首次渲染时本层还没加载/会话未就绪，这里补一次刷新 */
-window.addEventListener("yrb-auth", () => {
-  try { if (typeof renderFuncRow === "function") renderFuncRow(); } catch (e) {}
-  /* 换了账号：先作废上一个账号的判断，再问一次数据库（2026-11-01） */
-  resetAdminProbe();
-  probeAdmin(true).then(() => {
-    try { syncAdminEntry(); } catch (e) {}
-    try { if (typeof renderFuncRow === "function") renderFuncRow(); } catch (e) {}
-  });
-});
-window.addEventListener("yrb-cloud-ready", () => {
-  setTimeout(() => { try { if (typeof renderFuncRow === "function") renderFuncRow(); } catch (e) {} }, 300);
-  setTimeout(() => { probeAdmin().then(() => { try { syncAdminEntry(); } catch (e) {} }); }, 500);
-});
+  healthHTML: healthTabHTML
+};
 })();
