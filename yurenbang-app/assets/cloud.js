@@ -704,7 +704,7 @@ const LG_DOCS={
     <p class="d-h">引言</p><p>育人帮（以下称「本平台」）是面向家长、监护人及关心下一代的爱心人士的互助社区。本政策说明我们<b>收集什么、为什么收集、存在哪里、保存多久、你如何控制</b>。我们遵循《个人信息保护法》《网络安全法》《数据安全法》《未成年人保护法》《未成年人网络保护条例》《儿童个人信息网络保护规定》，坚持最小必要、目的明确、公开透明、安全可控。</p>
     <p><b>特别提示</b>：本平台内容常涉及未成年人。请勿发布孩子的真实姓名、学校、班级、门牌号、身份证号、正面清晰照片等可识别信息。不满 14 周岁儿童的个人信息按敏感个人信息处理，见第七节。</p>
     <p class="d-h">一、个人信息处理者</p><p>运营主体：待补充（须与备案主体一致，备案完成后在本页与站内页脚公示）。<br>联系方式：站内「我的—设置—反馈与帮助」为当前唯一有效渠道，我们承诺 15 个工作日内答复。<br>个人信息保护负责人：待补充（确定前由运营者经上述渠道直接受理你的请求）。<br>网站备案号：办理中，取得后公示于页脚。</p>
-    <p class="d-h">二、我们收集哪些信息</p><p>1. <b>手机号</b>：注册、登录与找回账号，是账号唯一标识，不提供则无法登录。<br>2. <b>短信验证码</b>：验证手机号归你本人所有。<br>3. <b>昵称与头像效果</b>（小动物 / 马赛克 / 变形）：社区展示与隐私保护，可不填。<br>4. <b>你主动发布的内容</b>：求助与帮忙的文字、图片、语音、微视频（建议 ≤30 秒），以及上传的 PPT / 文档（仅保存转换后的页图与缩略图）。<br>5. <b>设备与日志信息</b>：浏览器类型、系统版本、页面错误堆栈，用于兼容性修复与安全防护，<b>不含你发布的内容</b>。<br>6. <b>访问日志</b>：IP、访问时间、浏览器标识，由托管与边缘加速服务产生，用于安全审计与法定留存。<br>7. <b>举报记录</b>：你主动举报时记录被举报内容与理由，用于内容治理与未成年人保护。</p>
+    <p class="d-h">二、我们收集哪些信息</p><p>1. <b>手机号</b>：注册、登录与找回账号，是账号唯一标识，不提供则无法登录。<br>2. <b>短信验证码</b>：验证手机号归你本人所有。<br>3. <b>昵称与头像效果</b>（小动物 / 马赛克 / 变形）：社区展示与隐私保护，可不填。<br>4. <b>你主动发布的内容</b>：求助与帮忙的文字、图片、语音、微视频（建议 ≤30 秒），以及上传的 PPT / 文档（仅保存转换后的页图与缩略图）。<br>5. <b>设备与日志信息</b>：浏览器类型、系统版本、页面错误堆栈，用于兼容性修复与安全防护，<b>不含你发布的内容</b>。<br>6. <b>访问日志</b>：IP、访问时间、浏览器标识，由托管与边缘加速服务产生，用于安全审计与法定留存。<br>7. <b>举报记录</b>：你主动举报时记录被举报内容与理由，用于内容治理与未成年人保护。<br>8. <b>点赞与收藏记录</b>：你点过赞、收藏过的求助（只记「你—求助—类型」三列，不记设备与时序轨迹），用于在你的收藏夹里恢复内容、并在换手机后同步；<b>不向其他用户公开谁赞过谁</b>，页面上只显示汇总数字。</p>
     <p><b>我们不收集</b>：通讯录、短信内容、相册全量、精确定位与行踪轨迹、生物识别（人脸 / 指纹）、身份证号、银行卡。<b>我们不接入</b>广告、统计、用户画像类第三方 SDK。</p>
     <p class="d-h">三、我们如何使用这些信息</p><p>用于注册登录与账号安全、展示与存储你发布的内容、内容安全审核（拦截违法违规与侵害未成年人的信息）、计算帮忙积分与玫瑰职级、处理投诉举报与你的权利请求、安全防护与故障排查。以上均属履行合同或法定义务所必需。<b>不用于</b>个性化广告、出售、向无关第三方提供或自动化决策画像。<br><b>家教需求登记</b>（单独功能）：你填写的姓名、微信或手机号、小区、年级科目与目标，仅用于就近匹配合格老师并把你的联系方式转交对方；<b>本机只保存脱敏摘要</b>（如 138****5678），明文仅存于云端数据库，仅管理员与匹配到的老师可见。</p>
     <p class="d-h">四、敏感个人信息与单独同意</p><p>1. 不满 14 周岁儿童的个人信息：发布涉及儿童的内容前，我们提示并要求你确认已取得监护人同意，并逐步留存确认记录（条款版本、确认时间、账号标识）。<br>2. 语音、视频中可能含可识别的生物特征：发布前提示「请确认已获得出镜人及其监护人同意」。<br>3. 你拒绝单独同意时，仅该功能不可用，其它功能不受影响。</p>
@@ -718,7 +718,7 @@ const LG_DOCS={
     <p class="d-h">十、你的权利</p><p><b>查阅、复制</b>：在「我的」中查看内容与资料；结构化导出（JSON）将随自助功能上线。<br><b>更正</b>：直接编辑发布内容与个人资料，即时生效。<br><b>删除</b>：自己发布的案例可随时删除（即时生效）；求助、帮忙内容与账号数据的删除请经反馈渠道申请，15 个工作日内处理。<br><b>撤回同意</b>：在系统设置中关闭相机、麦克风权限，即时生效。<br><b>注销账号</b>：当前版本尚未开放自助注销入口（该功能随云服务恢复版本上线）。过渡期内请通过「我的—设置—反馈与帮助」提交，我们核实身份后人工处理。<br><b>转移（可携带）</b>：同上渠道申请，15 个工作日内答复。<br><b>解释说明</b>：对处理规则有疑问，可通过下方渠道询问。</p>
     <p>过渡期说明：自助注销与数据导出正在开发，落地时间以站内公告为准。我们不把「即将上线」写成「已经可用」。</p>
     <p class="d-h">十一、安全事件通知</p><p>发生或可能发生个人信息泄露、篡改、丢失时：立即采取补救措施并评估影响；按法定要求向监管部门报告（含事件情况、可能影响、已采取措施与你可自主防范的建议）；以站内公告结合短信或电话等可达方式告知受影响的你（涉及儿童信息时同时告知监护人）；处置过程留痕备查并事后复盘、修订本政策。</p>
-    <p class="d-h">十二、Cookie 与本地存储</p><p>我们仅使用必要的本地存储，不用于追踪或广告：登录会话（由云服务 SDK 写入，随令牌有效期）；<b>yrb_profile_v1</b>（昵称、头像效果、浏览历史等偏好）；<b>yrb_chips_v1</b>（首页栏目排序）；<b>yrb_license_v1</b>（已阅读的须知标记）；<b>yrb_jj_qr</b>（分享二维码缓存）；验证码临时态（sessionStorage，关闭页面即失效）。<br>你可以通过浏览器「清除网站数据」删除以上记录（会同时退出登录）。</p>
+    <p class="d-h">十二、Cookie 与本地存储</p><p>我们仅使用必要的本地存储，不用于追踪或广告：登录会话（由云服务 SDK 写入，随令牌有效期）；<b>yrb_profile_v1</b>（昵称、头像效果、浏览历史等偏好；收藏与点赞以云端记录为准，本机只做缓存）；<b>yrb_chips_v1</b>（首页栏目排序）；<b>yrb_license_v1</b>（已阅读的须知标记）；<b>yrb_jj_qr</b>（分享二维码缓存）；验证码临时态（sessionStorage，关闭页面即失效）。<br>你可以通过浏览器「清除网站数据」删除以上记录（会同时退出登录）。</p>
     <p class="d-h">十三、本政策的更新</p><p>处理目的、信息类型、共享对象、跨境传输或你的权利发生重大变更时，我们会弹窗重新征得同意，不以「继续使用即同意」替代。历史版本在站内可查，保留最近 3 个版本及生效日期。</p>
     <p class="d-h">十四、联系我们与投诉</p><p>平台内：「我的—设置—反馈与帮助」。<br>我们承诺 15 个工作日内答复。<br>若你对答复不满意，可向网信部门（12377）、市场监管部门（12315）或电信主管部门投诉举报。</p>
     <p class="d-note">版本 v2.0（替代 v1.0）· 生效日期于备案完成后公示。本版补齐了处理者信息、第三方清单、敏感信息单独同意、跨境说明、事件通知与权利时限；运营主体名称、联系方式与备案号等尚未确定的事实项一律标注「待补充」，不虚构。</p>`},
@@ -954,7 +954,11 @@ function signCachePut(p,u){
 function clearSignCache(){try{signCache.clear();}catch(_){}}
 async function signPaths(paths){
   const map={};
-  if(!session||!cloud||!paths||!paths.length)return map;
+  /* 2026-11-05：不再要求登录。产品规则是「任何人可以浏览」，未登录访客也该看到
+     求助里的图 —— 能不能签出地址由库端 storage.objects 的 RLS 说了算
+     （见 db/supabase/05-storage-guest-media.sql），前端不重复设卡。
+     未放开时签名会被拒，这里静默失败，卡片照旧走「🔒 登录后可查看」。 */
+  if(!cloud||!paths||!paths.length)return map;
   const uniq=[...new Set(paths.filter(Boolean))];
   if(!uniq.length)return map;
   const need=[];
@@ -982,6 +986,59 @@ async function signPaths(paths){
     }catch(e){}
   }
   return map;
+}
+
+/* ---------- 点赞 / 收藏（2026-11-05 起入库） ----------
+   yb_reacts 一张表承载 like / fav，计数由库端触发器回写 yb_posts.likes / favs，
+   客户端只说「我要 / 我不要」，不自己加减总数。
+   表还没建（db/supabase/04-reacts.sql 未执行）时 PostgREST 回 42P01 / PGRST205 /
+   404 —— 这时按「本机暂存」处理：不弹错、不挡操作，等表建好自动入库，无需发版。 */
+let reactWarned=false;
+function isNoTable(e){
+  const c=String((e&&(e.code||e.status))||"");
+  return c==="42P01"||c==="PGRST205"||c==="404";
+}
+/* 登录后拉「我点过什么」，返回 {"<cloudId>|like":true, "<cloudId>|fav":true}。
+   不按帖子 id 过滤：RLS 已限定为本人，单人反应条数很少，多拉一点也不会成负担，
+   顺带让「换页前点过的帖子」在翻回来时状态还在。 */
+async function myReacts(){
+  const m={};
+  if(!cloud||!ready||!session)return m;
+  try{
+    const r=await withTimeout(cloud.database.from("yb_reacts")
+      .select("post_id,kind").eq("user_id",String(session.user.id)),12000,"读取我的收藏");
+    if(r&&r.error)throw r.error;
+    ((r&&r.data)||[]).forEach(x=>{if(x&&x.post_id!=null)m[Number(x.post_id)+"|"+x.kind]=true;});
+  }catch(e){
+    if(!isNoTable(e)){try{console.warn("[点赞收藏] 读取失败：",e&&(e.code||e.status),e&&e.message);}catch(_){}}
+  }
+  return m;
+}
+/* on=true 点赞/收藏，false 取消；返回 {ok,reason} —— 上层据此决定回不回滚界面 */
+async function toggleReact(cloudId,kind,on){
+  if(!cloud||!ready)return {ok:false,reason:"no-cloud"};
+  if(!session)return {ok:false,reason:"no-session"};
+  const pid=Number(cloudId);
+  if(!pid)return {ok:false,reason:"no-post"};
+  const uid=String(session.user.id);
+  try{
+    const q=on
+      ? cloud.database.from("yb_reacts").insert({post_id:pid,user_id:uid,kind:kind})
+      : cloud.database.from("yb_reacts").delete().eq("post_id",pid).eq("user_id",uid).eq("kind",kind);
+    const r=await withTimeout(q,12000,on?"保存":"取消");
+    if(r&&r.error)throw r.error;
+    return {ok:true};
+  }catch(e){
+    const code=String((e&&(e.code||e.status))||"");
+    if(isNoTable(e)){
+      if(!reactWarned){reactWarned=true;try{console.warn("[点赞收藏] yb_reacts 未建表：本次只记在本机");}catch(_){}}
+      return {ok:false,reason:"no-table"};
+    }
+    if(code==="23505")return {ok:true};          /* 主键冲突 = 已经是这个状态 */
+    if(isAuthErr(e)){dropDeadSession();return {ok:false,reason:"auth",message:"登录已过期，请重新登录后再试"};}
+    try{console.warn("[点赞收藏] 写库失败：",code,(e&&e.message)||e);}catch(_){}
+    return {ok:false,reason:"error",message:errMsg(e)};
+  }
 }
 /* 会话/令牌失效判定（2026-10-25）：session 对象还在但令牌已被服务端拒绝时，
    必须让用户重新登录，而不是让 TA 对着「上传失败」猜原因 */
@@ -1242,7 +1299,12 @@ async function loadCloudPosts(more){
     postsHasMore=raw.length>=postsLimit&&postsLimit<POST_MAX;
     const paths=[];rows.forEach(x=>(x.media||[]).forEach(m=>{if(!m)return;if(m.thumb)paths.push(m.thumb);if(m.path)paths.push(m.path);}));
     const um=await signPaths(paths);
+    /* 我的点赞 / 收藏：登录后从 yb_reacts 拉权威状态（表未建时返回空对象，
+       自动退回纯本机行为）。库端的 likes / favs 是「含自己」的总数，
+       而卡片渲染是 likes + (liked?1:0)，这里先把自己的那一份减掉，显示才对得上。 */
+    const mine=await myReacts();
     cloudPosts=rows.map(x=>{
+      const cid=Number(x.id), rl=!!mine[cid+"|like"], rf=!!mine[cid+"|fav"];
       const media=(x.media||[]).map(m=>Object.assign({},m,{url:um[m.path]||"",thumbUrl:(m.thumb&&um[m.thumb])||""}));
       return {
         id:100000+Number(x.id),cloudId:x.id,__cloud:true,
@@ -1253,7 +1315,8 @@ async function loadCloudPosts(more){
         urg:x.urg||1,vis:x.vis||0,loc:x.loc||"",time:relTime(x.created_at),
         /* 发布时间戳（毫秒）：recommend 层算时间衰减用；只留 time 那串「3小时前」没法参与计算 */
         ts:Date.parse(x.created_at)||0,
-        likes:x.likes||0,liked:false,favs:0,faved:false,helps:x.helps||0,
+        likes:Math.max(0,(x.likes||0)-(rl?1:0)),liked:rl,
+        favs:Math.max(0,(x.favs||0)-(rf?1:0)),faved:rf,helps:x.helps||0,
         comments:[],roses:[],r23Status:x.status==="solved"?"solved":"open"
       };
     });
@@ -1265,6 +1328,12 @@ async function loadCloudPosts(more){
       try{window.toast&&window.toast("✅ 云端服务已恢复，内容已刷新");}catch(_){}
     }
     mergeCloudPosts();
+    /* 云端收藏是权威：换手机登录后「我的收藏」也得在（此前只存在本机，换机即空）。
+       access.js 收到后把这些 id 并回本机存档，卡片 ⭐ 同步点亮。 */
+    try{
+      const favs=cloudPosts.filter(p=>p.faved).map(p=>p.id);
+      window.dispatchEvent(new CustomEvent("yrb-reacts",{detail:{favs:favs}}));
+    }catch(_){}
   }catch(e){
     /* 原始错误进控制台：线上排障靠这里（errMsg 会把长英文收敛成通用提示） */
     try{console.warn("[云端求助] 加载失败：",e&&(e.code||e.status),e&&e.message||e);}catch(_){}
@@ -1345,7 +1414,8 @@ async function loadCases(){
     if(r&&r.error)throw r.error;
     const rows=((r&&r.data)||[]).filter(x=>!x.hidden);
     const paths=[];rows.forEach(x=>(x.media||[]).forEach(m=>{if(!m)return;if(m.thumb)paths.push(m.thumb);if(m.path)paths.push(m.path);}));
-    /* signPaths 需要登录会话：未登录时返回空表 → 查看器按「登录后可查看」处理（与求助素材同规则） */
+    /* 未登录也尝试签名（2026-11-05 起）：能否签出由库端 RLS 决定，
+       放开后匿名即可看图；未放开时这里返回空表，查看器按「登录后可查看」处理。 */
     const um=await signPaths(paths);
     cloudCases=rows.map(x=>{
       const media=(x.media||[]).map(m=>Object.assign({},m,{url:um[m.path]||"",thumbUrl:(m.thumb&&um[m.thumb])||""}));
@@ -1941,6 +2011,10 @@ window.YRB_CLOUD={
     return post.comments||[];
   },
   isCloudPost(p){return !!(p&&p.__cloud);},
+  /* 点赞 / 收藏（2026-11-05 起入库）：on=true 写入，false 取消；
+     返回 {ok,reason}，reason="no-table" 表示建表 SQL 还没执行（此时按本机暂存处理） */
+  toggleReact,
+  myReacts,
   /* 当前登录身份摘要（管理后台据此判断是否管理员；实际权限仍由数据库 RLS 把关）
      phone 由 sessionPhone() 多路兜底提取：SDK 会话对象本身不含 user.phone */
   who(){

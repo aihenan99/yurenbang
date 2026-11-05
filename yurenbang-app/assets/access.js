@@ -556,6 +556,16 @@ function setFaved(p,on){
   S.favIds=favIds().filter(id=>String(id)!==sid);
   if(on)S.favIds.unshift(p.id);
 }
+/* 按钮上的数字：卡片是 <span class="n">，详情页是 svg 后的文本节点，两种都要能改 */
+function setBtnNum(btn,n){
+  if(!btn)return;
+  const s=btn.querySelector(".n");
+  if(s){s.textContent=String(n);return;}
+  const t=btn.lastChild;
+  if(t&&t.nodeType===3)t.nodeValue=String(n);
+  else btn.appendChild(document.createTextNode(String(n)));
+}
+function reactNum(p,kind){return kind==="like"?(p.likes+(p.liked?1:0)):(p.favs+(p.faved?1:0));}
 function myCommentsOf(p){const n=meName();return (p&&p.comments||[]).filter(c=>c&&(c.mine||c.user===n));}
 function typeBadge(p){const t={img:"🖼 图文",video:"🎬 微视频",voice:"🎙 语音"};return t[p&&p.type]||"📄 求助";}
 function ago(ts){
@@ -676,15 +686,72 @@ document.addEventListener("click",e=>{
   recordHistory(dl.dataset.r23detail);
 },true);
 
-/* 4) 详情里的收藏/点赞写回数据，保证「我的收藏」与卡片一致 */
-document.addEventListener("click",e=>{
-  const fav=e.target.closest('#r23Detail [data-db="fav"]');
-  if(fav){
-    const p=byId(S.curPost);
-    if(p){const turnOn=!fav.classList.contains("on");setFaved(p,turnOn);if(window.__yrbSave)window.__yrbSave();}
+/* 4) 点赞 / 收藏：状态同步 + 落库（2026-11-05 起入库）
+   分工：卡片上的界面翻转在 app.js，详情页按钮的 class 切换在 refine23.js，
+   这里只在**冒泡阶段**收尾 —— 此时界面已是目标状态，读它即可，绝不重复翻转。
+   未登录的点击在 gate.js 的捕获阶段就被拦下并重放，走不到这里。
+   写库失败（非「表未建」）就整体回滚，不留下「以为存下了」的假象。 */
+function rollbackReact(p,kind,back){
+  if(kind==="like")p.liked=back;else setFaved(p,back);
+  if(window.__yrbSave)window.__yrbSave();
+  const card=document.querySelector('.card[data-id="'+p.id+'"]');
+  if(card){
+    const b=card.querySelector(kind==="like"?".pa-btn.like":".pa-btn.fav");
+    if(b){b.classList.toggle("on",back);setBtnNum(b,reactNum(p,kind));}
   }
-  if(e.target.closest("#r23DBack")&&curKind)render();   /* 从详情返回后刷新列表（收藏可能已变化） */
-},true);
+  const db=document.querySelector('#r23Detail [data-db="'+kind+'"]');
+  if(db){db.classList.toggle("on",back);setBtnNum(db,reactNum(p,kind));}
+}
+document.addEventListener("click",e=>{
+  if(e.target.closest("#r23DBack")&&curKind){render();return;}   /* 从详情返回后刷新列表 */
+  const btn=e.target.closest('[data-act="like"],[data-act="fav"],[data-db="like"],[data-db="fav"]');
+  if(!btn)return;
+  const inDetail=!!btn.closest("#r23Detail");
+  const kind=(btn.dataset.act||btn.dataset.db)==="like"?"like":"fav";
+  const p=inDetail?byId(S.curPost):byId(btn.closest(".card")&&btn.closest(".card").dataset.id);
+  if(!p)return;
+  if(!signedIn()){                       /* 未登录：交给 gate 引导，详情按钮原样退回 */
+    if(inDetail)btn.classList.toggle("on",kind==="like"?!!p.liked:!!p.faved);
+    return;
+  }
+  const on=inDetail?btn.classList.contains("on"):(kind==="like"?!!p.liked:!!p.faved);
+  if(kind==="like"){if(inDetail)p.liked=on;}
+  else setFaved(p,on);
+  if(window.__yrbSave)window.__yrbSave();
+  if(inDetail){                          /* refine23 只切了 class，数字与数据都补上 */
+    btn.classList.toggle("on",on);
+    setBtnNum(btn,reactNum(p,kind));
+  }
+  if(!p.__cloud||!window.YRB_CLOUD||!YRB_CLOUD.toggleReact)return;   /* 本机帖无需写库 */
+  YRB_CLOUD.toggleReact(p.cloudId,kind,on).then(r=>{
+    if(!r||r.ok!==false)return;
+    if(r.reason==="no-table"||r.reason==="no-session"||r.reason==="no-cloud")return;
+    rollbackReact(p,kind,!on);
+    if(r.message&&window.toast)toast(r.message);
+  });
+},false);
+
+/* 云端收藏是权威：换手机登录后「我的收藏」要能补回来，本机残留的多余收藏要清掉 */
+window.addEventListener("yrb-reacts",e=>{
+  const list=(e.detail&&e.detail.favs)||[];
+  const set={};list.forEach(id=>{set[String(id)]=true;});
+  let dirty=false;
+  posts().forEach(p=>{
+    if(!p||!p.__cloud)return;
+    const sid=String(p.id),should=!!set[sid];
+    if(!!p.faved!==should){p.faved=should;dirty=true;}
+    const inList=favIds().some(id=>String(id)===sid);
+    if(should&&!inList){S.favIds.unshift(p.id);dirty=true;}
+    if(!should&&inList){S.favIds=favIds().filter(id=>String(id)!==sid);dirty=true;}
+  });
+  if(dirty&&window.__yrbSave)window.__yrbSave();
+  document.querySelectorAll(".card[data-id]").forEach(card=>{
+    const p=byId(card.dataset.id);if(!p)return;
+    const b=card.querySelector(".pa-btn.fav");if(!b)return;
+    b.classList.toggle("on",!!p.faved);
+    setBtnNum(b,reactNum(p,"fav"));
+  });
+},false);
 
 /* 6) 帮忙发出后：详情页开着则同步刷新，帮忙条数/内容即时可见 */function refreshDetailIfOpen(){
   /* 弹窗开着时不再自动重开详情：2026-10-19 卡死排查中发现，
