@@ -206,7 +206,7 @@ function caseThumb(c){
   const first=M[0];
   /* 云端/新发布的案例：用真实首图当封面 */
   if(first&&(first.kind==="img"||first.kind==="image")&&(first.thumbUrl||first.url))
-    return `<img class="c-photo" src="${esc(first.thumbUrl||first.url)}" loading="lazy" alt=""><span class="c-type">🖼 图片</span>`;
+    return `<img class="c-photo" src="${esc(first.thumbUrl||first.url)}" loading="lazy" decoding="async" alt=""><span class="c-type">🖼 图片</span>`;
   if(first&&first.kind==="video"&&first.url)
     return `<video class="c-photo" src="${esc(first.url)}" muted preload="none"${first.thumbUrl?` poster="${esc(first.thumbUrl)}"`:""}></video><span class="c-type">▶ ${c.dur||"0:30"}</span>`;
   if(first&&first.kind==="file")
@@ -232,7 +232,11 @@ function renderCases(){
   /* data-i 必须是「在 S.cases 里的下标」——点击侧 openViewer(S.cases[+i]) 依赖它；
      原来在 map 里逐个 S.cases.indexOf 是 O(n²)，先建一次索引表 O(n)（2026-10-30） */
   const idxOf=new Map();S.cases.forEach((c,i)=>idxOf.set(c,i));
-  $("#caseGrid").innerHTML=(list.length?list.map(c=>`<div class="case-card" data-act="case" data-i="${idxOf.get(c)}">
+  /* 2026-11-05：案例广场改成「大封面」流（用户：标题要以封面图片形式展开、很大很醒目）。
+     有真封面（图/视频）的卡走「封面铺满 + 标题压在图上」；没有素材的（纯图文/文件/PPT）
+     仍走「插画封面 + 标题在下」，否则文字压在插图文字上会糊成一团。 */
+  const hasCover=c=>{const f=(c.media||[])[0];return !!(f&&f.url&&(f.kind==="img"||f.kind==="image"||f.kind==="video"));};
+  $("#caseGrid").innerHTML=(list.length?list.map(c=>`<div class="case-card${hasCover(c)?" has-cover":""}" data-act="case" data-i="${idxOf.get(c)}">
     <div class="c-thumb">${caseThumb(c)}</div>
     <div class="c-info"><div class="c-title">${esc(c.t)}</div>
     <div class="c-by"><span class="ca">${avatarSVG(c.ava)}</span>${esc(c.by)}</div>

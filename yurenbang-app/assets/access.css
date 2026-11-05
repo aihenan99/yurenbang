@@ -133,8 +133,9 @@
 #phone[data-elder="1"] .mg-s{font-size:14px}
 #phone[data-elder="1"] .tl-t{font-size:17px}
 #phone[data-elder="1"] .tl-d{font-size:14.5px}
-#phone[data-elder="1"] .case-card .c-title{font-size:15px}
-#phone[data-elder="1"] .c-by{font-size:12.5px}
+#phone[data-elder="1"] .case-card .c-title{font-size:19px}
+#phone[data-elder="1"] .case-card.has-cover .c-title{font-size:21px}
+#phone[data-elder="1"] .c-by{font-size:13.5px}
 /* 表单放大 */
 #phone[data-elder="1"] #pubText{min-height:116px;font-size:18px}
 #phone[data-elder="1"] #r23Title{height:50px;font-size:16px}
