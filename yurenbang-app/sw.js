@@ -15,6 +15,10 @@
    3) activate 只在新缓存基本建满（≥ CORE-3）时才删旧缓存——预缓存大面积失败时
       保留旧版本兜底，绝不把用户从「有缓存」变成「零缓存」。 */
 const CACHE = 'yrb-cache-v4';
+/* 2026-11-06：图片字节单独一个常驻缓存。与 CORE 同生命周期（activate 时不清），
+   因为内容图一次上传后永不改变（path 含 uuid + 时间戳），本地留着就是净赚。 */
+const IMG_CACHE = 'yrb-img-v1';
+const IMG_MAX = 160; /* 上限 160 张，超出按插入顺序淘汰，防移动端配额被吃光 */
 const CORE_V = ''; /* sync 时替换为构建号；源码线留空=不带版本戳 */
 const CORE = [
   '/', '/share.html',
@@ -22,6 +26,7 @@ const CORE = [
   '/assets/app.css', '/assets/app.js',
   '/assets/refine23.css', '/assets/refine23.js',
   '/assets/access.css', '/assets/access.js',
+  '/assets/adaptive.js',
   '/assets/navback.js',
   '/assets/capture.css', '/assets/capture.js',
   '/assets/cloud.css', '/assets/cloud.js', '/assets/yb-sb.js',
@@ -88,7 +93,7 @@ self.addEventListener('activate', e => {
     const keys = await caches.keys();
     const have = (await (await caches.open(CACHE)).keys()).length;
     if (have >= CORE.length - 3) {
-      await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+      await Promise.all(keys.filter(k => k !== CACHE && k !== IMG_CACHE).map(k => caches.delete(k)));
     } else {
       /* 预缓存大面积失败：保留旧版本缓存兜底，零缓存比旧缓存更危险 */
       console.warn('[yrb-sw] 新缓存仅 ' + have + '/' + CORE.length + '，保留旧缓存兜底');
@@ -103,6 +108,36 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   /* 云服务 / CDN 请求绝不缓存（登录、上传、数据库） */
   if (url.origin !== location.origin) return;
+
+  /* 2026-11-06：图片字节改「本地优先」。
+     实测单张 261KB 从 CF 边缘到国内要 1.8–3.1s（≈120KB/s），慢在下行链路而非回源，
+     加缓存只是省回源、省不了这段。图片内容不可变，直接落本地才治本。
+     键剥掉 ?token= —— 签名每小时变，不剥就永远 miss。 */
+  if (url.pathname.startsWith('/sbapi/storage/v1/object/sign/')) {
+    const key = new Request(url.origin + url.pathname);
+    e.respondWith((async () => {
+      const c = await caches.open(IMG_CACHE);
+      const hit = await c.match(key);
+      if (hit) return hit;
+      try {
+        const res = await fetch(req);
+        const ct = res.headers.get('content-type') || '';
+        if (res.ok && /^(image|video|audio)\//.test(ct)) {
+          const copy = res.clone();
+          c.put(key, copy).then(async () => {
+            const ks = await c.keys();
+            if (ks.length > IMG_MAX) {
+              for (const k of ks.slice(0, ks.length - IMG_MAX)) await c.delete(k);
+            }
+          }).catch(() => {});
+        }
+        return res;
+      } catch (err) {
+        return new Response('', { status: 504, statusText: 'Offline' });
+      }
+    })());
+    return;
+  }
 
   const isNav = req.mode === 'navigate' ||
                 (req.headers.get('accept') || '').indexOf('text/html') >= 0;

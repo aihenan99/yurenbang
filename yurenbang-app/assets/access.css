@@ -221,6 +221,33 @@
 .p-side .pa-btn[data-tts].on{color:var(--accent2);background:rgba(47,163,147,.12)}
 .p-side .pa-btn .n{font-size:11.5px}
 
+/* ---------- 使用习惯自适应（2026-11-07，adaptive.js） ----------
+   touch 档只扩大**命中区**、不改视觉尺寸：改尺寸会把卡片布局挤乱，
+   而老人真正的问题往往不是「看不清按钮」而是「点不准」。
+   50px 是算出来的上限 —— 按钮 42px + 间距 9px = 51px，再大就和相邻按钮重叠，
+   点上面那个反而命中下面那个，越调越糟。 */
+html[data-adapt~="touch"] .p-side .pa-btn{position:relative}
+html[data-adapt~="touch"] .p-side .pa-btn::after{
+  content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:50px;height:50px;border-radius:50%}
+html[data-adapt~="touch"] .seg-btn,
+html[data-adapt~="touch"] .f-chip,
+html[data-adapt~="touch"] .a11y-mrow .switch{min-height:44px}
+html[data-adapt~="touch"] .f-add{width:46px;height:46px}
+
+/* 消除 300ms 双击缩放判定延迟：视口已是 user-scalable=no，无副作用，所有用户都该有 */
+button,a,label,.card,.pa-btn,.seg-btn,.switch{touch-action:manipulation}
+
+/* voice 档：常用语音的人，把麦克风入口放大并加一圈提示色。
+   只放大入口，不自动开麦 —— 自动启动麦克风会吓到人，也会撞权限被拒。 */
+html[data-adapt~="voice"] #a11yMicP,
+html[data-adapt~="voice"] #a11yMicC{min-height:46px;font-size:15px;box-shadow:0 0 0 2px rgba(47,163,147,.26)}
+
+/* 设置面板里的「自动适应」区块：系统替用户做的改动要显眼但不喧哗 */
+.a11y-ad{border-radius:12px;background:rgba(47,163,147,.07);padding:10px 12px;margin-bottom:6px}
+.a11y-ad-note{font-size:11.5px;color:var(--muted);line-height:1.7;margin:0 2px 14px}
+.a11y-ad-note a{color:var(--accent2);font-weight:700;text-decoration:none}
+
 /* 头部信息收缩：小头像 + 单行不换行 + 半透明弱化（详情页里有完整信息） */
 #feed .card .p-head{opacity:.82}
 #feed .card .p-ava{width:30px;height:30px}

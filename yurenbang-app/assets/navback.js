@@ -325,7 +325,16 @@
     if (!t) return;
     var dx = t.clientX - sx, dy = t.clientY - sy, dt = Date.now() - st0;
     if (dt > 800) return;                                 /* 慢慢拖不算滑 */
-    if (Math.abs(dx) < 70) return;
+    /* 2026-11-07：阈值交给 adaptive 层（默认仍是 70px）。它只在检测到
+       「方向对、但总是差一口气」且样本足够时才降到 52px，且 7 天内不再动。
+       读不到该层就退回 70 —— 宁可手势难触发一点，也不要变得随便一碰就跳页。 */
+    var TH = 70;
+    try {
+      if (window.YRB_ADAPT && typeof window.YRB_ADAPT.swipeThreshold === "function") {
+        TH = window.YRB_ADAPT.swipeThreshold();
+      }
+    } catch (e) {}
+    if (Math.abs(dx) < TH) return;
     if (Math.abs(dx) < Math.abs(dy) * 1.5) return;        /* 竖向滚动不抢 */
     if (mode === "home") { backToHome(); sync(); return; } /* 非首页：滑一下回首页 */
     closeTop();

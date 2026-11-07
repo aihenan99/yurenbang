@@ -120,7 +120,7 @@ def write_build_json(build):
         "build": build,
         "at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
         "app": "育人帮",
-        "layers": ["app", "state.schema", "state", "lazy", "recommend", "capture", "refine23", "access", "navback", "yb-sb", "cloud",
+        "layers": ["app", "state.schema", "state", "lazy", "recommend", "capture", "refine23", "access", "adaptive", "navback", "yb-sb", "cloud",
                    "staticcases",
                    "reward", "jiaojiao", "pptview", "share", "admin", "adminguard", "gate", "license",
                    "profile", "food", "account", "chips", "rose", "protect", "mediafull", "cover",
@@ -427,6 +427,13 @@ def build_bundles(build=""):
         return ""
     txt2 = re.sub(r'<link rel="stylesheet" href="assets/[^"?]+?\.css(?:\?v=\d+)?">', css_sub, txt)
     txt2 = re.sub(r'<script src="assets/[^"?]+?\.js(?:\?v=\d+)?"></script>', js_sub, txt2)
+    # 2026-11-06：给 bundle.js 加 preload。原先 script 在 body 末尾（第 365 行），
+    # 浏览器要把整页 HTML 解析完才开始下载 253KB 包，实测 start=1391ms、耗时 2338ms，
+    # 是首屏最大的单项。preload 让解析到 head 就发起下载，执行时机不变（仍等 script 标签）。
+    # 注意：此时 bundle.js 已生成，?v= 由后面的 stamp 统一补齐。
+    if "</head>" in txt2 and 'as="script" href="assets/bundle.js' not in txt2:
+        txt2 = txt2.replace(
+            "</head>", '<link rel="preload" as="script" href="assets/bundle.js">\n</head>', 1)
     io.open(ipath, "w", encoding="utf-8", newline="").write(txt2)
     return "%d css + %d js → bundle.css %.0fKB / bundle.js %.0fKB" % (
         len(css_files), len(js_files),

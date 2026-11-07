@@ -624,12 +624,35 @@ function openFontsModal(){
   $("#fsSeg").onclick=e=>{const b=e.target.closest(".seg-btn");if(!b)return;$$("#fsSeg .seg-btn").forEach(x=>x.classList.remove("on"));b.classList.add("on");};
   $("#fsOk").onclick=()=>{S.fs=$("#fsSeg .on").dataset.v;$("#phone").dataset.fs=S.fs;closeModal();toast("字体大小已调整");};
 }
+/* 2026-11-07：自动适应区块。放在「长辈设置」里 —— 这是系统替用户做的改动，
+   必须让人看得见、能关掉、能还原；藏起来改就是「悄悄变」，用户只会觉得页面怪。
+   数据全部来自 adaptive.js 的本机计数，这里只负责显示与开关。 */
+function adaptBlock(){
+  const A=window.YRB_ADAPT;
+  if(!A||typeof A.snapshot!=="function")return "";
+  const s=A.snapshot();
+  return `<div class="a11y-mrow a11y-ad"><span>🤖 自动适应<br><i style="font-size:11px;color:var(--muted);font-style:normal">${esc(s.text)}</i></span><span class="switch ${s.off?"":"on"}" id="adSw" data-sw></span></div>
+  <div class="a11y-ad-note">按你实际的点击和滑动自动微调按钮大小与返回手势，数据只存在这台手机上、不上传。<a href="javascript:void 0" id="adReset">恢复默认</a></div>`;
+}
+function bindAdaptBlock(){
+  const A=window.YRB_ADAPT;if(!A)return;
+  const sw=$("#adSw");
+  if(sw)sw.onclick=()=>{ if(A.isOff())A.enable(); else A.off(); openElderModal(); };
+  const rs=$("#adReset");
+  if(rs)rs.onclick=e=>{
+    e.preventDefault();
+    if(!confirm("恢复默认？按钮大小和滑动灵敏度会回到标准，之后重新开始观察。"))return;
+    A.reset();openElderModal();
+  };
+}
 function openElderModal(){
   modal(`<div class="md-title">👵 长辈设置</div>
   <p style="font-size:13px;color:var(--muted);text-align:center">开启长辈模式：更大字体、更简洁的首页布局</p>
   <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin:14px 0">长辈模式 <span class="switch ${S.elder==="1"?"on":""}" id="elSw" data-sw style="transform:scale(1.2)"></span></div>
+  ${adaptBlock()}
   <div class="md-acts"><button class="btn-a" data-x="close">完成</button></div>`);
   $("#elSw").onclick=function(){this.classList.toggle("on");S.elder=this.classList.contains("on")?"1":"0";$("#phone").dataset.elder=S.elder;toast(S.elder==="1"?"长辈模式已开启":"长辈模式已关闭");};
+  bindAdaptBlock();
 }
 function openBgModal(){
   modal(`<div class="md-title">🎨 背景设置</div>

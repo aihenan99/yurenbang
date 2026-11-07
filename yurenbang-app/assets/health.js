@@ -53,6 +53,14 @@
     { id: "access", file: "assets/access.js", flag: "YRB_MYLIST", severity: "major",
       probe: function () { return !!window.YRB_MYLIST; } },
     /* 返回手势层：手机侧滑 / 返回键退一级菜单。缺了应用照常能用，只是又会「滑一下就退出」 */
+    /* 使用习惯自适应（2026-11-07）：缺了只是回到固定阈值与标准触控尺寸，
+       功能全部照常，所以定为 minor。检查点同时看 swipeThreshold，
+       因为 navback 就靠它决定滑动要划多长。 */
+    { id: "adaptive", file: "assets/adaptive.js", flag: "YRB_ADAPT", severity: "minor",
+      probe: function () {
+        return !!(window.YRB_ADAPT && window.YRB_ADAPT.ready &&
+                  typeof window.YRB_ADAPT.swipeThreshold === "function");
+      } },
     { id: "navback", file: "assets/navback.js", flag: "YRB_NAVBACK", severity: "minor",
       probe: function () { return !!(window.YRB_NAVBACK && window.YRB_NAVBACK.ready); } },
     { id: "yb-sb", file: "assets/yb-sb.js", flag: "YRB_SB", severity: "core",

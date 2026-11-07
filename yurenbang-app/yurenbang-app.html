@@ -374,6 +374,9 @@ if ("serviceWorker" in navigator) {
 <script src="assets/capture.js"></script>
 <script src="assets/refine23.js"></script>
 <script src="assets/access.js"></script>
+<!-- 使用习惯自适应（2026-11-07）：按点击/滑动表现自动微调「触控容错 / 滑动灵敏度 / 连点保护」，
+     只调容错不改手势语义，数据全在本机。必须排在 navback 之前：滑动阈值由它提供 -->
+<script src="assets/adaptive.js"></script>
 <!-- 返回手势层：手机侧滑 / 返回键退一级菜单，而不是退出整个页面（2026-11-04 用户反馈） -->
 <script src="assets/navback.js"></script>
 <!-- 云服务 SDK 由 cloud.js 以 CDN 形式动态加载（主源失败自动切换备用源）；拉取失败时云功能自动降级为离线演示 -->
