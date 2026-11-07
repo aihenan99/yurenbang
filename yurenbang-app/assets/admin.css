@@ -180,3 +180,33 @@
 #phone[data-elder="1"] .ad-ce-paper h3{font-size:21px}
 #phone[data-elder="1"] .ad-ce-title{font-size:17px}
 #phone[data-elder="1"] .ad-ce-b{font-size:14px;padding:10px 14px}
+
+/* ---------- 案例素材条（2026-11-07）：换图 / 加图 / 调顺序 ----------
+   触控目标按 34px 起、按钮等宽分栏：后台多在手机上操作，图标按钮再小就点不准。
+   两列而不是三列 —— 375px 宽下三列的每个小按钮只剩 20px，等于点不到。 */
+.ad-ce-figs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-bottom:9px}
+.ad-ce-figs:empty{display:none}
+.ad-ce-fig{background:var(--bg2);border:1.5px solid var(--rule);border-radius:12px;padding:6px 6px 5px}
+.ad-ce-figimg{position:relative;width:100%;padding-top:72%;border-radius:9px;overflow:hidden;background:#EFE9E1}
+.ad-ce-figimg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.ad-ce-nopv{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:11.5px;color:#9C9086;text-align:center;line-height:1.5;padding:6px}
+.ad-ce-figno{font-size:11.5px;font-weight:800;color:var(--muted);text-align:center;margin:5px 0 4px}
+.ad-ce-figops{display:flex;gap:3px}
+.ad-ce-figb{flex:1;min-height:34px;border:1px solid var(--rule);background:#fff;border-radius:8px;
+  font-size:13px;line-height:1;color:var(--ink);padding:0}
+.ad-ce-figb.del{color:#B3261E}
+.ad-ce-figb:disabled{opacity:.32}
+.ad-ce-figbar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.ad-ce-figbar .ad-ce-b.main{font-size:13.5px;padding:10px 16px}
+.ad-ce-figbusy{display:none;font-size:12.5px;color:var(--muted);font-weight:700}
+.ad-ce-figbar.busy .ad-ce-figbusy{display:inline}
+.ad-ce-noimg{font-size:12.5px;color:var(--muted);line-height:1.7;background:var(--bg2);
+  border:1.5px dashed var(--rule);border-radius:12px;padding:14px 12px;margin-bottom:9px}
+.ad-ce-tip2{font-size:11.5px;color:var(--muted);line-height:1.65;margin:0 0 14px}
+.ad-ce-loading{padding:44px 20px;text-align:center;font-size:14px;color:var(--muted)}
+.ad-ce-bar{flex-wrap:wrap}
+.ad-ce-paper hr{border:none;border-top:1px solid #E4D9CC;margin:14px 0}
+#phone[data-elder="1"] .ad-ce-figb{min-height:40px;font-size:15px}
+#phone[data-elder="1"] .ad-ce-figno{font-size:13px}
+#phone[data-elder="1"] .ad-ce-tip2{font-size:13px}

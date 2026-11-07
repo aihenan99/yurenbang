@@ -43,7 +43,9 @@ function each(list,fn){for(var i=0;i<list.length;i++)fn(list[i],i);}
    mode="edit"  编辑态：外链图丢弃，剪贴板图片按序顶替
    mode="final" 发布态：img 只留占位序号，由 serialize 统一编号
    mode="view"  查看态：img 只留 data-yrb-media 序号，供渲染端填签名地址 */
-var ALLOW={P:1,H3:1,B:1,STRONG:1,U:1,EM:1,I:1,BR:1,UL:1,OL:1,LI:1};
+/* 2026-11-07：加 HR（分隔线）——后台排版「分段」要用；仍是封闭白名单，
+   只多一个无属性空元素，不引入任何可执行/可外链的标签。 */
+var ALLOW={P:1,H3:1,B:1,STRONG:1,U:1,EM:1,I:1,BR:1,HR:1,UL:1,OL:1,LI:1};
 var DROP={SCRIPT:1,STYLE:1,NOSCRIPT:1,IFRAME:1,OBJECT:1,EMBED:1,SVG:1,TEXTAREA:1,INPUT:1,BUTTON:1,LINK:1,META:1,FORM:1,SELECT:1,VIDEO:1,AUDIO:1,CANVAS:1,TEMPLATE:1};
 
 function addImg(src,mode,blob){
@@ -103,8 +105,11 @@ function cleanInto(src,dst,mode){
     if(tag==="H1"||tag==="H2"||tag==="H4"||tag==="H5"||tag==="H6")tag="H3";
     if(!ALLOW[tag]){cleanInto(n,dst,mode);continue;}   /* 非白名单：拆壳留文字 */
     var el=document.createElement(tag);
-    if((tag==="P"||tag==="H3")&&/center/i.test((n.getAttribute&&n.getAttribute("style"))||"")){
-      el.style.textAlign="center";
+    /* 对齐只认左/中/右三档，且只写在 P/H3 上：其余 style（颜色、字号 em、
+       背景图等）一律不保留 —— 那些既能把页面搞乱，也是外链与 XSS 的常见载体。 */
+    if(tag==="P"||tag==="H3"){
+      var al=/(?:^|;)\s*text-align\s*:\s*(left|center|right)/i.exec((n.getAttribute&&n.getAttribute("style"))||"");
+      if(al&&al[1].toLowerCase()!=="left")el.style.textAlign=al[1].toLowerCase();
     }
     dst.appendChild(el);
     cleanInto(n,el,mode);

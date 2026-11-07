@@ -1064,13 +1064,15 @@ function dropDeadSession(){
   try{session=null;}catch(_){}
   try{if(cloud&&cloud.auth&&cloud.auth.signOut)cloud.auth.signOut();}catch(_){}
 }
-/* 生成列表用小图（400px / q0.70，约 20-35KB）：信息流只加载它，点开才取原图。
+/* 生成列表用小图（720px / q0.74，约 40-90KB）：信息流只加载它，点开才取原图。
    2026-10-26 节流：手机原图 2-4MB，一个列表 10 张就是几十 MB 下行额度。
    免费版额度按流量折算（210 点/GB），列表图越小，能撑的访客越多。 */
 async function makeThumb(blob,maxSide,quality){
   try{
     if(!blob||!/^image\//i.test(blob.type||""))return null;
-    maxSide=maxSide||400;quality=quality||0.7;
+    /* 2026-11-06：400px 改 720px。单图卡片是全宽（约 350px CSS × 2 DPR = 700 物理像素），
+       400px 铺上去明显发虚；720px 约 40-90KB，仍比 1280 原图（130-290KB）省 3 倍。 */
+    maxSide=maxSide||720;quality=quality||0.74;
     let bmp=null;
     if(window.createImageBitmap){
       try{bmp=await createImageBitmap(blob);}catch(e){bmp=null;}
@@ -1089,6 +1091,21 @@ async function makeThumb(blob,maxSide,quality){
     cv.width=Math.max(1,Math.round(w*s));cv.height=Math.max(1,Math.round(h*s));
     cv.getContext("2d").drawImage(bmp,0,0,cv.width,cv.height);
     const out=await new Promise(r=>{try{cv.toBlob(r,"image/jpeg",quality);}catch(e){r(null);}});
+    /* 2026-11-06：微信老 WebView / 部分国产浏览器没有 canvas.toBlob（或静默回 null）。
+       以前这里直接 return null，缩略图就永久缺失 —— 11-03 那批 12 张图正是这么丢的，
+       表现是列表回退 1280px 原图，一屏 780KB。退回 toDataURL 手动转 Blob 兜住。 */
+    if(!out){
+      try{
+        const d=cv.toDataURL("image/jpeg",quality);
+        const i=d.indexOf(",");
+        if(i>0){
+          const bin=atob(d.slice(i+1));
+          const u8=new Uint8Array(bin.length);
+          for(let k=0;k<bin.length;k++)u8[k]=bin.charCodeAt(k);
+          out=new Blob([u8],{type:"image/jpeg"});
+        }
+      }catch(e){}
+    }
     return out||null;
   }catch(e){return null;}
 }
@@ -1464,6 +1481,52 @@ async function publishCase(payload,items){
     hideProgress();
   }
 }
+/* 批量签名（后台编辑专用）：后台读的是原始行，media 里只有 path，不现签一遍的话
+   编辑面板里正文图片全是灰块。走与 loadCases 同一条 signPaths，返回带地址的副本。 */
+async function signMedia(media){
+  const paths=[];
+  (media||[]).forEach(m=>{if(!m)return;if(m.path)paths.push(m.path);if(m.thumb)paths.push(m.thumb);});
+  const um=await signPaths(paths);
+  return (media||[]).map(m=>({
+    kind:(m&&m.kind)||"img",path:(m&&m.path)||"",dur:(m&&m.dur)||"",name:(m&&m.name)||"",
+    ...(m&&m.thumb?{thumb:m.thumb}:{}),
+    url:um[(m&&m.path)||""]||"",thumbUrl:(m&&m.thumb&&um[m.thumb])||""
+  })).filter(m=>m.path);
+}
+
+/* 后台「改案例」专用：上传若干张图片到 case/ 目录，返回可直接预览的 media 记录。
+   与 publishCase 共用 uploadItems（同一条 storage 通道、同样生成 720px 缩略图），
+   区别只在于这里必须现签一次地址 —— uploadItems 给的 url 是本地 blob:，重开页面就失效，
+   既不能显示也不能落库（签名每小时变，写进库里第二天全是破图）。 */
+async function uploadCaseImages(items){
+  if(!cloud||!ready)return {ok:false,reason:"no-cloud"};
+  const ok=await ensureLogin();
+  if(!ok)return {ok:false,reason:"cancel"};
+  if(!session)return {ok:false,reason:"no-session"};
+  try{
+    showProgress("正在上传图片…");
+    const media=await uploadItems(items,"case");
+    const paths=[];
+    media.forEach(m=>{if(m&&m.path)paths.push(m.path);if(m&&m.thumb)paths.push(m.thumb);});
+    const um=await signPaths(paths);
+    const out=media.map(m=>({
+      kind:m.kind,path:m.path,dur:m.dur||"",name:m.name||"",
+      ...(m.thumb?{thumb:m.thumb}:{}),
+      url:um[m.path]||"",thumbUrl:(m.thumb&&um[m.thumb])||""
+    }));
+    return {ok:true,media:out};
+  }catch(e){
+    try{console.warn("[案例换图] 原始错误：",e&&(e.code||e.status),e&&e.message||e);}catch(_){}
+    if(isAuthErr(e)){
+      dropDeadSession();
+      return {ok:false,reason:"auth",message:"登录已过期，请重新登录后再上传"};
+    }
+    return {ok:false,reason:"error",message:errMsg(e)};
+  }finally{
+    hideProgress();
+  }
+}
+
 let cloudCases=[];
 let casesState="loading",casesRetries=0,casesRetryT=null,casesPoller=null,casesWasIsolated=false;
 async function loadCases(){
@@ -1557,6 +1620,22 @@ async function updateCase(cloudId,patch){
     if(t)row.title=t;
   }
   if(patch&&patch.content_html!=null)row.content_html=String(patch.content_html).slice(0,200000);
+  /* 2026-11-07：后台可换图/增删图/调顺序（此前只允许改文字，换图要删了重发）。
+     只抄白名单字段 —— 签名 url / thumbUrl 是每次打开现签的临时地址，
+     一旦写进库，一小时后全站破图。 */
+  if(patch&&Array.isArray(patch.media)){
+    row.media=patch.media.map(m=>({
+      kind:String((m&&m.kind)||"img"),
+      path:String((m&&m.path)||""),
+      dur:String((m&&m.dur)||""),
+      name:String((m&&m.name)||""),
+      ...(m&&m.thumb?{thumb:String(m.thumb)}:{})
+    })).filter(m=>m.path);
+  }
+  if(patch&&patch.type!=null){
+    const ty=String(patch.type).slice(0,12);
+    if(ty)row.type=ty;
+  }
   if(!Object.keys(row).length)return {ok:false,reason:"empty",message:"没有需要保存的修改"};
   try{
     const r=await withTimeout(cloud.database.from("yb_cases").update(row).eq("id",cloudId),20000,"保存案例修改");
@@ -2051,6 +2130,8 @@ window.YRB_CLOUD={
     loadCases();
   },
   publishCase,
+  uploadCaseImages,
+  signMedia,
   loadCases,
   deleteCase,
   updateCase,

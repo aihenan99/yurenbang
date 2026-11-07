@@ -180,7 +180,7 @@ function casesTabHTML() {
   }).join("") || `<div class="ad-empty">案例广场还没有内容</div>`;
   return `
     <div class="ad-sec">🎬 案例广场管理 <span class="n">${AD.cases.length}</span></div>
-    <div class="ad-note" style="margin:0 2px 8px">「编辑内容」可改<b>标题和正文</b>（含加粗、小标题、居中）；图片/视频等素材保持原样，不在此处更换。删除会<b>同时清掉案例素材文件</b>，用户端案例广场立即少一条；删除不可撤销。普通账号操作会被数据库拒绝（RLS 保护）。</div>
+    <div class="ad-note" style="margin:0 2px 8px">「编辑内容」可改<b>标题、正文、图片和排版</b>：正文支持小标题/加粗/居中/居左/列表/分隔线；图片可<b>换图、加图、调顺序、删除</b>（正文里的图会跟着同步，不会错位）。删除整条案例会<b>同时清掉素材文件</b>，不可撤销。普通账号操作会被数据库拒绝（RLS 保护）。</div>
     ${rows}`;
 }
 
@@ -189,7 +189,7 @@ function casesTabHTML() {
    范围：只改 title + content_html。素材（media）不在此处变更——正文里的图片用
          data-yrb-media 序号原样引用，换图请删了重发，避免产生孤儿文件。
    权限：数据库 yb_cases_update_own（作者本人 or is_admin()）；改不动时明确告知。 */
-const CE_ALLOW = { P: 1, H3: 1, B: 1, STRONG: 1, U: 1, EM: 1, I: 1, BR: 1, UL: 1, OL: 1, LI: 1 };
+const CE_ALLOW = { P: 1, H3: 1, B: 1, STRONG: 1, U: 1, EM: 1, I: 1, BR: 1, HR: 1, UL: 1, OL: 1, LI: 1 };
 let CE = null;   /* 正在编辑的案例：{ id, media } */
 
 /* 保存前的白名单清洗：优先用 casedit 层的实现（同一套规则，避免两处漂移）；
@@ -211,7 +211,11 @@ function ceCleanNode(src, dst) {
     if (!CE_ALLOW[tag]) { ceCleanNode(n, dst); continue; }
     const el = document.createElement(tag);
     const st = (n.getAttribute && n.getAttribute("style")) || "";
-    if ((tag === "P" || tag === "H3") && /center/i.test(st)) el.style.textAlign = "center";
+    /* 与 casedit.js 的 cleanInto 逐字同规则：对齐只认左/中/右，其余 style 全丢 */
+    if (tag === "P" || tag === "H3") {
+      const al = /(?:^|;)\s*text-align\s*:\s*(left|center|right)/i.exec(st);
+      if (al && al[1].toLowerCase() !== "left") el.style.textAlign = al[1].toLowerCase();
+    }
     dst.appendChild(el);
     ceCleanNode(n, el);
   }
@@ -241,11 +245,181 @@ function ceHydrate(html, media) {
   });
   return box.innerHTML;
 }
-function openCaseEdit(id) {
+
+/* ---------- 案例素材管理（2026-11-07） ----------
+   数据契约：正文里的 <img data-yrb-media="k"> 引用 media[k]，k 是数组下标。
+   所以增删 / 换序必须同步重排正文序号，否则图会错位甚至整张消失：
+     · 换图    → 只替换 media[k]，序号不动（正文自动换成新图，最省事也最安全）
+     · 删除    → 正文删掉 k 这一张，大于 k 的序号整体减 1
+     · 前/后移 → 两张交换，正文里对应的两个序号随之互换
+   只改 media 不改正文是不行的：用户端按序号取图，错一位就是「图跑到别人段落里」。 */
+let CE_FIG_BUSY = false;
+let CE_SWAP_K = -1;          /* 「🔄 换图」正在替换第几张 */
+
+function ceFigBusy(on) {
+  CE_FIG_BUSY = !!on;
+  const bar = $("#ceFigBar");
+  if (bar) bar.classList.toggle("busy", !!on);
+  const sv = $("#ceSave2");
+  if (sv) sv.disabled = !!on;
+}
+
+function ceRenderFigs() {
+  const box = $("#ceFigs");
+  if (!box || !CE) return;
+  const list = CE.media || [];
+  if (!list.length) {
+    box.innerHTML = `<div class="ad-ce-noimg">还没有图片。点下面「➕ 添加图片」上传，图片会自动加到正文末尾。</div>`;
+    return;
+  }
+  box.innerHTML = list.map((m, i) => {
+    const src = m.thumbUrl || m.url || "";
+    const pic = src ? `<img src="${esc(src)}" alt="" loading="lazy">` : `<span class="ad-ce-nopv">无预览</span>`;
+    return `
+    <div class="ad-ce-fig">
+      <div class="ad-ce-figimg">${pic}</div>
+      <div class="ad-ce-figno">第 ${i + 1} 张</div>
+      <div class="ad-ce-figops">
+        <button type="button" class="ad-ce-figb" data-figact="up" data-i="${i}"${i === 0 ? " disabled" : ""} title="往前挪一位">⬆</button>
+        <button type="button" class="ad-ce-figb" data-figact="down" data-i="${i}"${i === list.length - 1 ? " disabled" : ""} title="往后挪一位">⬇</button>
+        <button type="button" class="ad-ce-figb" data-figact="swap" data-i="${i}" title="换成另一张图">🔄</button>
+        <button type="button" class="ad-ce-figb del" data-figact="del" data-i="${i}" title="删除这张">🗑</button>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+/* 正文序号重排：fn(旧序号) 返回新序号，返回 -1 表示把这张删掉 */
+function ceRemap(fn) {
+  const pa = $("#cePaper2");
+  if (!pa) return;
+  const list = pa.querySelectorAll("img[data-yrb-media]");
+  for (let i = 0; i < list.length; i++) {
+    const im = list[i];
+    const k = parseInt(im.getAttribute("data-yrb-media"), 10);
+    if (isNaN(k)) continue;
+    const nk = fn(k);
+    if (nk < 0) { if (im.parentNode) im.parentNode.removeChild(im); }
+    else im.setAttribute("data-yrb-media", String(nk));
+  }
+}
+/* 换图后把正文里引用第 k 张的地方换成新地址（序号没变，只是地址变了） */
+function ceRefreshImg(k) {
+  const pa = $("#cePaper2");
+  if (!pa || !CE) return;
+  const m = (CE.media || [])[k] || {};
+  const list = pa.querySelectorAll('img[data-yrb-media="' + k + '"]');
+  for (let i = 0; i < list.length; i++) {
+    const im = list[i];
+    if (m.url) { im.setAttribute("src", m.url); im.classList.remove("ce-miss"); }
+    else { im.removeAttribute("src"); im.classList.add("ce-miss"); }
+  }
+}
+
+/* 上传前压到 1600px：手机原图 3–8MB，后台多在 4G 下操作，直传极易超时；
+   1600px/q0.82 单张约 200–400KB，放大看细节仍够。makeThumb 不放大，小图原样保留。 */
+async function ceUpload(files, mode, k) {
+  const C = window.YRB_CLOUD;
+  if (!CE) return;
+  if (!(C && C.uploadCaseImages)) { toast && toast("云服务还没就绪，请等几秒再试"); return; }
+  if (CE_FIG_BUSY) { toast && toast("上一张还在上传，请稍等一下"); return; }
+  const picked = [];
+  const want = mode === "add" ? 9 : 1;          /* 换图 / 插图一次一张，添加可多选 */
+  for (let i = 0; i < files.length && picked.length < want; i++) {
+    const f = files[i];
+    if (f && /^image\//i.test(f.type || "")) picked.push(f);
+  }
+  if (!picked.length) { toast && toast("请选择图片文件"); return; }
+  ceFigBusy(true);
+  try {
+    const items = [];
+    for (let i = 0; i < picked.length; i++) {
+      const f = picked[i];
+      let blob = f;
+      try {
+        const small = await C.makeThumb(f, 1600, 0.82);
+        if (small) blob = small;
+      } catch (e) { /* 压缩失败就传原图，不让它阻断 */ }
+      items.push({ blob: blob, kind: "img", name: f.name || "" });
+    }
+    const r = await C.uploadCaseImages(items);
+    if (!r || !r.ok) {
+      toast && toast((r && r.message) || "上传失败，请检查网络后重试");
+      if (r && r.reason === "auth" && C.openLogin) setTimeout(() => { try { C.openLogin(); } catch (e) {} }, 500);
+      return;
+    }
+    const added = r.media || [];
+    if (!added.length) { toast && toast("上传没有返回结果，请重试"); return; }
+    if (mode === "swap") {
+      if (!CE.media[k]) return;
+      CE.media[k] = Object.assign({}, added[0], { kind: CE.media[k].kind || "img" });
+      ceRefreshImg(k);
+      toast && toast("已换图 ✅ 正文里这张会自动更新，记得点保存");
+    } else {
+      const start = CE.media.length;
+      for (let i = 0; i < added.length; i++) CE.media.push(added[i]);
+      const pa = $("#cePaper2");
+      if (pa) {
+        for (let i = 0; i < added.length; i++) {
+          const im = document.createElement("img");
+          im.setAttribute("data-yrb-media", String(start + i));
+          im.setAttribute("alt", "");
+          if (added[i].url) im.setAttribute("src", added[i].url);
+          pa.appendChild(im);
+        }
+      }
+      toast && toast("已添加 " + added.length + " 张，放在正文末尾");
+    }
+    ceRenderFigs();
+  } catch (e) {
+    toast && toast("上传失败：" + ((e && e.message) || "请稍后重试"));
+  } finally {
+    ceFigBusy(false);
+  }
+}
+
+/* 素材操作：前移 / 后移 / 换图 / 删除 */
+function ceFigAct(act, k) {
+  if (!CE || !CE.media[k]) return;
+  const n = CE.media.length;
+  if (act === "up" && k > 0) {
+    const t = CE.media[k - 1]; CE.media[k - 1] = CE.media[k]; CE.media[k] = t;
+    ceRemap(i => (i === k ? k - 1 : (i === k - 1 ? k : i)));
+    ceRenderFigs();
+    toast && toast("已前移，正文里的图片跟着换位了");
+  } else if (act === "down" && k < n - 1) {
+    const t = CE.media[k + 1]; CE.media[k + 1] = CE.media[k]; CE.media[k] = t;
+    ceRemap(i => (i === k ? k + 1 : (i === k + 1 ? k : i)));
+    ceRenderFigs();
+    toast && toast("已后移，正文里的图片跟着换位了");
+  } else if (act === "del") {
+    if (!confirm("删除第 " + (k + 1) + " 张图片？正文里这张也会一起去掉，保存后生效。")) return;
+    CE.media.splice(k, 1);
+    ceRemap(i => (i === k ? -1 : (i > k ? i - 1 : i)));
+    ceRenderFigs();
+    toast && toast("已删除，后面的图片序号已自动接上");
+  } else if (act === "swap") {
+    CE_SWAP_K = k;
+    const inp = $("#ceFileSwap");
+    if (inp) { try { inp.value = ""; } catch (e) {} inp.click(); }
+  }
+}
+
+async function openCaseEdit(id) {
   const x = AD.cases.find(t => String(t.id) === String(id));
   if (!x) { toast && toast("这条案例不在当前列表里，点右上角刷新后再试"); return; }
   const host = $("#adCaseEdit"); if (!host) return;
-  CE = { id: x.id, media: x.media || [] };
+  const C = window.YRB_CLOUD || {};
+  host.hidden = false;
+  host.innerHTML = `<div class="ad-ce-loading">正在打开案例…</div>`;
+  /* 后台读的是原始行，media 里只有 path：先批量签一次地址，
+     否则正文里的图在面板里全是灰块（这也是过去「后台看不到图」的原因） */
+  let media = [];
+  try {
+    media = (typeof C.signMedia === "function") ? await C.signMedia(x.media || []) : (x.media || []);
+  } catch (e) { media = x.media || []; }
+  CE = { id: x.id, media: media || [], type: x.type || "img" };
+  CE_SWAP_K = -1;
   host.innerHTML = `
     <div class="ad-ce-head">
       <button class="ad-back" data-ceact="close">‹</button>
@@ -255,34 +429,80 @@ function openCaseEdit(id) {
     <div class="ad-ce-body">
       <div class="ad-ce-lab">标题</div>
       <input id="ceTitle2" class="ad-ce-title" maxlength="80" placeholder="案例标题">
-      <div class="ad-ce-lab">正文 <span class="ad-ce-hint">图片保持原样，不能在这里加图</span></div>
+
+      <div class="ad-ce-lab">图片 <span class="ad-ce-hint" id="ceFigHint"></span></div>
+      <div class="ad-ce-figs" id="ceFigs"></div>
+      <div class="ad-ce-figbar" id="ceFigBar">
+        <button type="button" class="ad-ce-b main" data-ceact="addimg">➕ 添加图片</button>
+        <span class="ad-ce-figbusy">正在上传…</span>
+      </div>
+      <div class="ad-ce-tip2">换图只替换画面、位置不变；上移/下移/删除会自动同步正文里的图片顺序。</div>
+
+      <div class="ad-ce-lab">正文 <span class="ad-ce-hint">先选中文字，再点按钮</span></div>
       <div class="ad-ce-bar">
-        <button type="button" class="ad-ce-b" data-ceact="bold"><b>B</b> 加粗</button>
         <button type="button" class="ad-ce-b" data-ceact="h3">小标题</button>
+        <button type="button" class="ad-ce-b" data-ceact="body">正文</button>
+        <button type="button" class="ad-ce-b" data-ceact="bold"><b>B</b> 加粗</button>
+      </div>
+      <div class="ad-ce-bar">
         <button type="button" class="ad-ce-b" data-ceact="center">居中</button>
+        <button type="button" class="ad-ce-b" data-ceact="left">居左</button>
+        <button type="button" class="ad-ce-b" data-ceact="ul">• 列表</button>
+        <button type="button" class="ad-ce-b" data-ceact="hr">— 分隔线</button>
       </div>
       <div id="cePaper2" class="ad-ce-paper" contenteditable="true" data-ph="在这里改正文…"></div>
-      <div class="ad-ce-tip" id="ceTip2">只改文字和排版，图片/视频等素材不变；保存后用户端立即生效。</div>
+      <div class="ad-ce-tip" id="ceTip2">改完点右下角「保存修改」，用户端立即生效。想把图挪到段落中间：选中图片剪切，点目标位置粘贴。</div>
     </div>
     <div class="ad-ce-foot">
       <button type="button" class="ad-act ghost" data-ceact="close">取消</button>
       <button type="button" class="ad-act" id="ceSave2" data-ceact="save">💾 保存修改</button>
-    </div>`;
+    </div>
+    <input type="file" id="ceFileAdd" accept="image/*" multiple hidden>
+    <input type="file" id="ceFileSwap" accept="image/*" hidden>`;
   const ti = $("#ceTitle2"), pa = $("#cePaper2");
   if (ti) ti.value = x.title || "";
   if (pa) pa.innerHTML = ceHydrate(x.content_html || "", CE.media);
-  /* 粘贴只收文字：后台不重传图片，粘进来的图保存时会被清洗掉，先说清楚 */
+  ceRenderFigs();
+  const hint = $("#ceFigHint");
+  if (hint) hint.textContent = CE.media.length ? ("共 " + CE.media.length + " 张 · 正文按序号对位") : "还没有图片";
+
+  /* 添加图片（可多选，追加到正文末尾） */
+  const fAdd = $("#ceFileAdd");
+  if (fAdd) fAdd.addEventListener("change", e => {
+    const fs = (e.target && e.target.files) || [];
+    if (fs.length) ceUpload(fs, "add", -1);
+  });
+  /* 换图（单张，替换指定序号） */
+  const fSwap = $("#ceFileSwap");
+  if (fSwap) fSwap.addEventListener("change", e => {
+    const fs = (e.target && e.target.files) || [];
+    const k = CE_SWAP_K;
+    if (fs.length && k >= 0) ceUpload(fs, "swap", k);
+  });
+
+  /* 粘贴：外链图一律拦下（后台不重传外部图片，保存时也会被清洗掉），
+     但「本站正文里的图片节点」必须放行 —— 把图从一个段落挪到另一个段落靠它 */
   if (pa) pa.addEventListener("paste", e => {
     const cd = e.clipboardData; if (!cd) return;
+    const html = cd.getData("text/html") || "";
+    if (/data-yrb-media/i.test(html)) return;
     const hasFile = cd.files && cd.files.length;
-    const hasImg = /<img/i.test(cd.getData("text/html") || "");
+    const hasImg = /<img/i.test(html);
     if (!hasFile && !hasImg) return;
     e.preventDefault();
     const t = cd.getData("text/plain") || "";
     try { document.execCommand("insertText", false, t); } catch (e2) {}
-    toast && toast("后台编辑只收文字：图片请保留原样，换图需要删了重发");
+    toast && toast("外来的图片不能直接粘进来：请用上方「➕ 添加图片」上传");
   });
-  host.hidden = false;
+
+  /* 工具栏按钮按下时不抢焦点：contenteditable 一失焦选区就没了，
+     加粗 / 居中会落在错误的位置甚至整段。用 onmousedown 覆盖式绑定，
+     避免反复打开面板叠加监听（addEventListener 在重建后的 host 上会累积）。 */
+  const CE_CMD_ACTS = { h3: 1, body: 1, bold: 1, center: 1, left: 1, ul: 1, hr: 1 };
+  host.onmousedown = e => {
+    const b = (e.target && e.target.closest) ? e.target.closest("[data-ceact]") : null;
+    if (b && CE_CMD_ACTS[b.dataset.ceact]) e.preventDefault();
+  };
   try { host.scrollTop = 0; } catch (e) {}
 }
 function closeCaseEdit() {
@@ -296,7 +516,11 @@ function ceCmd(cmd) {
   try {
     if (cmd === "bold") document.execCommand("bold", false, null);
     else if (cmd === "center") document.execCommand("justifyCenter", false, null);
+    else if (cmd === "left") document.execCommand("justifyLeft", false, null);
     else if (cmd === "h3") document.execCommand("formatBlock", false, "H3");
+    else if (cmd === "body") document.execCommand("formatBlock", false, "P");
+    else if (cmd === "ul") document.execCommand("insertUnorderedList", false, null);
+    else if (cmd === "hr") document.execCommand("insertHorizontalRule", false, null);
   } catch (e) {}
   try { pa.focus(); } catch (e) {}
 }
@@ -309,13 +533,26 @@ async function saveCaseEdit() {
   const chars = ((pa && pa.textContent) || "").replace(/\s+/g, "").length;
   const imgs = pa ? pa.querySelectorAll("img").length : 0;
   if (!chars && !imgs) { toast && toast("正文是空的，写点内容再保存"); return; }
+  /* 越界序号会在用户端变成破图（渲染端按 media 取地址，取不到就整张撤掉）。
+     这里先纠掉，保证入库的正文与 media 严格对齐 —— 宁可少一张图，不留坏数据。 */
+  if (pa) {
+    const list = pa.querySelectorAll("img[data-yrb-media]");
+    for (let i = list.length - 1; i >= 0; i--) {
+      const k = parseInt(list[i].getAttribute("data-yrb-media"), 10);
+      if (!(k >= 0 && k < (CE.media || []).length)) {
+        if (list[i].parentNode) list[i].parentNode.removeChild(list[i]);
+      }
+    }
+  }
   const html = ceClean(pa ? pa.innerHTML : "");
   const C = window.YRB_CLOUD;
   if (!(C && C.updateCase)) { toast && toast("云层还没就绪，请等几秒再试"); return; }
   if (btn) { btn.disabled = true; btn.textContent = "保存中…"; }
   const id = CE.id;
   try {
-    const r = await C.updateCase(id, { title: title, content_html: html });
+    /* media 一起提交：url / thumbUrl 是临时签名地址，cloud.updateCase 只抄
+       kind|path|dur|name|thumb 五个字段，地址不会写进库（否则一小时后全站破图） */
+    const r = await C.updateCase(id, { title: title, content_html: html, media: CE.media || [] });
     if (!r || !r.ok) {
       const m = (r && r.reason === "denied")
         ? "没有修改权限：只有管理员或案例作者本人能改"
@@ -325,7 +562,15 @@ async function saveCaseEdit() {
       return;
     }
     const row = AD.cases.find(t => String(t.id) === String(id));
-    if (row) { row.title = title; row.content_html = html; }
+    if (row) {
+      row.title = title;
+      row.content_html = html;
+      /* 本地缓存同步成库里那份（只留持久字段），刷新前再点开也不会看到旧图 */
+      row.media = (CE.media || []).map(m => ({
+        kind: m.kind || "img", path: m.path, dur: m.dur || "", name: m.name || "",
+        ...(m.thumb ? { thumb: m.thumb } : {})
+      }));
+    }
     toast && toast("案例已更新 ✅ 用户端已生效");
     closeCaseEdit();
     render();
@@ -1046,13 +1291,23 @@ async function licClear(key) {
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-ad]");
   if (b) { e.stopPropagation(); act(b); return; }
-  /* 案例编辑面板内部动作（工具栏 / 保存 / 取消） */
+  /* 案例编辑面板内部动作（工具栏 / 保存 / 取消 / 添加图片） */
   const ce = e.target.closest("[data-ceact]");
   if (ce) {
     const k = ce.dataset.ceact;
     if (k === "close") closeCaseEdit();
     else if (k === "save") saveCaseEdit();
+    else if (k === "addimg") {
+      const inp = $("#ceFileAdd");
+      if (inp) { try { inp.value = ""; } catch (err) {} inp.click(); }
+    }
     else ceCmd(k);
+    return;
+  }
+  /* 案例素材按钮：前移 / 后移 / 换图 / 删除 */
+  const fg = e.target.closest("[data-figact]");
+  if (fg) {
+    ceFigAct(fg.dataset.figact, parseInt(fg.dataset.i, 10));
     return;
   }
   /* 页签切换 */
