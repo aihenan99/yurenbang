@@ -60,13 +60,15 @@ function ensureShell() {
 }
 
 /* ---------- 管理后台：数据 ---------- */
-let AD = { posts: [], comments: [], tutors: [], cases: [], reports: [], reportsErr: "", qrRow: null, licRows: {}, chipsRow: null, chipDraft: null, tab: "content", loading: false, deep: null, deepBusy: false, errs: null };
+let AD = { posts: [], comments: [], tutors: [], teachers: [], teachersErr: "", cases: [], reports: [], reportsErr: "", qrRow: null, licRows: {}, chipsRow: null, chipDraft: null, tab: "content", loading: false, deep: null, deepBusy: false, errs: null };
 async function fetchAll() {
   const c = db(); if (!c) throw new Error("云服务未就绪");
-  const [p, cm, tj, st, ls, cs, rp] = await Promise.all([
+  const [p, cm, tj, tt, st, ls, cs, rp] = await Promise.all([
     c.from("yb_posts").select("*").order("created_at", { ascending: false }).limit(200),
     c.from("yb_comments").select("*").order("created_at", { ascending: false }).limit(200),
     c.from("yb_tutor_req").select("*").order("created_at", { ascending: false }).limit(300),
+    /* 教师登记表 2026-11-07 新增：未建表时只降级提示，不拖挂后台 */
+    c.from("yb_tutor_teacher").select("*").order("created_at", { ascending: false }).limit(300),
     c.from("yb_settings").select("key,value").eq("key", "jiaojiao_qr").maybeSingle(),
     c.from("yb_settings").select("key,value"),
     c.from("yb_cases").select("*").order("created_at", { ascending: false }).limit(200),
@@ -77,6 +79,7 @@ async function fetchAll() {
   if (cm && cm.error) throw cm.error;
   /* 家教表读不到不算致命（老版本无 admin 策略时），只提示 */
   if (tj && tj.error) console.warn("[后台] 家教登记读取失败：", tj.error.message || tj.error);
+  if (tt && tt.error) AD.teachersErr = String(tt.error.message || tt.error.code || "读取失败");
   if (st && st.error) console.warn("[后台] 二维码设置读取失败：", st.error.message || st.error);
   if (ls && ls.error) console.warn("[后台] 资质证照读取失败：", ls.error.message || ls.error);
   if (cs && cs.error) console.warn("[后台] 案例读取失败：", cs.error.message || cs.error);
@@ -84,6 +87,7 @@ async function fetchAll() {
   AD.posts = (p && p.data) || [];
   AD.comments = (cm && cm.data) || [];
   AD.tutors = (tj && tj.data) || [];
+  AD.teachers = (tt && tt.data) || [];
   AD.cases = (cs && cs.data) || [];
   AD.reports = (rp && rp.data) || [];
   AD.reportsErr = (rp && rp.error) ? String(rp.error.message || rp.error.code || "读取失败") : "";
@@ -602,14 +606,43 @@ function tutorCardHTML(x) {
     </div>
   </div>`;
 }
+/* ---------- 教师信息登记（棕黄表格的落库数据） ---------- */
+function teacherCardHTML(x) {
+  const rows = [
+    ["姓名", x.name], ["性别", x.gender], ["年龄", x.age ? x.age + " 岁" : ""],
+    ["年级科目", x.grade_subject], ["空闲时间", x.free_time],
+    ["服务类型", x.serve_type], ["类型", x.job_type],
+    ["电话", x.phone], ["方便的位置", x.area]
+  ].filter(([, v]) => v);
+  return `<div class="ad-item jj-ad-item">
+    <div class="ad-t">👩‍🏫 ${esc(x.name || "未填姓名")} · ${esc(x.grade_subject || "")}</div>
+    <div class="ad-meta">
+      <span>${esc(x.owner_name || "老师")}</span>
+      <span>🕘 ${relTime(x.created_at)}</span>
+      <span class="ad-tag">#${x.id}</span>
+      ${x.job_type ? `<span class="ad-tag">${esc(x.job_type)}</span>` : ""}
+    </div>
+    <div class="jj-ad-rows">${rows.map(([k, v]) => `<div><b>${esc(k)}</b><span>${esc(String(v))}</span></div>`).join("")}</div>
+    <div class="ad-acts">
+      <button class="ad-act" data-ad="jtcopy" data-id="${x.id}">📋 复制教师资料</button>
+      <button class="ad-act warn" data-ad="jtdel" data-id="${x.id}">🗑 删除登记</button>
+    </div>
+  </div>`;
+}
 function tutorTabHTML() {
   const list = AD.tutors.map(tutorCardHTML).join("") || `<div class="ad-empty">还没有家教登记</div>`;
+  const tList = AD.teachersErr
+    ? `<div class="ad-empty">教师登记表还没建好（${esc(AD.teachersErr)}）</div>`
+    : (AD.teachers.map(teacherCardHTML).join("") || `<div class="ad-empty">还没有教师登记</div>`);
   const cur = (AD.qrRow && AD.qrRow.value) || "assets/jiaojiao-qr.png";
   const isCustom = !!(AD.qrRow && AD.qrRow.value);
   return `
     <div class="ad-sec">🎓 家教需求登记 <span class="n">${AD.tutors.length}</span></div>
     <div class="ad-note" style="margin:0 2px 8px">家长的联系方式<b>只有管理员能看到</b>（数据库只放行管理员读取）；「复制联系方式」会进剪贴板，方便直接加微信。</div>
     ${list}
+    <div class="ad-sec">👩‍🏫 教师信息登记 <span class="n">${AD.teachers.length}</span></div>
+    <div class="ad-note" style="margin:0 2px 8px">来自家教页的<b>棕黄登记表</b>（老师自填）。同样只有管理员能看；「复制教师资料」会把整份资料排成一段文字，方便转发给家长。</div>
+    ${tList}
     <div class="ad-sec">💬 扫码卡二维码 <span class="n">${isCustom ? "自定义" : "默认"}</span></div>
     <div class="jj-ad-qr">
       <img id="adQrImg" src="${esc(cur)}" alt="当前二维码">
@@ -1119,6 +1152,27 @@ async function act(el) {
     const txt = [x.name ? "称呼：" + x.name : "", "联系方式：" + (x.contact || ""), x.community ? "小区：" + x.community : ""]
       .filter(Boolean).join("\n") + `\n（家教登记 #${x.id}，${x.grade || ""}${x.subjects ? " · " + x.subjects : ""}）`;
     copyText(txt).then(ok => toast && toast(ok ? "联系方式已复制，去添加家长吧 ✅" : "复制失败，请长按记录手动复制"));
+  } else if (op === "jtdel") {
+    if (!confirm("确定删除这条教师登记？删除后不可恢复。")) return;
+    try {
+      const r = await c.from("yb_tutor_teacher").delete().eq("id", id);
+      if (r && r.error) throw r.error;
+      toast && toast("已删除该教师登记");
+    } catch (e) { toast && toast("删除失败：" + ((e && e.message) || "没有权限")); }
+    loadAndRender();
+  } else if (op === "jtcopy") {
+    const x = AD.teachers.find(t => String(t.id) === String(id));
+    if (!x) return;
+    const txt = [
+      "【教师登记】" + (x.name || ""),
+      [x.gender, x.age ? x.age + "岁" : ""].filter(Boolean).join(" · "),
+      "年级科目：" + (x.grade_subject || ""),
+      x.free_time ? "空闲时间：" + x.free_time : "",
+      "服务类型：" + (x.serve_type || "") + "｜类型：" + (x.job_type || ""),
+      "电话：" + (x.phone || ""),
+      x.area ? "位置：" + x.area : ""
+    ].filter(Boolean).join("\n");
+    copyText(txt).then(ok => toast && toast(ok ? "教师资料已复制，可直接发给家长 ✅" : "复制失败，请长按记录手动复制"));
   }
 }
 

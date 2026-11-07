@@ -119,6 +119,72 @@ function buildPage() {
     <button id="jjSubmit" type="button">✈️ 提交登记信息</button>
     <div class="jj-hint"><i></i><span>我们将在2小时内与您联系</span><i></i></div>
 
+    <!-- ===== 教师信息登记表（棕黄纸质表格）：收老师自己的资料 ===== -->
+    <div class="jt-sheet">
+      <div class="jt-head">
+        <span class="jt-ic">👩‍🏫</span>
+        <div class="jt-hd-t">
+          <b>教师信息登记表</b>
+          <i>老师填写 · 免费登记 · 家长就近匹配</i>
+        </div>
+      </div>
+      <table class="jt-tb">
+        <tbody>
+          <tr>
+            <th>姓名</th>
+            <td><input id="jtName" class="jt-in" maxlength="20" placeholder="请填真实姓名"></td>
+          </tr>
+          <tr>
+            <th>性别</th>
+            <td><div class="jt-opts" data-jt="gender">
+              <button type="button" class="jt-opt" data-v="男">男</button>
+              <button type="button" class="jt-opt" data-v="女">女</button>
+            </div></td>
+          </tr>
+          <tr>
+            <th>年龄</th>
+            <td><span class="jt-wrap"><input id="jtAge" class="jt-in" type="tel" maxlength="2" inputmode="numeric" placeholder="如 32"><i class="jt-suf">岁</i></span></td>
+          </tr>
+          <tr>
+            <th>所教年级<br>及科目</th>
+            <td><input id="jtGradeSub" class="jt-in" maxlength="40" placeholder="如：初二初三 · 数学物理"></td>
+          </tr>
+          <tr>
+            <th>目前<br>空闲时间</th>
+            <td><input id="jtFree" class="jt-in" maxlength="40" placeholder="如：工作日晚上、周末全天"></td>
+          </tr>
+          <tr>
+            <th>服务类型</th>
+            <td><div class="jt-opts" data-jt="serve">
+              <button type="button" class="jt-opt" data-v="上门">上门</button>
+              <button type="button" class="jt-opt" data-v="机构（工作室）">机构 / 工作室</button>
+            </div></td>
+          </tr>
+          <tr>
+            <th>类型</th>
+            <td><div class="jt-opts" data-jt="job">
+              <button type="button" class="jt-opt" data-v="全职">全职</button>
+              <button type="button" class="jt-opt" data-v="兼职">兼职</button>
+              <button type="button" class="jt-opt" data-v="大学生">大学生</button>
+            </div></td>
+          </tr>
+          <tr>
+            <th>电话</th>
+            <td><input id="jtPhone" class="jt-in" type="tel" maxlength="20" inputmode="tel" placeholder="家长联系你的号码"></td>
+          </tr>
+          <tr>
+            <th>方便<br>的位置</th>
+            <td><input id="jtArea" class="jt-in" maxlength="30" placeholder="如：浦东金桥 / 地铁 2 号线沿线"></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="jt-foot">
+        <button id="jtSubmit" type="button">📋 提交教师登记</button>
+        <div class="jt-note">只用于家长匹配，不公开、不外泄；不想被联系可随时让管理员删除。</div>
+      </div>
+    </div>
+    <div class="jj-hint"><i></i><span>老师 / 家长都可登记</span><i></i></div>
+
     <!-- 扫码咨询 -->
     <div class="jj-wx">
       <div class="jj-wx-t">💬 扫码咨询</div>
@@ -160,6 +226,7 @@ function bind() {
   const page = $("#page-jiaojiao"); if (!page) return;
   /* 选项：单选组互斥，多选组可叠加（「还没想好」在目标组内与其余互斥） */
   page.addEventListener("click", e => {
+    if (e.target.closest(".jt-opt")) { jtPick(e); return; }
     const b = e.target.closest(".jj-opt"); if (!b) return;
     const name = b.dataset.name;
     if (name === "grade" || name === "freq" || name === "online") {
@@ -178,6 +245,69 @@ function bind() {
     $("#jjDone").hidden = true; $(".jj-wrap", page).hidden = false; page.scrollTop = 0;
   });
   $("#jjBack").addEventListener("click", () => { try { switchTab("home"); } catch (e) {} });
+  /* 教师登记表：三组按钮各自单选（同组互斥，可再点取消） */
+  const jt = $("#jtSubmit");
+  if (jt) jt.addEventListener("click", onSubmitTeacher);
+}
+/* 教师登记表的单选组：点一下就换，再点一下取消 */
+function jtPick(e) {
+  const b = e.target.closest(".jt-opt"); if (!b) return;
+  const box = b.closest(".jt-opts"); if (!box) return;
+  const was = b.classList.contains("on");
+  [...box.querySelectorAll(".jt-opt")].forEach(x => x.classList.remove("on"));
+  if (!was) b.classList.add("on");
+}
+function jtVal(name) {
+  const b = document.querySelector(`#page-jiaojiao .jt-opts[data-jt="${name}"] .jt-opt.on`);
+  return b ? b.dataset.v : "";
+}
+function onSubmitTeacher() {
+  const name = ($("#jtName").value || "").trim();
+  const age = ($("#jtAge").value || "").trim();
+  const gs = ($("#jtGradeSub").value || "").trim();
+  const free = ($("#jtFree").value || "").trim();
+  const phone = ($("#jtPhone").value || "").trim();
+  const area = ($("#jtArea").value || "").trim();
+  const gender = jtVal("gender"), serve = jtVal("serve"), job = jtVal("job");
+  const bad = (id, msg) => {
+    toast(msg); const el = $(id);
+    if (el) { el.focus(); el.classList.add("shake"); setTimeout(() => el.classList.remove("shake"), 600); }
+  };
+  if (!name) return bad("#jtName", "请填写姓名");
+  if (!gender) return toast("请选择性别");
+  const n = parseInt(age, 10);
+  if (!age) return bad("#jtAge", "请填写年龄");
+  if (!(n >= 18 && n <= 80)) return bad("#jtAge", "年龄请填 18 - 80 之间的数字");
+  if (!gs) return bad("#jtGradeSub", "请填写所教年级和科目");
+  if (!serve) return toast("请选择服务类型：上门，还是机构 / 工作室");
+  if (!job) return toast("请选择类型：全职、兼职或大学生");
+  /* 电话宽松校验：手机 11 位，或座机带区号；只要够 7 位数字就算能打通 */
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 7) return bad("#jtPhone", "请填写可以打通的电话");
+  if (!area) return bad("#jtArea", "请填写方便上课的位置，方便就近匹配");
+
+  const rec = {
+    name, gender, age: n, grade_subject: gs, free_time: free,
+    serve_type: serve, job_type: job, phone, area
+  };
+  saveTeacher(rec);
+  toast("✅ 教师登记已提交，有匹配的家长我们会联系你");
+  /* 清空，避免重复提交同一份；保留位置方便连登同一片区 */
+  ["#jtName", "#jtAge", "#jtGradeSub", "#jtFree", "#jtPhone"].forEach(id => { const el = $(id); if (el) el.value = ""; });
+  document.querySelectorAll("#page-jiaojiao .jt-opt.on").forEach(x => x.classList.remove("on"));
+}
+/* 云端入库（尽力而为：RLS 只许登录用户写入，客户端读不走） */
+function saveTeacher(rec) {
+  try {
+    const C = window.YRB_CLOUD;
+    if (!C || !C.enabled || !C.enabled() || !C.signedIn() || !C.client) return;
+    const row = Object.assign({}, rec, { owner_name: (C.name && C.name()) || "" });
+    Promise.race([
+      Promise.resolve(C.client.database.from("yb_tutor_teacher").insert(row)),
+      new Promise(res => setTimeout(() => res(null), 20000))
+    ]).then(r => { if (r && r.error) console.warn("[教师登记] 云端保存失败：", r.error.message || r.error); })
+      .catch(() => {});
+  } catch (e) {}
 }
 function onSubmit() {
   const contact = $("#jjContact").value.trim();
