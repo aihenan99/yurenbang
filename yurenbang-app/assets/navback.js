@@ -23,6 +23,12 @@
       系统侧滑 / 返回键 / 手指右滑 → 切回首页（信息流），页面本身不离开。
       详情 / 全屏（#r23Detail、.mf-fs、.vw-fs）仍归 mediafull / casedit，
       本层见到它们就让路，避免一次滑动退两级。
+   5) 2026-11-08 补「首页手指横滑退出」（用户反馈：「左右滑动要返回首页后再次滑动
+      才能退出 APP」）。真因：落地保护只接系统返回（popstate），手指横滑在首页
+      被直接 return 掉 —— 安卓微信 WebView / PWA 独立窗口 / 部分国产浏览器没有
+      系统侧滑，用户到了首页再怎么滑都没反应，永远退不出去。
+      现在首页手指横滑也走落地保护同一套：第一次滑 → 提示「再滑一次退出」，
+      2 秒内再滑 → 放行（与系统返回共用 landAt，两条路互通）。
 
    边界：
    · 只读 DOM、只调既有 close 入口（⚙ 不新建浮层、不动 CSS、不占 z-index）
@@ -310,6 +316,10 @@
     var t = e.touches[0], tgt = e.target, mode = "";
     if (stack.length) mode = "layer";
     else if (!detailLayer() && curTab() !== "home") mode = "home";
+    /* 2026-11-08：首页也要接手指横滑 —— 没有系统侧滑的设备（安卓微信 / 独立窗口）
+       只能靠这里走到「再滑一次退出」。只在落地保护押着（land=1）时接管，
+       否则 history 里没有可消费的记录，back() 会把人直接带走。 */
+    else if (!detailLayer() && curTab() === "home" && land) mode = "exit";
     if (!mode) return;
     if (t.clientX < 26) return;                          /* 贴左边缘留给系统手势 */
     if (tgt.closest && tgt.closest("video,audio,input,textarea,select,[data-noswipe]")) return;
@@ -337,6 +347,19 @@
     if (Math.abs(dx) < TH) return;
     if (Math.abs(dx) < Math.abs(dy) * 1.5) return;        /* 竖向滚动不抢 */
     if (mode === "home") { backToHome(); sync(); return; } /* 非首页：滑一下回首页 */
+    if (mode === "exit") {
+      /* 首页：与 popstate 落地分支同一套语义 —— 第一次滑只提示，
+         2 秒内再滑就 back() 让那条落地记录被消费，popstate 里再补退一格真正离开。
+         （landAt 不清零：popstate 落地分支靠它判断「这是第二次」） */
+      var nowExit = Date.now();
+      if (landAt && nowExit - landAt < 2000) {
+        try { history.back(); } catch (e) {}
+      } else {
+        landAt = nowExit;
+        alreadyHome();
+      }
+      return;
+    }
     closeTop();
     sync();
   }, { passive: true, capture: true });
