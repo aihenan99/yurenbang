@@ -1,6 +1,7 @@
-/* 线上返回手势实机校验（2026-11-05）
+/* 线上返回手势实机校验（2026-11-05，2026-11-08 补退出闭环）
    目的：确认生产站真的跑的是新版 navback（用户多次遇到「改了但手机上还是旧的」= 缓存）。
    校验：①切到「我的」②系统返回 → 回首页且网址不变 ③再返回 → 仍停在首页（落地保护）
+        ④2 秒内再返回一次 → 真正离开站点（页面走掉）
    运行：node tests/diag/prod_nav_check.js */
 const { chromium } = require("../../temp/pw/node_modules/playwright-core");
 const BASE = process.env.YRB_PROD || "https://xn--gmqq09al6z.cn/";
@@ -43,7 +44,21 @@ const BASE = process.env.YRB_PROD || "https://xn--gmqq09al6z.cn/";
   const ok2 = s2.url === s0.url && s2.alive;
   console.log((ok1 ? "✓" : "✗") + " 返回一次 → 回首页不退出 " + JSON.stringify(s1));
   console.log((ok2 ? "✓" : "✗") + " 再返回一次 → 仍停在首页（落地保护） " + JSON.stringify(s2));
+
+  /* ④ 落地保护后 2 秒内再返回一次 → 放行退出（此时页面应真的离开站点） */
+  await p.evaluate(() => history.back()).catch(() => {});
+  await p.waitForTimeout(900);
+  let s3 = { gone: true };
+  try {
+    s3 = await p.evaluate(() => ({
+      gone: !document.getElementById("feed"),
+      url: location.href
+    }));
+  } catch (e) { s3 = { gone: true, url: "(导航走掉)" }; }
+  const ok3 = !!s3.gone;
+  console.log((ok3 ? "✓" : "✗") + " 落地保护后 2 秒内再返回 → 真正退出 " + JSON.stringify(s3));
+
   console.log(errs.length ? "PAGEERR " + errs.join(" | ") : "无脚本错误");
   await b.close();
-  process.exit(ok1 && ok2 ? 0 : 1);
+  process.exit(ok1 && ok2 && ok3 ? 0 : 1);
 })();
