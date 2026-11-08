@@ -261,7 +261,15 @@ function jtVal(name) {
   const b = document.querySelector(`#page-jiaojiao .jt-opts[data-jt="${name}"] .jt-opt.on`);
   return b ? b.dataset.v : "";
 }
+let jtLastSubmit = 0;   /* 教师登记表上次成功提交的时间戳（防连点写重复） */
 function onSubmitTeacher() {
+  /* 防连点：老人点按钮容易连按两下，会静默写两条重复登记（电话一样，后台看着像两个人）。
+     提交成功后 8 秒内再点只提示、不再落库；按钮同时显示「已提交」。 */
+  const btn = $("#jtSubmit");
+  if (jtLastSubmit && Date.now() - jtLastSubmit < 8000) {
+    toast("刚提交过了，不用重复提交～");
+    return;
+  }
   const name = ($("#jtName").value || "").trim();
   const age = ($("#jtAge").value || "").trim();
   const gs = ($("#jtGradeSub").value || "").trim();
@@ -291,6 +299,13 @@ function onSubmitTeacher() {
     serve_type: serve, job_type: job, phone, area
   };
   saveTeacher(rec);
+  jtLastSubmit = Date.now();
+  if (btn) {
+    btn.disabled = true;
+    const old = btn.textContent;
+    btn.textContent = "✅ 已提交，8 秒后可再登记";
+    setTimeout(() => { btn.disabled = false; btn.textContent = old; }, 8000);
+  }
   toast("✅ 教师登记已提交，有匹配的家长我们会联系你");
   /* 清空，避免重复提交同一份；保留位置方便连登同一片区 */
   ["#jtName", "#jtAge", "#jtGradeSub", "#jtFree", "#jtPhone"].forEach(id => { const el = $(id); if (el) el.value = ""; });

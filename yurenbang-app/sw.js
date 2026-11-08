@@ -18,6 +18,21 @@ const CACHE = 'yrb-cache-v4';
 /* 2026-11-06：图片字节单独一个常驻缓存。与 CORE 同生命周期（activate 时不清），
    因为内容图一次上传后永不改变（path 含 uuid + 时间戳），本地留着就是净赚。 */
 const IMG_CACHE = 'yrb-img-v1';
+/* 2026-11-08：导航副本的可信时长。超过它就宁可多等一次网络，
+   也不能让人长期停在旧壳（旧壳引用的 ?v= 是旧的，功能会落后一整版）。 */
+const NAV_MAX_AGE = 24 * 60 * 60 * 1000;
+
+/* 存导航副本时盖一个时间戳，用来判断"还新不新"。
+   Cache API 不会自己记时间，只能塞进响应头。 */
+async function putNav(key, res) {
+  try {
+    const c = await caches.open(CACHE);
+    const body = await res.blob();
+    const h = new Headers(res.headers);
+    h.set('x-yrb-cached-at', String(Date.now()));
+    await c.put(key, new Response(body, { status: res.status, statusText: res.statusText, headers: h }));
+  } catch (err) {}
+}
 const IMG_MAX = 160; /* 上限 160 张，超出按插入顺序淘汰，防移动端配额被吃光 */
 const CORE_V = ''; /* sync 时替换为构建号；源码线留空=不带版本戳 */
 const CORE = [
@@ -86,6 +101,20 @@ self.addEventListener('message', e => {
   if (e.data && e.data.type === 'SKIP_WAITING') { self.skipWaiting(); }
   /* 用户在本页「清理缓存」后请求重新预热：否则清完第一次打开要全量走网络 */
   if (e.data && e.data.type === 'PREFETCH') { e.waitUntil(precacheAll()); }
+  /* 2026-11-08：点「立即更新」时先丢掉导航副本。
+     否则刷新后又被本地优先的旧壳顶回来，页面以为还是旧版本，卡片会再弹一次。 */
+  if (e.data && e.data.type === 'YRB_FRESH_NAV') {
+    e.waitUntil((async () => {
+      try {
+        const c = await caches.open(CACHE);
+        const keys = await c.keys();
+        for (const k of keys) {
+          const p = new URL(k.url).pathname;
+          if (p === '/' || p.endsWith('.html')) await c.delete(k);
+        }
+      } catch (err) {}
+    })());
+  }
 });
 
 self.addEventListener('activate', e => {
@@ -141,6 +170,40 @@ self.addEventListener('fetch', e => {
 
   const isNav = req.mode === 'navigate' ||
                 (req.headers.get('accept') || '').indexOf('text/html') >= 0;
+
+  /* 2026-11-08 导航改「本地优先 + 后台刷新」（stale-while-revalidate）。
+     实测 CF 从国内给首字节要 600–1400ms，而这份 HTML 每次都一样；
+     以前每次打开都要先等这 1 秒才开始下载脚本 —— 页面再快也快不过它。
+     现在：有本地副本就直接给（0ms），同时后台拉新的覆盖缓存，下次打开就是新的。
+     两条兜底：① 超过 24 小时的副本不信，走后端，避免极端情况一直吃旧壳；
+              ② 带 ?fresh=1 的请求强制走网络（发布后自检 / 排障用）。 */
+  if (isNav) {
+    const navKey = new Request(url.origin + url.pathname);
+    e.respondWith((async () => {
+      const c = await caches.open(CACHE);
+      let hit = null;
+      try { hit = await c.match(navKey); } catch (err) {}
+      const at = hit ? Number(hit.headers.get('x-yrb-cached-at') || 0) : 0;
+      const tooOld = !hit || (Date.now() - at) > NAV_MAX_AGE;
+      const forceNet = url.searchParams.get('fresh') === '1';
+
+      if (hit && !tooOld && !forceNet) {
+        /* 后台静默更新，不阻塞本次渲染 */
+        fetch(req, { cache: 'no-store' })
+          .then(res => (res && res.ok ? putNav(navKey, res.clone()) : null))
+          .catch(() => {});
+        return hit;
+      }
+      try {
+        const res = await fetch(req);
+        if (res && res.ok) putNav(navKey, res.clone()).catch(() => {});
+        return res;
+      } catch (err) {
+        return hit || caches.match('/') || new Response('', { status: 504, statusText: 'Offline' });
+      }
+    })());
+    return;
+  }
 
   e.respondWith(
     fetch(req).then(res => {

@@ -105,6 +105,22 @@ const ELDER = process.argv.includes("--elder");
   await page.waitForTimeout(300);
   const ageToast = await page.evaluate(() => window.__toast.slice(-1)[0] || "");
 
+  /* 8) 连点两次只应提交一次（防止写两条重复登记） */
+  await page.fill("#jtAge", "35");
+  await page.evaluate(() => { window.__toast = []; });
+  await page.click("#jtSubmit", { force: true }).catch(() => {});
+  await page.waitForTimeout(150);
+  const afterFirst = await page.evaluate(() => ({
+    txt: document.querySelector("#jtSubmit").textContent.trim(),
+    disabled: document.querySelector("#jtSubmit").disabled,
+  }));
+  await page.click("#jtSubmit", { force: true }).catch(() => {});
+  await page.waitForTimeout(200);
+  const afterSecond = await page.evaluate(() => ({
+    success: window.__toast.filter((m) => /已提交/.test(m)).length,   /* 应只有 1 次真正提交 */
+    last: window.__toast.slice(-1)[0] || "",
+  }));
+
   /* 6) 截图：整张表 + 绿色卡同框 */
   await page.evaluate(() => {
     const s = document.querySelector("#page-jiaojiao .jt-sheet");
@@ -132,6 +148,7 @@ const ELDER = process.argv.includes("--elder");
   console.log(`  空表提交提示: ${emptyToast || "（无）"}`);
   console.log(`  性别单选: ${pick.gOn.join(",")} ｜ 类型: ${pick.jOn.join(",")} ｜ 服务: ${pick.sOn.join(",")}`);
   console.log(`  年龄 9 岁提示: ${ageToast || "（无）"}`);
+  console.log(`  连点防重: 按钮「${afterFirst.txt}」置灰=${afterFirst.disabled} ｜ 实际提交次数 ${afterSecond.success} ${afterSecond.success === 1 ? "✅" : "❌"}`);
   console.log("=== 触控 ===");
   console.log(`  jt-opt 最小高 ${hit.optMin}px ｜ 输入框最小高 ${hit.inMin}px ｜ 横向溢出 ${hit.overflowX ? "❌有" : "✅无"}`);
   console.log(`=== JS 报错 === ${errs.length ? errs.join(" | ") : "无"}`);

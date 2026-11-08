@@ -166,6 +166,12 @@
       done = true;
       location.reload();
     }
+    /* 先让 SW 丢掉导航副本（2026-11-08）：SW 现在「本地优先」返回 HTML，
+       不清掉的话刷新回来还是旧壳，会再弹一次「有新版本」。 */
+    try {
+      var swc = navigator.serviceWorker && navigator.serviceWorker.controller;
+      if (swc) { swc.postMessage({ type: "YRB_FRESH_NAV" }); }
+    } catch (e) {}
     try {
       if (navigator.serviceWorker && navigator.serviceWorker.controller) {
         navigator.serviceWorker.getRegistration().then(function (reg) {

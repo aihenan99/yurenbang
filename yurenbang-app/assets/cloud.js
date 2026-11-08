@@ -1356,6 +1356,7 @@ async function loadCloudPosts(more){
       try{window.toast&&window.toast("✅ 云端服务已恢复，内容已刷新");}catch(_){}
     }
     mergeCloudPosts();
+    saveFeedSnap();   /* 每次都刷新快照：下次打开先画这一份 */
     /* 云端收藏是权威：换手机登录后「我的收藏」也得在（此前只存在本机，换机即空）。
        access.js 收到后把这些 id 并回本机存档，卡片 ⭐ 同步点亮。 */
     try{
@@ -1390,6 +1391,41 @@ function mergeCloudPosts(){
   S.posts=[...cloudPosts,...S.posts];
   if(typeof renderFuncRow==="function")renderFuncRow();
   if(typeof renderFeed==="function")renderFeed();
+}
+
+/* ---------- 首屏快照（2026-11-08「打开不能等」专项） ----------
+   实测：CF 约 600–1400ms 只给首字节，一条 5KB 的帖子接口也要 400ms+。
+   代码再快也补不回这段跨境往返，所以第二次打开时用上次的帖子先把卡片画出来，
+   网络回来后再静默替换 —— 用户看到的是「秒开」，而不是转圈。
+
+   两条硬约束：
+   1) 只存 50 分钟内的快照。图片是签名地址（1 小时过期），过期后卡片会变灰块，
+      不如不显示；超过 50 分钟直接丢弃，退回正常网络加载。
+   2) 只存公开信息流的前 12 条，不存评论/玫瑰；不含任何联系方式。 */
+const SNAP_KEY="yrb_feed_snap_v1";
+const SNAP_TTL=50*60*1000;
+const SNAP_MAX=12;
+function saveFeedSnap(){
+  try{
+    if(!cloudPosts.length)return;
+    const posts=cloudPosts.slice(0,SNAP_MAX).map(p=>Object.assign({},p,{comments:[],roses:[]}));
+    localStorage.setItem(SNAP_KEY,JSON.stringify({ts:Date.now(),posts}));
+  }catch(e){
+    /* 配额满 / 隐私模式禁用都静默降级：快照只是加速，不是必需 */
+    try{localStorage.removeItem(SNAP_KEY);}catch(_){}
+  }
+}
+function hydrateFeedSnap(){
+  try{
+    const raw=localStorage.getItem(SNAP_KEY);if(!raw)return false;
+    const j=JSON.parse(raw);
+    if(!j||!Array.isArray(j.posts)||!j.posts.length)return false;
+    if(Date.now()-(j.ts||0)>SNAP_TTL){localStorage.removeItem(SNAP_KEY);return false;}
+    /* 登录态还没解析出来，先一律按「不是我的」渲染，避免退出登录后仍带「我的」标记 */
+    cloudPosts=j.posts.map(p=>Object.assign({},p,{comments:[],roses:[],mine:false}));
+    mergeCloudPosts();
+    return true;
+  }catch(e){return false;}
 }
 
 /* ---------- 云端搜索（2026-11-05「实用」专项） ----------
@@ -1937,6 +1973,9 @@ async function boot(){
   try{window.dispatchEvent(new CustomEvent("yrb-cloud-ready"));}catch(e){}
 }
 
+/* 先用上次的帖子把卡片画出来（0ms、不碰网络），再交给 ensureShell 去联网刷新。
+   放在 ensureShell 之前：这是「打开就能看见」的唯一办法，等接口回来再画必然要等半秒起。 */
+try{hydrateFeedSnap();}catch(e){}
 ensureShell();
 hookCommentLoads();
 hookCommentCapture();

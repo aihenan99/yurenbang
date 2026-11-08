@@ -16,7 +16,7 @@
  */
 const UPSTREAM = "https://yurenbang.app.workbuddy.host";
 const PREFIX = "/yrbapi";
-const BUILD_TAG = "20261107113351-build";
+const BUILD_TAG = "20261108110711-build";
 
 /* ============================================================
    /sbapi —— 自建 Supabase 同源代理（2026-11-01 迁移第一步）
