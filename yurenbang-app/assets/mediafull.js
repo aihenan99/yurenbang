@@ -8,7 +8,7 @@
    ========================================================= */
 (function () {
 "use strict";
-var VERSION = "4";
+var VERSION = "5";
 
 function $(s, r) { return (r || document).querySelector(s); }
 function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
@@ -332,21 +332,14 @@ function injectTts() {
   }
 }
 
-/* ---------- 3. 案例图片点击放大（复用 r23Viewer 大图层） ---------- */
+/* ---------- 3. 案例图片点击放大（复用 r23Viewer 大图层） ----------
+   2026-11-10：改走统一的 ivOpen（见第 8 节），这样案例图也有全屏铺满、
+   「再点一下返回」和打开时间戳守卫，不再是一份单独的实现。 */
 document.addEventListener("click", function (e) {
   var im = e.target.closest && e.target.closest(".vw-imgs img");
   if (!im) return;
   e.stopPropagation();
-  var big = $("#r23Big"), vw = $("#r23Viewer");
-  if (!big || !vw) return;
-  /* 2026-10-29 审核 M6：src 值来自云端 media url，改 createElement 消除属性逃逸注入面 */
-  var img = document.createElement("img");
-  img.src = im.getAttribute("src");
-  img.alt = "查看大图";
-  img.style.cssText = "width:100%;display:block";
-  big.innerHTML = "";
-  big.appendChild(img);
-  vw.classList.add("open");
+  ivOpen(im);
 }, true);
 
 /* ---------- 3b. 信息流卡片视频：一点即全屏（抖音式，2026-10-25） ----------
@@ -413,7 +406,9 @@ try { window.addEventListener("yrb-auth", schedule); } catch (e) {}
    ⑤ 开关：#phone 左下悬浮胶囊（z-index 42，浮层阶梯 40-59），
       记忆在 localStorage(yrb_autospeak)，默认开。 */
 function overlaysOpen() {
-  var sels = ["#r23Detail", "#viewer", "#modal", "#publishSheet", "#subpage", "#commentSheet"];
+  /* 2026-11-10：#r23Viewer（图片全屏大图）也算浮层——它 z95 会盖住跟读开关胶囊，
+     开着大图还继续朗读的话，用户找不到「停」的地方 */
+  var sels = ["#r23Detail", "#viewer", "#r23Viewer", "#modal", "#publishSheet", "#subpage", "#commentSheet"];
   for (var i = 0; i < sels.length; i++) {
     var el = document.querySelector(sels[i]);
     if (el && el.classList.contains("open")) return true;
@@ -717,8 +712,15 @@ function pfDown(e) {
     /* 2026-11-03 晚：图片/图片容器不再排除——用户点的往往正是照片本身，
        排除 img 就等于「点了没反应」（用户两次反馈「点红色画面不进全屏」）。
        仍然排除：按钮/链接（♥⭐🔊 分享 举报、查看完整求助）、播放器、语音条。
-       头像与昵称不排除：点它们进全屏也是同一件事，不亏。 */
-    if (t.closest("button,a,input,textarea,select,video,audio,.m-realvideo,.m-video,.m-voice")) { pfPress = null; return; }
+       头像与昵称不排除：点它们进全屏也是同一件事，不亏。
+       2026-11-10：img 重新排除——现在点照片会由第 8 节开出「图片全屏大图」，
+       用户要的是那张照片，不是这条求助的文字详情；不排除的话 pointerup 会先把文字详情拉起来。 */
+    if (t.closest("button,a,input,textarea,select,video,audio,img,picture,.m-realvideo,.m-video,.m-voice")) { pfPress = null; return; }
+    /* 2026-11-10：保护层让 img 不可命中，点照片时 target 是 .media —— 按坐标判断，
+       点到的确实是照片就交给第 8 节开大图，不在这里进文字详情。
+       假数据里的示意 SVG 不算照片，照旧进详情。 */
+    var pk = ivPick(t, e.clientX, e.clientY);
+    if (pk && ivOk(pk)) { pfPress = null; return; }
     pfPress = { x: e.clientX, y: e.clientY, t: Date.now(), kind: "card", id: card.dataset.id };
     return;
   }
@@ -777,6 +779,9 @@ try {
     var card = t && t.closest ? t.closest("#feed .card") : null;
     if (!card) return;
     if (t.closest("button,a,input,textarea,select,video,audio,.m-realvideo,.m-video,.m-voice,.pa-btn")) return;
+    /* 2026-11-10：点的是照片（保护层下 target 是 .media）→ 归第 8 节开大图，不进详情 */
+    var pk2 = ivPick(t, e.clientX, e.clientY);
+    if (pk2 && ivOk(pk2)) return;
     if (Date.now() - pfAt < 500) return;              /* 已经全屏了 */
     if (pfDetailOpen()) return;                        /* 详情已经开着：交给详情内的点击逻辑 */
     var id = card.dataset.id;
@@ -872,6 +877,108 @@ try {
   }).observe(pfD, { attributes: true, attributeFilter: ["class"] });
 } catch (e) {}
 
-window.YRB_MEDIAFULL = { speak: speak, stopSpeak: stopSpeak, fullVideo: fullVideo, prefetch: prefetch, prefetchCancel: prefetchCancel, autoFollow: { enabled: function () { return autoOn; }, state: function () { return { on: autoOn, reading: autoReading, id: autoCurId }; } }, postFull: { on: function () { return pfFs; } }, version: VERSION };
+/* ---------- 8. 任意图片：点一下（或双击）= 全屏大图；再点一下 / 左右滑 = 返回（2026-11-10） ----------
+   起因：① 信息流里点照片，进的是「求助详情全屏」（文字）——用户要看的是那张照片本身；
+        ② 详情全屏（.mf-fs，z90）里点图，大图层 z66 被自己这层整个盖住，看着像点了没反应。
+   覆盖：信息流卡片图 / 求助详情图 / 帮忙留言图 / 案例图片墙 / 二维码等正文图片。
+   排除：按钮与链接里的图标（点了是功能）、头像、渲染后小于 40px 的装饰图、[data-nofull]。
+   手势分工：开与关都是「点」；左右滑返回交给 navback（#r23Viewer 已在它 LAYERS 表里）。
+        本层不重复接管横滑——两边都接会让一次横滑退两级。 */
+var ivAt = 0;                                  /* 本次打开的时刻：吃掉双击的第二下 */
+
+function ivSrc(im) {
+  /* data-full 是云端原图（缩略图走 thumbUrl），有就用原图 */
+  return im.getAttribute("data-full") || im.currentSrc || im.getAttribute("src") || "";
+}
+/* 保护层（protect.css）给非管理员的 img 设了 pointer-events:none —— 点图时
+   e.target 落在父容器（.media / .di / .cm-item）上，closest("img") 永远是空。
+   所以按坐标反查：在最近的容器里找「矩形盖住这一点的 img」。这比依赖
+   e.target 稳，也不受后台管理员（html.yrb-pass，图片可点）与长辈模式差异影响。 */
+function ivPick(t, x, y) {
+  if (!t || !t.closest) return null;
+  if (t.tagName === "IMG") return t;
+  var scope = t.closest("#feed .card, .r23-dcard, .cm-item, .r23-dimgs, #viewer, .vw-imgs, #shareLayer, #adLayer, #modal, #subpage");
+  if (!scope) return null;
+  var ims = scope.querySelectorAll("img"), i, r;
+  for (i = 0; i < ims.length; i++) {
+    r = ims[i].getBoundingClientRect();
+    if (r.width >= 40 && r.height >= 40 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return ims[i];
+  }
+  return null;
+}
+function ivOk(im) {
+  try {
+    if (!im || im.dataset.nofull === "1") return false;
+    if (im.closest("[data-nofull],button,a,label,select,.p-ava,.ava,.avatar,.logo,#splash")) return false;
+    if (!ivSrc(im)) return false;
+    var r = im.getBoundingClientRect();
+    if (r.width < 40 || r.height < 40) return false;   /* 小图标 / 表情图：放大了反而糊 */
+  } catch (e) { return false; }
+  return true;
+}
+function ivTip() {
+  try {
+    var vw = $("#r23Viewer");
+    if (!vw || $("#mfIvTip")) return;
+    var el = document.createElement("div");
+    el.id = "mfIvTip";
+    el.textContent = "点一下或左右滑返回";
+    vw.appendChild(el);
+    setTimeout(function () { try { if (el.parentNode) el.parentNode.removeChild(el); } catch (e) {} }, 2600);
+  } catch (e) {}
+}
+function ivOpen(im) {
+  var big = $("#r23Big"), vw = $("#r23Viewer");
+  if (!big || !vw) return false;
+  /* 2026-10-29 审核 M6：src 来自云端 media url，用 createElement 赋值，消除属性逃逸注入面 */
+  var el = document.createElement("img");
+  el.src = ivSrc(im);
+  el.alt = im.getAttribute("alt") || "查看大图";
+  big.innerHTML = "";
+  big.appendChild(el);
+  vw.classList.add("open", "mf-imgv");
+  ivAt = Date.now();
+  ivTip();
+  return true;
+}
+function ivClose() {
+  var vw = $("#r23Viewer");
+  try { var h = $("#mfIvTip"); if (h && h.parentNode) h.parentNode.removeChild(h); } catch (e) {}
+  if (vw) vw.classList.remove("open", "mf-imgv");
+  ivAt = 0;
+}
+/* 开：捕获阶段先于卡片「进详情」的判断（第 7 节的 pfDown 已按坐标让开） */
+document.addEventListener("click", function (e) {
+  var vw = $("#r23Viewer");
+  if (vw && vw.classList.contains("open")) return;   /* 已经开着：这一下归「返回」处理 */
+  var im = ivPick(e.target, e.clientX, e.clientY);
+  if (!im || !ivOk(im)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  ivOpen(im);
+}, true);
+/* 返回：点查看器任意处（照片本身、黑底、✕ 以外）都关。
+   刚打开 420ms 内那一下是双击的第二下，吃掉——否则双击会「开了立刻关」 */
+document.addEventListener("click", function (e) {
+  var vw = $("#r23Viewer");
+  if (!vw || !vw.classList.contains("open")) return;
+  var t = e.target;
+  if (!t || !t.closest || !t.closest("#r23Viewer")) return;
+  if (t.closest("#r23Vx")) return;                   /* ✕ 自己会关，交给它 */
+  e.preventDefault();
+  e.stopPropagation();
+  if (Date.now() - ivAt < 420) return;
+  ivClose();
+}, true);
+/* 被别处关掉（navback 横滑、✕、refine23 点黑底）时收拾残局：
+   mf-imgv 留在已关闭的查看器上会让下一次「看案例大图」继承全屏样式 */
+try {
+  var ivV = $("#r23Viewer");
+  if (ivV) new MutationObserver(function () {
+    if (!ivV.classList.contains("open") && ivV.classList.contains("mf-imgv")) ivV.classList.remove("mf-imgv");
+  }).observe(ivV, { attributes: true, attributeFilter: ["class"] });
+} catch (e) {}
+
+window.YRB_MEDIAFULL = { speak: speak, stopSpeak: stopSpeak, fullVideo: fullVideo, prefetch: prefetch, prefetchCancel: prefetchCancel, autoFollow: { enabled: function () { return autoOn; }, state: function () { return { on: autoOn, reading: autoReading, id: autoCurId }; } }, postFull: { on: function () { return pfFs; } }, image: { open: ivOpen, close: ivClose, isOpen: function () { var v = $("#r23Viewer"); return !!(v && v.classList.contains("open") && v.classList.contains("mf-imgv")); } }, version: VERSION };
 console.log("[mediafull] ready v" + VERSION);
 })();
