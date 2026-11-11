@@ -62,7 +62,30 @@ function isWx(){
 function isAndroid(){
   return /Android/i.test(navigator.userAgent||"");
 }
+function isIOS(){
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent||"")||
+    (/Macintosh/i.test(navigator.userAgent||"")&&"ontouchend" in document); /* iPadOS 伪装成 Mac */
+}
 function wxAndroid(){return isWx()&&isAndroid();}
+/* iPhone 上的微信同样不给网页调摄像头/麦克风，但过去只特判了安卓微信——
+   iOS 微信会落到「权限被拒绝了，去设置里改」的通用提示，而那条路永远走不通。
+   2026-11-11 用户反馈「换不同手机依然提示无法使用摄像头和麦克风」，
+   根因就是打开方式（微信/内置浏览器）被当成了「权限被拒」。 */
+function wxIOS(){return isWx()&&isIOS();}
+/* 其它常见的「App 内置浏览器」：同样常常不给网页用摄像头/麦克风。
+   QQ浏览器（独立 App）是正常浏览器，别误伤——只认 QQ 客户端 UA 里的 " QQ/" */
+function appShell(){
+  const u=navigator.userAgent||"";
+  /* 顺序要紧：企业微信 UA 里同时带 wxwork 和 MicroMessenger，先认 wxwork */
+  if(/wxwork/i.test(u))return "企业微信";
+  if(/MicroMessenger/i.test(u))return "微信";
+  if(/(^|\s)QQ\//.test(u))return "QQ";
+  if(/DingTalk/i.test(u))return "钉钉";
+  if(/Weibo/i.test(u))return "微博";
+  if(/aweme/i.test(u))return "抖音";
+  if(/AlipayClient/i.test(u))return "支付宝";
+  return "";
+}
 /* 从 UA 猜浏览器名：权限被拒时告诉长辈「去设置里找哪个应用」。
    注意顺序——微信/QQ 的 UA 里也含 Chrome/Safari，必须先判国产壳再判通用内核 */
 function uaBrowser(){
@@ -169,22 +192,33 @@ function explain(err,kind,d){
   const name=(err&&err.name)||"";
   const msg=(err&&err.message)||"";
   const base={kind,name,msg,steps:[],actions:[]};
-  /* 安卓微信：内置浏览器直接拒绝摄像头/麦克风（连权限框都不弹，mediaDevices 也可能干脆没有）。
-     这条必须排在最前——否则会落到「网址不是 https」或「去小锁改权限」这些走不通的建议上 */
-  if(wxAndroid()){
-    return Object.assign(base,{
-      title:"安卓微信里不能直接用"+word,
-      why:"这是微信内置浏览器的限制，不是手机的问题——同一个网址换到手机浏览器里就能正常用。",
-      steps:["点右上角「···」→「在浏览器打开」，再"+(kind==="voice"?"点话筒录音":"点开始拍摄"),
-        "不想换浏览器：拍摄用下面的「手机相机」，录音用「手机录音机」，一样能继续发布"],
-      fallbackFirst:true,
-      actions:["open","diag"]});
-  }
+  /* 先判「网址本身就不行」：http 站换到任何浏览器都开不了媒体，
+     这时让用户去换浏览器只会白折腾（微信里点开的 http 链接就属于这种） */
   if(!d.hasMediaDevices||!d.safeOrigin){
     return Object.assign(base,{
       title:"浏览器不允许网页使用"+word,
       why:"现在的网址不是 https 开头（或不是本机地址）。浏览器只允许 https 的网站使用"+word+"。",
       steps:["请用 https 开头的网址打开本应用："+LIVE_URL,"用手机/电脑浏览器直接打开，不要套在别的页面里打开"],
+      actions:["open","diag"]});
+  }
+  /* 微信/企业微信/QQ/钉钉等 App 内置浏览器：直接拒绝摄像头/麦克风（连权限框都不弹，
+     mediaDevices 也可能干脆没有）。这条必须排在「改权限」之前——否则会落到
+     「去小锁改权限」这种永远走不通的建议上。2026-11-11：iOS 微信也纳入（过去只判安卓） */
+  const shell=appShell();
+  if(shell){
+    const ios=isIOS();
+    return Object.assign(base,{
+      title:(ios?"iPhone 的":"")+shell+"里不能直接用"+word,
+      why:"这是"+shell+"内置浏览器的限制，不是手机的问题——换一台手机、换一个牌子都一样。同一个网址改用手机浏览器打开就能正常用。",
+      steps:ios?[
+        "点右上角「···」→ 选「在默认浏览器打开」（有的版本叫「在 Safari 中打开」）",
+        "在浏览器里会弹出询问，点「允许」，再"+(kind==="voice"?"点话筒录音":"点开始拍摄"),
+        "不想换浏览器：视频可以从「相册」选已拍好的；录音可从「文件」里选已有音频"
+      ]:[
+        "点右上角「···」→「在浏览器打开」，再"+(kind==="voice"?"点话筒录音":"点开始拍摄"),
+        "不想换浏览器：拍摄用下面的「手机相机」，录音用「手机录音机」，一样能继续发布"
+      ],
+      fallbackFirst:true,
       actions:["open","diag"]});
   }
   if((d.crossOrigin||d[kind==="voice"?"policyMic":"policyCamera"]===false)&&(/permission|policy/i.test(name+msg)||name==="NotAllowedError"||!name)){
@@ -448,16 +482,39 @@ function imgHTML(){
 function vidHTML(){
   const s=state.vState;
   if(s==="idle"){
+    if(!isHttps()){
+      /* http 网址（例如境内 IP 镜像）在任何手机上都不允许网页用摄像头——先把原因说清，
+         再给一条不依赖网页权限的路，别让用户以为是手机坏了 */
+      return `<div class="cap-rec idle">
+      <div class="cap-warn">当前网址是 <b>http</b> 开头，手机浏览器不允许网页使用摄像头。请改用 https 网址：<b>${LIVE_URL}</b></div>
+      <label class="cap-big syscam"><input type="file" accept="video/*" data-cap-in="video" hidden>🖼️ 从相册选已拍好的视频</label>
+      <div class="cap-hint">用手机先拍好，再从这里从相册选，一样能发布</div>
+    </div>`;
+    }
     if(wxAndroid()){
       /* 安卓微信：主入口直接给系统相机（一定能用），网页直拍放到次选。
          版式刻意做矮：发布面板本身只有 86% 高，留一个 200px 的预览框会把主按钮顶出屏幕 */
       return `<div class="cap-rec idle">
-      <div class="cap-warn">微信里不能直接开摄像头（不是手机的问题）。用手机相机拍最稳，<b>15 秒内</b>最好传。</div>
+      <div class="cap-warn">${appShell()||"微信"}里不能直接开摄像头（不是手机的问题）。用手机相机拍最稳，<b>15 秒内</b>最好传。</div>
       <label class="cap-big syscam"><input type="file" accept="video/*" capture="environment" data-cap-in="video" hidden>📷 打开手机相机拍摄</label>
       <div class="cap-alt-row">
         <button class="cap-alt" data-cap-vid="start">🎥 网页里直接拍</button>
         <label class="cap-alt"><input type="file" accept="video/*" data-cap-in="video" hidden>🖼️ 从相册选</label>
       </div>
+    </div>`;
+    }
+    if(appShell()){
+      /* iPhone 微信 / 企业微信 / QQ / 钉钉：内置浏览器不给摄像头，系统相机那条路在 iOS 上也不通，
+         所以主入口是「去浏览器打开」，其次是相册里已有的视频（2026-11-11 用户反馈） */
+      const nm=appShell();
+      return `<div class="cap-rec idle">
+      <div class="cap-warn">${nm}里不能直接开摄像头（不是手机的问题，换手机也一样）。点右上角「···」→「在浏览器打开」就能直接拍。</div>
+      <button class="cap-big" data-cap-help="open">🌐 怎么在浏览器打开</button>
+      <div class="cap-alt-row">
+        <label class="cap-alt"><input type="file" accept="video/*" data-cap-in="video" hidden>🖼️ 从相册选视频</label>
+        <button class="cap-alt" data-cap-vid="start">🎥 仍要在这试试</button>
+      </div>
+      <div class="cap-hint">视频也可以用手机先拍好，再从这里从相册选</div>
     </div>`;
     }
     const warn=blockWarn("video");
@@ -508,14 +565,38 @@ function vidHTML(){
 function voiceHTML(){
   const s=state.aState;
   if(s==="idle"){
-    if(wxAndroid()){
-      /* 安卓微信同样不放行麦克风：把「选/录现成音频」提到话筒下面说清楚，
-         并在失败卡里给「在浏览器打开」的路子（见 explain） */
+    if(!isHttps()){
       return `<div class="cap-voice">
-      <button class="cap-vmic" data-cap-aud="start">🎤</button>
-      <div class="cap-hint">点大话筒录音，最长 <b>60 秒</b>；<br><b>安卓微信里可能不弹权限</b>，打不开就用下面两种方式</div>
-      <label class="cap-alt"><input type="file" accept="audio/*" capture data-cap-in="audio" hidden>🎙️ 用手机录音机录一段</label>
-      <label class="cap-alt"><input type="file" accept="audio/*" data-cap-in="audio" hidden>🎵 选已有的录音文件</label>
+      <div class="cap-warn">当前网址是 <b>http</b> 开头，手机浏览器不允许网页使用麦克风。请改用 https 网址：<b>${LIVE_URL}</b></div>
+      <label class="cap-big sysmic"><input type="file" accept="audio/*" data-cap-in="audio" hidden>🎵 选已有的录音文件</label>
+      <div class="cap-hint">也可以先用手机自带录音机录好，再从这里选文件</div>
+    </div>`;
+    }
+    if(wxAndroid()){
+      /* 安卓微信不放行麦克风：和视频一样，直接把「系统录音机」顶成主入口。
+         过去把话筒放主位，长辈点一次失败一次，观感就是「这软件用不了」 */
+      return `<div class="cap-voice">
+      <div class="cap-warn">${appShell()||"微信"}里不能直接开麦克风（不是手机的问题）。用手机录音机录最稳，<b>60 秒内</b>。</div>
+      <label class="cap-big sysmic"><input type="file" accept="audio/*" capture data-cap-in="audio" hidden>🎙️ 用手机录音机录一段</label>
+      <div class="cap-alt-row">
+        <button class="cap-alt" data-cap-aud="start">🎤 网页里直接录</button>
+        <label class="cap-alt"><input type="file" accept="audio/*" data-cap-in="audio" hidden>🎵 选已有的录音</label>
+      </div>
+      <div class="cap-hint">录音机是手机自带的，不经过${appShell()||"微信"}，任何设置都能用</div>
+    </div>`;
+    }
+    if(appShell()){
+      /* iPhone 微信等：录音没法走系统录音机（iOS 选不到「语音备忘录」），
+         所以主入口直接给「去浏览器打开」，其次才是选已有音频（2026-11-11） */
+      const nm=appShell();
+      return `<div class="cap-voice">
+      <div class="cap-warn">${nm}里不能直接录音（不是手机的问题，换手机也一样）。点右上角「···」→「在浏览器打开」就能直接录。</div>
+      <button class="cap-big" data-cap-help="open">🌐 怎么在浏览器打开</button>
+      <div class="cap-alt-row">
+        <label class="cap-alt"><input type="file" accept="audio/*" data-cap-in="audio" hidden>🎵 选已有的录音</label>
+        <button class="cap-alt" data-cap-aud="start">🎤 仍要在这试试</button>
+      </div>
+      <div class="cap-hint">在浏览器里会弹出「允许」，点允许就能录；录完回到这里发布</div>
     </div>`;
     }
     const warn=blockWarn("voice");
