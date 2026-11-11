@@ -147,7 +147,7 @@ function pickerHTML(){
     </div></div>`;
 }
 function waveBars(){let s="";for(let i=0;i<34;i++)s+=`<i style="height:${14+Math.round(Math.abs(Math.sin(i*1.6))*80)}%;animation-delay:${(i%9)*0.07}s"></i>`;return s;}
-const PICK_HINT=`<div class="r23-pick-hint">👆 点上方「图片 / 微视频 / 语音」<br>这里就会出现对应的拍照、录制按钮</div>`;
+const PICK_HINT=`<div class="r23-pick-hint">👆 点上方「图片 / 语音」<br>这里就会出现对应的拍照、录制按钮</div>`;
 function renderPicker(){
   const host=$("#r23Picker");if(!host)return;
   /* 真实拍摄层（相机拍照/相册、真实录像、真实录音）；不可用时退回演示选择器 */
@@ -397,7 +397,7 @@ async function r23Publish(){
   /* 校验素材：优先走真实拍摄层（照片/视频/语音），未加载时退回演示校验 */
   if(window.YRB_CAPTURE){
     const err=YRB_CAPTURE.validate(S.pubType);
-    if(err){toast(mediaTouched?err:"请先点上方选择「图片 / 微视频 / 语音」并添加素材");return;}
+    if(err){toast(mediaTouched?err:"请先点上方选择「图片 / 语音」并添加素材");return;}
   }else{
     if(S.pubType==="img"&&imgPicked===0){toast("请至少添加 1 张图片，或切换媒体类型");return;}
     if(S.pubType==="video"&&recVid!=="done"){toast("请先完成微视频拍摄");return;}

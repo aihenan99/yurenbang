@@ -7,7 +7,7 @@
 <meta name="yrb-build" content="dev">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
 <title>育人帮 · 家长互助社区｜免费育儿求助与互助平台</title>
-<meta name="description" content="育人帮是免费的家长互助社区：孩子写作业拖拉、沉迷手机、青春期不愿沟通，发一条求助，很多家长愿意伸手帮你。支持文字、图片、微视频、语音，含长辈模式与未成年人保护公约。">
+<meta name="description" content="育人帮是免费的家长互助社区：孩子写作业拖拉、沉迷手机、青春期不愿沟通，发一条求助，很多家长愿意伸手帮你。支持文字、图片、语音，含长辈模式与未成年人保护公约。">
 <meta name="keywords" content="育人帮,家长互助,育儿求助,家长社区,家庭教育,科学育儿,作业拖拉,孩子沉迷手机,青春期沟通,亲子关系,未成年人保护">
 <link rel="canonical" href="https://yurenbang.app.workbuddy.host/yurenbang-app.html">
 <meta name="applicable-device" content="mobile">
@@ -30,7 +30,7 @@
  {"@type":"SoftwareApplication","name":"育人帮","applicationCategory":"SocialNetworkingApplication","operatingSystem":"Web（手机浏览器 / 微信内置浏览器）","url":"https://yurenbang.app.workbuddy.host/","inLanguage":"zh-CN","offers":{"@type":"Offer","price":"0","priceCurrency":"CNY"}},
  {"@type":"FAQPage","inLanguage":"zh-CN","mainEntity":[
   {"@type":"Question","name":"育人帮是什么？需要收费吗？","acceptedAnswer":{"@type":"Answer","text":"育人帮是一个免费的家长互助社区。孩子写作业拖拉、沉迷手机、青春期不愿沟通，都可以发一条求助，会有其他家长来帮忙回应。浏览和求助都不收费。"}},
-  {"@type":"Question","name":"在育人帮可以发什么？","acceptedAnswer":{"@type":"Answer","text":"可以发文字求助，也可以上传图片、微视频、语音，把情况说得更清楚，得到的建议也更贴合。"}},
+  {"@type":"Question","name":"在育人帮可以发什么？","acceptedAnswer":{"@type":"Answer","text":"可以发文字求助，也可以上传图片、语音，把情况说得更清楚，得到的建议也更贴合。"}},
   {"@type":"Question","name":"需要用手机号注册吗？","acceptedAnswer":{"@type":"Answer","text":"浏览求助和帮忙内容不需要注册。发布求助或回应帮忙时，需要用手机号验证码登录，这样每条内容都有真实家长负责，也能在出现不当内容时追溯处理。"}},
   {"@type":"Question","name":"家里老人不太会用手机怎么办？","acceptedAnswer":{"@type":"Answer","text":"育人帮内置长辈模式：字更大、按钮更大、可一键朗读内容（语音播报），还支持语音转文字发求助，尽量让不熟悉手机的长辈也能用。"}},
   {"@type":"Question","name":"孩子的隐私如何保护？","acceptedAnswer":{"@type":"Answer","text":"社区实行未成年人保护公约：不发孩子的姓名、学校、班级、住址等可识别信息，照片尽量避免正面清晰照；云端素材需登录后查看，避免被无账号的人随意抓取转发。"}}
@@ -90,7 +90,7 @@ if ("serviceWorker" in navigator) {
 <p>育人帮面向家长与关心下一代的爱心人士。这里不做说教式的育儿课堂，而是一个"有人问、有人答"的互助社区：谁家孩子遇到的具体难题，往往同城、同龄的家长最有经验。</p>
 <ul>
   <li>免费使用，浏览求助与帮忙内容无需注册</li>
-  <li>支持文字、图片、微视频、语音发求助，说清楚情况更容易得到有用的建议</li>
+  <li>支持文字、图片、语音发求助，说清楚情况更容易得到有用的建议</li>
   <li>发布求助或回应帮忙需手机号验证码登录，每条内容都有真实家长负责，便于违规追溯</li>
   <li>内置长辈模式：大字、大按钮、一键朗读、语音转文字</li>
   <li>未成年人保护公约：不公开孩子的姓名、学校、班级、住址等可识别信息</li>
@@ -282,11 +282,10 @@ if ("serviceWorker" in navigator) {
     <div class="sh-head"><div class="sh-title">发布求助</div><button class="sh-x" data-close="publishSheet">✕</button></div>
     <div class="sh-body">
       <textarea id="pubText" placeholder="说说孩子遇到什么问题、需要大家怎么帮忙…（求助内容将帮助更多人）"></textarea>
-      <div class="pub-label">选择媒体 <span class="pub-note">语音 / 图片 / 微视频≤30s</span></div>
+      <div class="pub-label">选择媒体 <span class="pub-note">语音 / 图片</span></div>
       <div class="seg" id="pubTypes">
         <button class="seg-btn" data-t="voice"><span class="si">🎤</span>语音</button>
         <button class="seg-btn on" data-t="img"><span class="si">🖼️</span>图片</button>
-        <button class="seg-btn" data-t="video"><span class="si">🎬</span>微视频 30s</button>
       </div>
       <div id="pubPrev" style="margin-top:10px"></div>
     </div>
@@ -298,10 +297,9 @@ if ("serviceWorker" in navigator) {
     <div class="sh-handle"></div>
     <div class="sh-head"><div class="sh-title" id="cmTitle">帮忙 · 大家来帮你</div><button class="sh-x" data-close="commentSheet">✕</button></div>
     <div class="sh-body"><div id="cmList"></div></div>
-    <!-- 帮忙方式：文字标签清晰区分「说话变文字」与「录语音/录视频」 -->
+    <!-- 帮忙方式：2026-11-11 微视频帮忙已下线（存量视频仍可播放），只留文字与录语音 -->
     <div class="cm-tools" id="cmTools">
       <button class="cm-tool labeled" id="cmVoice" title="现场录一段语音帮忙"><span class="ic">🎙️</span>录语音帮忙</button>
-      <button class="cm-tool labeled" id="cmVideo" title="现场拍一段微视频帮忙（≤30 秒）"><span class="ic">📹</span>录视频帮忙</button>
     </div>
     <div class="cm-cap" id="cmCap"></div>
     <div class="cm-bar">

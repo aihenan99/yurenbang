@@ -970,14 +970,11 @@ function fallbackCopy(txt,done){
 }
 $("#pubPrev").addEventListener("click",e=>{const m=e.target.closest(".m-video,.m-voice");if(m)playMedia(m);});
 
-/* 帮忙面板的「录语音 / 录视频」：走真实采集层（真实麦克风/摄像头），本地立即可播放；登录后同步云端 */
+/* 帮忙面板的「录语音」：走真实采集层（真实麦克风），本地立即可播放；登录后同步云端。
+   2026-11-11 微视频帮忙已下线（#cmVideo 按钮与监听一并移除，存量视频帮忙仍可播放） */
 $("#cmVoice").addEventListener("click",()=>{
   if(window.YRB_COMMENT&&YRB_COMMENT.record){YRB_COMMENT.record("voice");return;}
   addComment({user:"阳阳爸爸",kind:"voice",dur:"0:11",likes:0,liked:false});
-});
-$("#cmVideo").addEventListener("click",()=>{
-  if(window.YRB_COMMENT&&YRB_COMMENT.record){YRB_COMMENT.record("video");return;}
-  addComment({user:"阳阳爸爸",kind:"video",dur:"0:19",likes:0,liked:false});
 });
 $("#cmSend").addEventListener("click",()=>{
   const v=$("#cmInput").value.trim();if(!v){toast("写点什么再发送吧～");return;}

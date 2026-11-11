@@ -127,8 +127,8 @@ const STUB = () => {
   const stillThere = await page.$eval("#cmInput", (e) => e.value);
   check("取消登录后草稿仍在输入框", stillThere === "第二条草稿", JSON.stringify(stillThere).slice(0, 30));
 
-  console.log("\n=== D. 语音 / 视频帮忙：必须先登录 ===");
-  for (const id of ["#cmVoice", "#cmVideo"]) {
+  console.log("\n=== D. 语音帮忙：必须先登录（2026-11-11 微视频帮忙下线，#cmVideo 已移除） ===");
+  for (const id of ["#cmVoice"]) {
     await page.evaluate(() => { window.__gate.ensureLogin = 0; });
     await page.$eval(id, (e) => e.click());
     await page.waitForTimeout(250);
