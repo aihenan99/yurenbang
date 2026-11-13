@@ -8,7 +8,7 @@
    ========================================================= */
 (function () {
 "use strict";
-var VERSION = "6";
+var VERSION = "7";
 
 function $(s, r) { return (r || document).querySelector(s); }
 function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
@@ -525,12 +525,47 @@ function buildAutoPill() {
    默认关：只有明确存过 "1"（用户点过胶囊打开）才自动跟读 */
 try { autoOn = localStorage.getItem("yrb_autospeak") === "1"; } catch (e) {}
 buildAutoPill();
+
+/* 2026-11-13 遮挡让路：悬浮胶囊 z92 压在 feed 上，卡片操作行（🤝帮忙/♥⭐/
+   查看完整求助/播放器）滚到它下方时点击全被截走——用户实测「帮忙栏目点了
+   没反应」。胶囊压住这些元素时整只淡出（pointer-events:none），错开后回来。
+   详情/浮层打开时不参与判定：底层 feed 本来就点不到，胶囊不能消失
+   （全屏阅读时要靠它停朗读）。 */
+var autoPillRaf = 0;
+function autoPillUnblock() {
+  if (!autoPill || autoPill.style.display === "none") return;
+  var hide;
+  if (pfFs || pfDetailOpen() || overlaysOpen()) hide = false;
+  else {
+    var pr = autoPill.getBoundingClientRect();
+    if (!pr.width) return;
+    hide = false;
+    var rows = document.querySelectorAll(
+      "#page-home.active .p-acts,#page-home.active .p-thank," +
+      "#page-home.active .m-video,#page-home.active .m-voice,#page-home.active .m-locked," +
+      "#page-home.active [data-r23detail],#page-home.active #feedRetry,#page-home.active #feedMore");
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i].getBoundingClientRect();
+      if (r.width && r.height && r.left < pr.right && r.right > pr.left &&
+          r.top < pr.bottom && r.bottom > pr.top) { hide = true; break; }
+    }
+  }
+  autoPill.classList.toggle("mf-blocked", !!hide);
+}
+function autoPillUnblockSoon() {
+  if (autoPillRaf) return;
+  autoPillRaf = requestAnimationFrame(function () { autoPillRaf = 0; autoPillUnblock(); });
+}
+autoPillUnblock();
 try {
   var ph = $("#page-home");
-  if (ph) ph.addEventListener("scroll", function () { scheduleFollow(350); }, { passive: true });
+  if (ph) ph.addEventListener("scroll", function () { scheduleFollow(350); autoPillUnblockSoon(); }, { passive: true });
 } catch (e) {}
+try { document.addEventListener("scroll", autoPillUnblockSoon, { passive: true, capture: true }); } catch (e) {}
+try { window.addEventListener("resize", autoPillUnblockSoon, { passive: true }); } catch (e) {}
 try {
   new MutationObserver(function () {
+    autoPillUnblockSoon();
     if (autoOn && !autoReading) scheduleFollow(600);          /* 首屏渲染 / 换内容后自动开读 */
     else if (autoReading && autoCurId != null) {              /* 朗读中卡片被重建 → 重新指按钮 */
       var c = document.querySelector('#feed .card[data-id="' + autoCurId + '"]');
@@ -719,7 +754,10 @@ function pfDown(e) {
        头像与昵称不排除：点它们进全屏也是同一件事，不亏。
        2026-11-10：img 重新排除——现在点照片会由第 8 节开出「图片全屏大图」，
        用户要的是那张照片，不是这条求助的文字详情；不排除的话 pointerup 会先把文字详情拉起来。 */
-    if (t.closest("button,a,input,textarea,select,video,audio,img,picture,.m-realvideo,.m-video,.m-voice")) { pfPress = null; return; }
+    /* 2026-11-13：[data-act] 一并排除——🤝帮忙胶囊(.helps-pill)、锁面板(.m-locked)、
+       谢意条(.p-thank)都是 span，之前被当成「点卡片」拉详情 + pfGuard 吃掉 click，
+       用户实测「帮忙栏目点了没反应」。 */
+    if (t.closest("button,a,input,textarea,select,video,audio,img,picture,[data-act],.m-realvideo,.m-video,.m-voice")) { pfPress = null; return; }
     /* 2026-11-10：保护层让 img 不可命中，点照片时 target 是 .media —— 按坐标判断，
        点到的确实是照片就交给第 8 节开大图，不在这里进文字详情。
        假数据里的示意 SVG 不算照片，照旧进详情。 */
@@ -782,7 +820,7 @@ try {
     var t = e.target;
     var card = t && t.closest ? t.closest("#feed .card") : null;
     if (!card) return;
-    if (t.closest("button,a,input,textarea,select,video,audio,.m-realvideo,.m-video,.m-voice,.pa-btn")) return;
+    if (t.closest("button,a,input,textarea,select,video,audio,[data-act],.m-realvideo,.m-video,.m-voice,.pa-btn")) return;
     /* 2026-11-10：点的是照片（保护层下 target 是 .media）→ 归第 8 节开大图，不进详情 */
     var pk2 = ivPick(t, e.clientX, e.clientY);
     if (pk2 && ivOk(pk2)) return;

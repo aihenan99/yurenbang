@@ -161,6 +161,10 @@ html.yrb-guard .vw-imgs img { pointer-events: auto; -webkit-touch-callout: none;
   white-space: nowrap;
 }
 #mfAuto.off { opacity: .85; }
+/* 2026-11-13 遮挡让路：压住卡片操作行等可交互元素时整只淡出（mediafull.js
+   autoPillUnblock 判定），点击穿透到下面的元素；错开后自动回来 */
+#mfAuto { transition: opacity .18s; }
+#mfAuto.mf-blocked { opacity: 0; pointer-events: none; }
 /* 全屏阅读时把胶囊挪到底部操作条上方：原来停在 172px 处正好压住「帮忙评论」和登录提示，
    看着像浮在正文中间的杂物（2026-11-03 晚截图核对）。类由 pfEnter/pfExit 加在 #phone 上 */
 #phone.mf-pill-low #mfAuto { bottom: calc(96px + env(safe-area-inset-bottom)); }
