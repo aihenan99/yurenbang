@@ -16,7 +16,7 @@
  */
 const UPSTREAM = "https://yurenbang.app.workbuddy.host";
 const PREFIX = "/yrbapi";
-const BUILD_TAG = "20261111080809-build";
+const BUILD_TAG = "20261113090640-build";
 
 /* ============================================================
    /sbapi —— 自建 Supabase 同源代理（2026-11-01 迁移第一步）
@@ -33,8 +33,9 @@ const SB_PREFIX = "/sbapi";
 /* ============================================================
    /yrbtts —— AI 真人语音合成代理（2026-10-24）
    GET /yrbtts?t=<文本>&r=norm|slow
-   → 服务端直连微软 Edge 神经语音（zh-CN-YunyangNeural「云扬」，
-     央视新闻播音员音色），返回 audio/mpeg。
+   → 服务端直连微软 Edge 神经语音（zh-CN-XiaoxiaoNeural「晓晓」，
+     女声新闻播音音色，2026-11-13 由男声「云扬」换为用户要求的女播音；
+     Edge 无官方「央视」音色，晓晓是最接近的标准女播音），返回 audio/mpeg。
    · Sec-MS-GEC v2 令牌在 Worker 内计算（SHA256+CS64 定制算法，
      与 rany2/edge-tts 对拍一致）
    · caches.default 按 URL 缓存（同文本同一音频），边缘命中零成本
@@ -45,7 +46,7 @@ const TTS_WSS = "wss://speech.platform.bing.com/consumer/speech/synthesize/reada
 const TTS_GEC_VERSION = "2-143.0.3650.75";
 const TTS_ORIGIN = "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold";
 const TTS_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0";
-const TTS_VOICE = "zh-CN-YunyangNeural";
+const TTS_VOICE = "zh-CN-XiaoxiaoNeural";
 
 const U32 = 0xFFFFFFFF;
 const u32 = x => x >>> 0;
