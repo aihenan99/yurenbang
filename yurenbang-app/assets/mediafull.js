@@ -8,7 +8,14 @@
    ========================================================= */
 (function () {
 "use strict";
-var VERSION = "8";
+var VERSION = "9";
+
+/* ---------- 自动朗读总开关（2026-11-13 用户要求：不自动阅读） ----------
+   置 false = 打开详情 / 全屏 / 案例 / 首页滑动一律不出声，
+   语音只由页面上的 🔊 按钮手动触发（长按、双击、滑停都不读）。
+   这是唯一真值源：本层的 followNow / pfOpen / pfToggleInDetail 与 casedit 的
+   onCardClick / fsPending 全部读它；要恢复自动跟读改回 true 即可（其余代码原样）。 */
+var AUTO_READ = false;
 
 function $(s, r) { return (r || document).querySelector(s); }
 function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
@@ -79,8 +86,8 @@ function ttsUrl(text, slow) {
 }
 
 /* 自动跟读状态（详见第 6 节）：开启后自动朗读，滑动跟随换读。
-   2026-11-13 改为可选项：默认关（autoOn=false），点击 🔊 按钮才播，
-   想要自动跟读再点左下胶囊打开。 */
+   2026-11-13 二次收敛：用户反馈「不自动阅读」，整个能力下线（AUTO_READ=false），
+   autoOn 恒 false、胶囊不再注入；这里的状态量只为「手动 🔊 播卡片」时管按钮用。 */
 var autoOn = false, autoReading = false, autoCurId = null, autoSkip = {};
 var autoArmed = false, autoTm = 0, autoPill = null;
 
@@ -471,7 +478,7 @@ function pickCard() {
   } catch (e) { return null; }
 }
 function followNow() {
-  if (!autoOn || !autoArmed || !autoAllowed()) return;
+  if (!AUTO_READ || !autoOn || !autoArmed || !autoAllowed()) return;
   if (overlaysOpen()) return;
   try {
     var app = $("#app");
@@ -552,9 +559,12 @@ function buildAutoPill() {
   autoSyncPill();
 }
 /* 初始化：开关胶囊、滚动跟随、信息流重建跟随、手势解锁。
-   默认关：只有明确存过 "1"（用户点过胶囊打开）才自动跟读 */
-try { autoOn = localStorage.getItem("yrb_autospeak") === "1"; } catch (e) {}
-buildAutoPill();
+   2026-11-13：AUTO_READ=false 时胶囊根本不注入（界面清爽、老人不会误开），
+   并清掉历史版本残留的 yrb_autospeak="1" —— 老设备升级后靠存储残留继续自动出声，
+   是「明明改过还在自动读」的真凶之一。 */
+try { localStorage.removeItem("yrb_autospeak"); } catch (e) {}
+autoOn = false;
+if (AUTO_READ) buildAutoPill();
 
 /* 2026-11-13 遮挡让路：悬浮胶囊 z92 压在 feed 上，卡片操作行（🤝帮忙/♥⭐/
    查看完整求助/播放器）滚到它下方时点击全被截走——用户实测「帮忙栏目点了
@@ -723,6 +733,7 @@ try {
 /* 详情头部的 🔊 由 injectTts 注入，常比本层晚一拍：等它出现再读，
    否则用户在全屏里找不到「停」的地方 */
 function pfSpeak(tries) {
+  if (!AUTO_READ) return;      /* 2026-11-13 不自动阅读：本函数只服务自动路径，手动 🔊 走 injectTts */
   tries = tries || 0;
   var btn = $(".r23-dhead .mf-tts");
   if (!btn && tries < 6) { setTimeout(function () { pfSpeak(tries + 1); }, 110); return; }
@@ -750,7 +761,7 @@ function pfOpen(id, tries) {
   try { var s = getS(); cur = s && s.curPost; } catch (e) {}
   if (!pfDetailOpen() || String(cur) !== String(id)) link.click();   /* 已打开同一条就不重复点 */
   pfEnter();
-  pfSpeak(0);
+  pfSpeak(0);        /* AUTO_READ=false 时 pfSpeak 内部直接返回：进全屏不念，点 🔊 才念 */
 }
 function pfToggleInDetail() {
   if (pfFs) { pfExit(); return; }
@@ -1051,6 +1062,6 @@ try {
   }).observe(ivV, { attributes: true, attributeFilter: ["class"] });
 } catch (e) {}
 
-window.YRB_MEDIAFULL = { speak: speak, stopSpeak: stopSpeak, fullVideo: fullVideo, prefetch: prefetch, prefetchCancel: prefetchCancel, autoFollow: { enabled: function () { return autoOn; }, state: function () { return { on: autoOn, reading: autoReading, id: autoCurId }; } }, postFull: { on: function () { return pfFs; } }, image: { open: ivOpen, close: ivClose, isOpen: function () { var v = $("#r23Viewer"); return !!(v && v.classList.contains("open") && v.classList.contains("mf-imgv")); } }, version: VERSION };
+window.YRB_MEDIAFULL = { speak: speak, stopSpeak: stopSpeak, fullVideo: fullVideo, prefetch: prefetch, prefetchCancel: prefetchCancel, autoFollow: { enabled: function () { return autoOn; }, state: function () { return { on: autoOn, reading: autoReading, id: autoCurId }; } }, autoRead: { enabled: function () { return AUTO_READ; } }, postFull: { on: function () { return pfFs; } }, image: { open: ivOpen, close: ivClose, isOpen: function () { var v = $("#r23Viewer"); return !!(v && v.classList.contains("open") && v.classList.contains("mf-imgv")); } }, version: VERSION };
 console.log("[mediafull] ready v" + VERSION);
 })();

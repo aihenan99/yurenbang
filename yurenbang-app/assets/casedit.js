@@ -606,14 +606,14 @@ function onCardClick(e){
   renderDocView(curDocCase);
   try{
     var M=window.YRB_MEDIAFULL;
-    /* 单击=自动读：尊重 #mfAuto「跟读」开关；双击全屏走 fsPending（显式手势，不看开关） */
-    if(M&&M.speak&&(!M.autoFollow||M.autoFollow.enabled()))speakDocNow(0);
+    /* 2026-11-13 用户要求「不自动阅读」：打开案例只展示正文，点头部 🔊 才念。
+       自动与否的唯一开关在 mediafull.js 的 AUTO_READ（此处只读，不再看旧跟读胶囊）。 */
+    if(M&&M.speak&&M.autoRead&&M.autoRead.enabled())speakDocNow(0);
   }catch(_){}
 }
-/* 尊重「跟读」开关（#mfAuto 胶囊 / yrb_autospeak）：关了就不自动读，手动点 🔊 仍可读。
-   双击全屏路径由 fsPending 处理（force 重读，同篇 800ms 内不重发） */
-/* 自动读的开关判断已并入 onCardClick 的直调链路（2026-11-03 精简）：
-   单击打开即 speakDocNow；跟读开关由 mediafull 侧统一裁决 */
+/* 朗读开关的两处历史说明（保留备查）：
+   · 11-13 前：受 #mfAuto 跟读胶囊（localStorage yrb_autospeak）控制——胶囊已随自动朗读整体下线；
+   · 手动路径不变：点查看器头部 🔊 → onTtsClick → mediafull.speak。 */
 /* 朗读接管：mediafull 的 speakCase 只认识 slides（旧静态案例），图文正文读不出来。
    capture 阶段拦下查看器朗读按钮，把「标题+正文纯文本」交给 YRB_MEDIAFULL.speak
    （其内部自带再点停止、分段播放、云端转本机兜底与按钮状态，全部复用）。 */
@@ -720,6 +720,11 @@ function fsExit(){
   try{each(document.querySelectorAll(".vw-dup"),function(n){n.classList.remove("vw-dup");});}catch(_){}
   try{var t=$("#vwFsTip");if(t&&t.parentNode)t.parentNode.removeChild(t);}catch(_){}
 }
+/* 自动是否朗读：2026-11-13 起统一由 mediafull 的 AUTO_READ 裁决（现为 false）。
+   双击 = 显式「放大」手势，不再顺带朗读——要听就点查看器头部 🔊。 */
+function autoReadOn(){
+  try{var M=window.YRB_MEDIAFULL;return !!(M&&M.autoRead&&M.autoRead.enabled());}catch(_){return false;}
+}
 /* 等第一下的渲染落地（app.js → casedit 依次跑完）再进全屏；最多试 6 次，约 0.5 秒 */
 function fsPending(tries){
   tries=tries||0;
@@ -729,28 +734,20 @@ function fsPending(tries){
     if(!v||!v.classList.contains("open")){if(tries<6)fsPending(tries+1);return;}
     if(!curDocCase)return;                 /* 视频/图片案例：不进全屏，也不读 */
     fsEnter();
-    speakDocNow(0,true);                   /* 强制从头重读：小窗可能刚自动开读，全屏要「再次阅读」 */
+    if(autoReadOn())speakDocNow(0,true);   /* 仅自动朗读开启时：强制从头重读 */
   },tries?90:70);
 }
 function fsToggle(){
   if(fsOn){fsExit();return;}
-  fsEnter();speakDocNow(0,true);           /* 进全屏 = 从头再读一遍 */
+  fsEnter();
+  if(autoReadOn())speakDocNow(0,true);     /* 仅自动朗读开启时：进全屏从头再读一遍 */
 }
 /* 手指按下案例卡片的一瞬就开始合成第一段语音（比 click 早一百来毫秒），
-   mediafull 会缓存；真正打开朗读时直接用现成音频。滚动时 mediafull 自动作废。 */
+   mediafull 会缓存；真正打开朗读时直接用现成音频。滚动时 mediafull 自动作废。
+   2026-11-13：不自动朗读后，按下并不代表要听——预取会替「只是想看看」的人
+   白拉一整篇语音（老年用户流量敏感），改为只有点 🔊 时才取（无缓存则首段稍慢）。 */
 function preTouch(card){
-  var M=window.YRB_MEDIAFULL;
-  if(!M||!M.prefetch)return;
-  var c=null;
-  try{var i=+card.dataset.i;c=(typeof S!=="undefined"&&S&&S.cases)?S.cases[i]:null;}catch(_){}
-  if(!c||!c.content_html)return;
-  var txt=docPlainText(c.content_html);
-  if(!txt)return;
-  var t=c.t||"";
-  var full=(t&&txt.slice(0,40).indexOf(t)!==0)?t+"。"+txt:txt;
-  var slow=false;
-  try{var s=getS();slow=!!(s&&s.elder==="1");}catch(_){}
-  M.prefetch(full,slow);
+  return;                                  /* 预取下线；恢复自动朗读时把此 return 删掉即可 */
 }
 function onFsDown(e){
   if(e&&e.button!==undefined&&e.button!==0)return;       /* 只认左键 / 单指 */
