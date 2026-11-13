@@ -4,3 +4,7 @@
 {"t":"2026-11-03 09:48:52","verdict":"recovered","postsState":"ok","feedCards":1,"http402":0,"build":"20261102203845","daysToDestroy":6.6}
 {"t":"2026-11-04 09:46:42","verdict":"recovered","postsState":"ok","feedCards":11,"http402":0,"build":"20261103201845","daysToDestroy":5.6,"note":"goto: page.goto: net::ERR_TIMED_OUT at https://xn--gmqq09al6z.cn/\nCall log:\n\u001b[2m  - navigating to \"https://xn--gmqq09al6z.cn/\""}
 {"t":"2026-11-05 09:44:50","verdict":"recovered","postsState":"ok","feedCards":11,"http402":0,"build":"20261105092849","daysToDestroy":4.6}
+{"t":"2026-11-07 11:15:00","verdict":"recovered","postsState":"ok","feedCards":11,"http402":0,"build":"20261107110716","daysToDestroy":2.5}
+{"t":"2026-11-08 10:43:12","verdict":"recovered","postsState":"ok","feedCards":10,"http402":0,"build":"20261107113351","daysToDestroy":1.6}
+{"t":"2026-11-08 16:16:26","verdict":"recovered","postsState":"ok","feedCards":8,"http402":0,"build":"20261108130928","daysToDestroy":1.3}
+{"t":"2026-11-10 17:16:05","verdict":"recovered","postsState":"ok","feedCards":8,"http402":0,"build":"20261108130928","daysToDestroy":-0.7}
