@@ -80,7 +80,7 @@ var speaking = false, curBtn = null, gen = 0, speakCtx = "";   /* detail|case|ca
    只换服务端音色而不换 URL 时，老文本会继续返回旧音色的缓存，
    表现就是「改了音色但听着还是老声音」。
    换音色/音高/语速时：两侧同时 +1。 */
-var TTS_REV = "2";
+var TTS_REV = "3";
 function ttsUrl(text, slow) {
   return "/yrbtts?t=" + encodeURIComponent(text) + "&r=" + (slow ? "slow" : "norm") + "&v=" + TTS_REV;
 }

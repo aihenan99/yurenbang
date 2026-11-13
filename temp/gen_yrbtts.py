@@ -100,11 +100,11 @@ function ttsSynthesize(text, slow) {
           outputFormat: "audio-24khz-48kbitrate-mono-mp3",
         } } },
       })));
-      const rate = slow ? "-15%" : "+0%";
+      const rate = slow ? "-15%" : "-4%";
       ws.send(frame("ssml", "application/ssml+xml",
-        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='zh-CN'>" +
-        "<voice name='" + TTS_VOICE + "'><prosody rate='" + rate + "' pitch='" + TTS_PITCH + "'>" + xmlEsc(text) +
-        "</prosody></voice></speak>"));
+        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='zh-CN'>" +
+        "<voice name='" + TTS_VOICE + "'><mstts:express-as style='" + TTS_STYLE + "' styledegree='1.5'><prosody rate='" + rate + "' pitch='" + TTS_PITCH + "'>" + xmlEsc(text) +
+        "</prosody></mstts:express-as></voice></speak>"));
     };
 
     ws.onmessage = (ev) => {

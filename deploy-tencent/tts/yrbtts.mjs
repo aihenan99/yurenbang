@@ -30,10 +30,16 @@ const TTS_VOICE = "zh-CN-XiaoxiaoNeural";
    换音色而不换 URL 时，老文本会继续返回旧音色的缓存——用户听到「还是男声」。
    客户端把本值作为 &v= 带在 URL 上，本地/边缘缓存键随之改变，一次全破。
    改这里的同时必须改 assets/mediafull.js 的 TTS_REV，两边同值。 */
-const TTS_REV = "2";
+const TTS_REV = "3";
 /* 音高 -4%：晓晓原始基频约 267Hz 偏年轻亲和，压低后约 254Hz，
    更接近央视新闻女播音的中低音区（庄重、不飘）。 */
 const TTS_PITCH = "-4%";
+/* 2026-11-13：表达风格。用户要求「有感情的朗读，抑扬顿挫」。
+   lyrical（抒情朗读）是晓晓所有风格里最贴合的一种：句调起伏大、有讲述感，
+   比 cheerful（太欢快）/ gentle（太平）都合适念家长求助类内容。
+   styledegree 1.5 让情感更明显；Edge 端点对不支持的属性会忽略，
+   最坏情况退回普通朗读，不会报错。 */
+const TTS_STYLE = "lyrical";
 
 const U32 = 0xFFFFFFFF;
 const u32 = x => x >>> 0;
@@ -209,11 +215,11 @@ function ttsSynthesize(text, slow) {
           outputFormat: "audio-24khz-48kbitrate-mono-mp3",
         } } },
       })));
-      const rate = slow ? "-15%" : "+0%";
+      const rate = slow ? "-15%" : "-4%";
       ws.send(frame("ssml", "application/ssml+xml",
-        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='zh-CN'>" +
-        "<voice name='" + TTS_VOICE + "'><prosody rate='" + rate + "' pitch='" + TTS_PITCH + "'>" + xmlEsc(text) +
-        "</prosody></voice></speak>"));
+        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='zh-CN'>" +
+        "<voice name='" + TTS_VOICE + "'><mstts:express-as style='" + TTS_STYLE + "' styledegree='1.5'><prosody rate='" + rate + "' pitch='" + TTS_PITCH + "'>" + xmlEsc(text) +
+        "</prosody></mstts:express-as></voice></speak>"));
     };
 
     ws.onmessage = (ev) => {
