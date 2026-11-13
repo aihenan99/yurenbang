@@ -52,6 +52,19 @@
 .lg-doc-ok{width:100%;min-height:50px;border-radius:999px;background:var(--gradA);color:#fff;font-weight:800;font-size:15.5px;box-shadow:0 6px 18px rgba(244,105,75,.35)}
 .lg-doc-ok:active{transform:scale(.98)}
 
+/* ---------- 密保问题 / 找回密码层（2026-11-13） ---------- */
+#lgSec{position:absolute;inset:0;z-index:67;background:var(--bg2);display:flex;flex-direction:column;transform:translateY(103%);transition:transform .32s cubic-bezier(.3,1,.4,1);visibility:hidden}
+#lgSec.open{transform:none;visibility:visible}
+.lg-sec-back{width:32px;height:32px;flex:none;border-radius:50%;background:var(--rule);color:var(--ink);font-size:19px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0 0 3px}
+.lg-sec-note{font-size:13px;line-height:1.8;color:var(--muted);background:var(--bg);border-radius:12px;padding:11px 13px;margin-bottom:14px}
+.lg-sec-q{font-size:15px;line-height:1.7;background:linear-gradient(0deg,rgba(244,105,75,.08),rgba(244,105,75,.08));border:1.5px solid rgba(244,105,75,.28);border-radius:14px;padding:13px 14px;margin-bottom:6px}
+.lg-sec-q b{color:var(--accent);font-weight:800}
+.lg-sec-tip{font-size:12px;color:var(--muted);text-align:center;margin-top:14px;line-height:1.8}
+.lg-sec-tip a{color:var(--accent2);font-weight:700;text-decoration:underline}
+.lg-sec-chips{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 4px}
+.lg-sec-chip{font-size:12.5px;border:1.5px solid var(--rule);background:var(--bg);border-radius:99px;padding:7px 12px;color:var(--ink)}
+.lg-sec-chip.on{border-color:var(--accent);color:var(--accent);font-weight:700}
+
 .lg-or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px;margin:16px 0 12px}
 .lg-or::before,.lg-or::after{content:"";flex:1;height:1px;background:var(--rule)}
 .lg-wx{width:100%;min-height:50px;border-radius:14px;background:#07C160;color:#fff;font-weight:800;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s}

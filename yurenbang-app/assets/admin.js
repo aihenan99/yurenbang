@@ -60,10 +60,10 @@ function ensureShell() {
 }
 
 /* ---------- 管理后台：数据 ---------- */
-let AD = { posts: [], comments: [], tutors: [], teachers: [], teachersErr: "", cases: [], reports: [], reportsErr: "", qrRow: null, licRows: {}, chipsRow: null, chipDraft: null, tab: "content", loading: false, deep: null, deepBusy: false, errs: null };
+let AD = { posts: [], comments: [], tutors: [], teachers: [], teachersErr: "", cases: [], reports: [], reportsErr: "", users: [], usersErr: "", qrRow: null, licRows: {}, chipsRow: null, chipDraft: null, tab: "content", loading: false, deep: null, deepBusy: false, errs: null };
 async function fetchAll() {
   const c = db(); if (!c) throw new Error("云服务未就绪");
-  const [p, cm, tj, tt, st, ls, cs, rp] = await Promise.all([
+  const [p, cm, tj, tt, st, ls, cs, rp, us] = await Promise.all([
     c.from("yb_posts").select("*").order("created_at", { ascending: false }).limit(200),
     c.from("yb_comments").select("*").order("created_at", { ascending: false }).limit(200),
     c.from("yb_tutor_req").select("*").order("created_at", { ascending: false }).limit(300),
@@ -73,7 +73,10 @@ async function fetchAll() {
     c.from("yb_settings").select("key,value"),
     c.from("yb_cases").select("*").order("created_at", { ascending: false }).limit(200),
     /* 举报表 2026-10-28 新增：未建表时只降级提示，不能把整个后台拖挂 */
-    c.from("yb_reports").select("*").order("created_at", { ascending: false }).limit(200)
+    c.from("yb_reports").select("*").order("created_at", { ascending: false }).limit(200),
+    /* 注册家长（2026-11-13）：只取用户名与注册时间。手机号等敏感字段一律不碰，
+       密保答案在独立表（RLS 零 policy），后台也读不到。 */
+    c.from("yb_profiles").select("user_name,created_at").order("created_at", { ascending: false }).limit(500)
   ]);
   if (p && p.error) throw p.error;
   if (cm && cm.error) throw cm.error;
@@ -84,12 +87,15 @@ async function fetchAll() {
   if (ls && ls.error) console.warn("[后台] 资质证照读取失败：", ls.error.message || ls.error);
   if (cs && cs.error) console.warn("[后台] 案例读取失败：", cs.error.message || cs.error);
   if (rp && rp.error) console.warn("[后台] 举报读取失败（可能尚未建表）：", rp.error.message || rp.error);
+  AD.usersErr = (us && us.error) ? String(us.error.message || us.error.code || "读取失败") : "";
+  if (us && us.error) console.warn("[后台] 注册家长读取失败：", us.error.message || us.error);
   AD.posts = (p && p.data) || [];
   AD.comments = (cm && cm.data) || [];
   AD.tutors = (tj && tj.data) || [];
   AD.teachers = (tt && tt.data) || [];
   AD.cases = (cs && cs.data) || [];
   AD.reports = (rp && rp.data) || [];
+  AD.users = (us && us.data) || [];
   AD.reportsErr = (rp && rp.error) ? String(rp.error.message || rp.error.code || "读取失败") : "";
   AD.qrRow = (st && st.data) || null;
   AD.licRows = {};
@@ -107,7 +113,13 @@ function stats() {
   const tags = {};
   AD.posts.forEach(x => { const k = x.tag || "未分类"; tags[k] = (tags[k] || 0) + 1; });
   const tagArr = Object.entries(tags).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  /* 注册家长：今日 / 近 7 日都按注册时间算（北京时间的自然日，与"求助今日"同口径） */
+  const users = AD.users || [];
+  const weekAgo = t0 - 6 * 86400000;
   return {
+    users: users.length,
+    usersToday: users.filter(x => x.created_at && new Date(x.created_at).getTime() >= t0).length,
+    usersWeek: users.filter(x => x.created_at && new Date(x.created_at).getTime() >= weekAgo).length,
     posts: AD.posts.length,
     today: AD.posts.filter(x => new Date(x.created_at).getTime() >= t0).length,
     helps: AD.comments.length,
@@ -117,10 +129,43 @@ function stats() {
 }
 
 /* ---------- 管理后台：页签 ---------- */
-const TABS = [["content", "📚 社区内容"], ["reports", "🛡 举报处理"], ["cases", "🎬 案例管理"], ["tutor", "🎓 家教登记"], ["license", "📜 资质证照"], ["homechips", "🧩 首页栏目"], ["health", "🩺 系统健康"]];
+const TABS = [["content", "📚 社区内容"], ["users", "👥 注册家长"], ["reports", "🛡 举报处理"], ["cases", "🎬 案例管理"], ["tutor", "🎓 家教登记"], ["license", "📜 资质证照"], ["homechips", "🧩 首页栏目"], ["health", "🩺 系统健康"]];
 function tabBarHTML() {
   return `<div class="ad-tabs">${TABS.map(([k, t]) =>
     `<button class="ad-tab ${AD.tab === k ? "on" : ""}" data-adtab="${k}">${t}</button>`).join("")}</div>`;
+}
+
+/* ---------- 注册家长页签（2026-11-13） ----------
+   站长要能看到「有多少注册家长、今天新增几个、都是谁」。
+   只读 yb_profiles 的 user_name + created_at：
+   · 手机号不在这个表里（平台只存伪邮箱），本来就没有可泄露的
+   · 密保答案在独立表 yb_security（RLS 零 policy），后台也读不到
+   今日 / 近 7 日按注册时间算，与「求助今日」同一口径（本地自然日）。 */
+function usersTabHTML() {
+  const rows = AD.users || [];
+  if (AD.usersErr) {
+    return `<div class="ad-sec">👥 注册家长</div>
+      <div class="ad-gate"><span class="e">⚠️</span>注册名单读取失败：${esc(AD.usersErr)}
+      <div class="ad-note" style="margin-top:6px">不影响其它页签；稍后点「刷新」再试。</div></div>`;
+  }
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const t0 = today.getTime(), weekAgo = t0 - 6 * 86400000;
+  const cnt = (from) => rows.filter(x => x.created_at && new Date(x.created_at).getTime() >= from).length;
+  const item = (x) => `<div class="ad-item">
+      <div class="ad-t">👤 ${esc(x.user_name || "（未设置用户名）")}</div>
+      <div class="ad-meta"><span>🕘 注册于 ${relTime(x.created_at)}</span>
+      <span>${(x.created_at || "").slice(0, 10)}</span></div>
+    </div>`;
+  return `
+    <div class="ad-cards">
+      <div class="ad-card"><b>${rows.length}</b><span>注册家长总数</span></div>
+      <div class="ad-card"><b>+${cnt(t0)}</b><span>今日新增</span></div>
+      <div class="ad-card"><b>+${cnt(weekAgo)}</b><span>近 7 日新增</span></div>
+    </div>
+    <div class="ad-sec">👥 注册家长名单 <span class="n">${rows.length}</span></div>
+    ${rows.map(item).join("") || `<div class="ad-empty">还没有注册家长</div>`}
+    <div class="ad-note">说明：这里只是注册名单（用户名 + 注册时间），不含手机号与密码；家长忘记密码可自己在登录页「忘记密码」里答密保找回，实在不行再用「🔑 重置家长密码」。<br>
+      名单按注册时间倒序，最多显示最近 500 位。</div>`;
 }
 
 /* ---------- 举报处理页签（2026-10-28）：原前端只弹窗不落库，此页是真正的受理端 ---------- */
@@ -962,6 +1007,10 @@ function render() {
     </div>`).join("") || `<div class="ad-empty">还没有帮忙记录</div>`;
 
   const head = tabBarHTML();
+  if (AD.tab === "users") {
+    body.innerHTML = head + usersTabHTML() + adminFooterHTML();
+    return;
+  }
   if (AD.tab === "reports") {
     body.innerHTML = head + reportsTabHTML() + adminFooterHTML();
     return;
@@ -989,6 +1038,7 @@ function render() {
 
   body.innerHTML = head + `
     <div class="ad-cards">
+      <div class="ad-card"><b>${s.users}</b><span>注册家长（今日 +${s.usersToday} · 近 7 日 +${s.usersWeek}）</span></div>
       <div class="ad-card"><b>${s.posts}</b><span>求助总数（今日 +${s.today}）</span></div>
       <div class="ad-card"><b>${s.helps}</b><span>帮忙总数</span></div>
       <div class="ad-card"><b>${s.media.image + s.media.video + s.media.voice}</b><span>素材：图片${s.media.image}·视频${s.media.video}·语音${s.media.voice}</span></div>
@@ -1503,6 +1553,8 @@ window.YRB_ADMIN_CONSOLE = {
   close: closeAdmin,
   reload: loadAndRender,
   /* 自测钩子：后台「系统健康」面板的渲染入口（便于自动化验证，不参与业务） */
-  healthHTML: healthTabHTML
+  healthHTML: healthTabHTML,
+  /* 自测钩子：注册家长页（可灌假数据渲染，验证统计口径与降级提示） */
+  usersPreview: function (list) { AD.users = list || []; AD.usersErr = ""; return usersTabHTML(); }
 };
 })();

@@ -365,7 +365,7 @@ function ensureShell(){
       <button class="lg-btn lg-ghost" id="lgGoReg" type="button" style="display:none">注册新账号</button>
       <div class="lg-or" style="display:none">或</div>
       <button class="lg-wx" id="lgWx" type="button" style="display:none">💬 微信一键登录</button>
-      <div class="lg-note">用户名 + 密码登录，注册免费<br>忘记密码请联系站长重置</div>
+      <div class="lg-note">用户名 + 密码登录，注册免费<br>忘记密码点「忘记密码」，答密保问题即可自己重设</div>
     </div>
     <!-- 协议 / 隐私政策阅读层（登录面板内阅读，不打断登录流程） -->
     <div id="lgDoc" role="dialog" aria-label="协议正文">
@@ -376,6 +376,17 @@ function ensureShell(){
       </div>
       <div class="lg-doc-body" id="lgDocBody"></div>
       <div class="lg-doc-foot"><button class="lg-doc-ok" id="lgDocOk" type="button">我已阅读，返回勾选</button></div>
+    </div>
+    <!-- 密保问题 / 自助找回密码层（同样在登录面板内，不打断登录流程）
+         2026-11-13：自建库没有短信通道、伪邮箱收不到信，原先忘记密码只能找站长。
+         现在家长可自己设密保问题，答对即可重设密码（db/supabase/20261113-password-recovery.sql） -->
+    <div id="lgSec" role="dialog" aria-label="找回密码">
+      <div class="lg-doc-head">
+        <button class="lg-sec-back" id="lgSecBack" type="button" aria-label="返回">‹</button>
+        <b id="lgSecTitle">找回密码</b>
+        <span class="lg-doc-tag">育人帮</span>
+      </div>
+      <div class="lg-doc-body" id="lgSecBody"></div>
     </div>
     <div id="upMask"><div class="up-card">
       <button class="up-x" id="upX" type="button" aria-label="关闭提示，后台继续上传">✕</button>
@@ -415,7 +426,16 @@ function ensureShell(){
   /* 两种登录方式切换 */
   $("#lgTabPhone").addEventListener("click",()=>switchLoginMode("phone"));
   $("#lgTabPwd").addEventListener("click",()=>switchLoginMode("pwd"));
-  $("#lgToSms").addEventListener("click",()=>{if(window.toast)toast("重置密码请联系站长（站内留言或微信群）");});
+  $("#lgToSms").addEventListener("click",()=>openSec("recover"));
+  /* 密保面板：内容每次重绘，所以按钮用事件委托（不逐次绑） */
+  const secBody=$("#lgSecBody");
+  if(secBody)secBody.addEventListener("click",onSecClick);
+  const secBack=$("#lgSecBack");
+  if(secBack)secBack.addEventListener("click",()=>{
+    /* 第二步点返回 = 回第一步；第一步点返回 = 关面板（长辈容易点错，不做"退出登录"） */
+    if(secMode==="recover"&&$("#secAns"))renderSecAsk();
+    else closeSec();
+  });
   $("#lgToReg").addEventListener("click",()=>setRegMode(true));
   /* 2026-11-02 用户反馈：注册入口原来只是一行小字，长辈找不到——
      把「注册新账号」做成登录按钮下方的大按钮（ghost 款），一点切注册模式 */
@@ -682,6 +702,8 @@ function openLogin(){
 function closeLogin(ok){
   const sh=$("#loginSheet");if(sh)sh.classList.remove("open");
   const mk=$("#loginMask");if(mk)mk.classList.remove("open");
+  /* 密保面板在登录面板内部：一起收起来，别让下次打开直接停在密保页 */
+  const sec=$("#lgSec");if(sec)sec.classList.remove("open");
   closeLgDoc();
   if(loginResolve){const r=loginResolve;loginResolve=null;r(!!ok);}
 }
@@ -2043,8 +2065,12 @@ async function submitPwdLoginV2(){
         try{console.warn("[注册] 档案写入失败：",code,ins.error.message);}catch(_){}
       }
       setRegMode(false);
-      closeLogin(true);onAuthChanged();
       if(window.toast)toast("注册成功，欢迎加入育人帮 🎉");
+      /* 注册后立刻引导设密保（这一步跳过了，以后忘记密码就只能找站长）。
+         不关登录面板，让家长顺手设完；点「以后再说」才真正关闭并刷新账号状态。
+         设不设由家长决定，不阻塞任何功能。 */
+      secAfterReg=true;
+      openSec("set");
       return;
     }
     const done=await withTimeout(cloud.auth.signInWithPassword({username:acct,password:pwd}),20000,"登录");
@@ -2116,6 +2142,159 @@ function openChangePwd(){
 }
 
 /* ---------- 对外接口 ---------- */
+/* =========================================================
+   密保问题：自助找回密码（2026-11-13）
+   ---------------------------------------------------------
+   背景：自建库没有短信通道，用户名映射的是伪邮箱（收不到信），
+   原先「忘记密码」只能找站长代重置（后台「🔑 重置家长密码」）。
+   现在家长注册后可自己设一个密保问题；忘记密码时答对即可重设。
+     设置：注册成功后自动弹一次；也可在「我的 → 账号与安全 → 密保问题」随时改
+     找回：登录面板「忘记密码」→ 输用户名 → 答题 → 设新密码
+   数据库端见 db/supabase/20261113-password-recovery.sql
+   （yb_sec_info 查问题 / yb_sec_reset 答题重设 / yb_sec_set 登录后设置）。
+   安全：答案只存 bcrypt 哈希；10 分钟 5 次上限；查询不区分「用户不存在」。
+   没跑过那份 SQL 时：RPC 会报函数不存在，这里降级成「请联系站长重置」，不误导用户。
+   ========================================================= */
+var secMode="recover", secName="", secAfterReg=false;
+const SEC_QS=["孩子的小名是什么？","我上小学的学校叫什么？","老家是哪个村 / 镇？"];
+function openSec(mode){
+  ensureShell();
+  /* 密保面板挂在登录面板内部（层叠与手势都跟它走）：从「我的—账号与安全」进来时
+     登录面板可能是关着的，先把壳打开，否则面板会滑到屏幕外面去 */
+  const sh=$("#loginSheet");
+  if(sh&&!sh.classList.contains("open")){sh.classList.add("open");const mk=$("#loginMask");if(mk)mk.classList.add("open");}
+  const p=$("#lgSec"); if(!p)return;
+  secMode=mode==="set"?"set":"recover";
+  const t=$("#lgSecTitle"); if(t)t.textContent=secMode==="set"?"设置密保问题":"找回密码";
+  if(secMode==="set")renderSecSet(); else renderSecAsk();
+  p.classList.add("open");
+}
+function closeSec(){
+  const p=$("#lgSec");if(p)p.classList.remove("open");
+  /* 注册后引导的那一次：家长设完或点「以后再说」，才真正关闭登录面板并刷新账号状态 */
+  if(secAfterReg){
+    secAfterReg=false;
+    try{closeLogin(true);onAuthChanged();}catch(e){}
+  }
+}
+function secSay(m){const e=$("#secErr");if(e)e.textContent=m||"";}
+function secRpcMissing(r){
+  const s=JSON.stringify((r&&r.error)||{});
+  return /PGRST202|Could not find the function|does not exist|404/i.test(s);
+}
+/* 第一步：输用户名 */
+function renderSecAsk(){
+  secSay("");
+  $("#lgSecBody").innerHTML=`
+    <div class="lg-sec-note">输入你注册时用的用户名，点「下一步」回答问题，就能自己重设密码。</div>
+    <div class="lg-label">用户名</div>
+    <div class="lg-field"><input id="secName" maxlength="20" placeholder="例如：小明妈妈" value="${esc(secName)}" aria-label="用户名"></div>
+    <div class="lg-err" id="secErr"></div>
+    <button class="lg-btn" id="secNext" data-sec="next" type="button">下一步</button>
+    <div class="lg-sec-tip">想不起用户名，或从没设过密保？<a data-sec="ask">联系站长重置</a></div>`;
+}
+/* 第二步：答问题 + 设新密码 */
+function renderSecReset(q){
+  $("#lgSecBody").innerHTML=`
+    <div class="lg-sec-q">你的密保问题是：<b>${esc(q||"（未设置）")}</b></div>
+    <div class="lg-label">答案</div>
+    <div class="lg-field"><input id="secAns" maxlength="40" placeholder="不区分大小写" aria-label="密保答案"></div>
+    <div class="lg-label">新密码</div>
+    <div class="lg-field"><input id="secPwd" type="password" maxlength="32" placeholder="至少 6 位" aria-label="新密码"></div>
+    <div class="lg-label">再输一次新密码</div>
+    <div class="lg-field"><input id="secPwd2" type="password" maxlength="32" placeholder="两次要一样" aria-label="确认新密码"></div>
+    <div class="lg-err" id="secErr"></div>
+    <button class="lg-btn" id="secReset" data-sec="reset" type="button">重设密码</button>
+    <button class="lg-btn lg-ghost" id="secBack2" data-sec="back" type="button">重新输入用户名</button>
+    <div class="lg-sec-tip">连续答错 5 次要等 10 分钟；实在想不起来就<a data-sec="ask">联系站长</a></div>`;
+}
+/* 设置密保（登录后） */
+function renderSecSet(){
+  $("#lgSecBody").innerHTML=`
+    <div class="lg-sec-note">设一个只有你知道答案的问题。以后忘记密码，答对它就能自己重设，不用等站长帮忙。</div>
+    <div class="lg-label">选一个常见问题（也可以自己写）</div>
+    <div class="lg-sec-chips">${SEC_QS.map(q=>`<button class="lg-sec-chip" type="button" data-sec="chip">${esc(q)}</button>`).join("")}</div>
+    <div class="lg-label">你的问题</div>
+    <div class="lg-field"><input id="secQIn" maxlength="40" placeholder="例如：孩子的小名是什么？" aria-label="密保问题"></div>
+    <div class="lg-label">答案</div>
+    <div class="lg-field"><input id="secAIn" maxlength="40" placeholder="答案要简单好记，别写容易忘的" aria-label="密保答案"></div>
+    <div class="lg-err" id="secErr"></div>
+    <button class="lg-btn" id="secSave" data-sec="save" type="button">保存密保</button>
+    <div class="lg-sec-tip">先不设，<a data-sec="skip">以后再说</a></div>`;
+}
+async function secAskNext(){
+  const name=(($("#secName")||{}).value||"").trim();
+  if(name.length<2){secSay("请输入注册时用的用户名");return;}
+  const btn=$("#secNext");
+  if(btn){btn.disabled=true;btn.textContent="查询中…";}
+  secSay("");
+  const r=await accountRpc("yb_sec_info",{p_username:name});
+  if(btn&&btn.isConnected){btn.disabled=false;btn.textContent="下一步";}
+  const d=(r&&r.data)||{};
+  if(d.ok){secName=name;renderSecReset(d.q||"");return;}
+  if(secRpcMissing(r)){secSay("自助找回暂未开通，请联系站长重置密码（站内留言或家长群）");return;}
+  if(d.reason==="locked"){secSay("这个账号答错次数太多，请 10 分钟后再试，或联系站长重置");return;}
+  if(d.reason==="not_set"){secSay("这个用户名还没设过密保（也可能名字打错了）。可以先找站长帮你重置");return;}
+  secSay(errMsg(r&&r.error)||"查询失败，请检查网络后重试");
+}
+async function secDoReset(){
+  const ans=(($("#secAns")||{}).value||"").trim();
+  const p1=(($("#secPwd")||{}).value||"");
+  const p2=(($("#secPwd2")||{}).value||"");
+  if(!ans){secSay("请填写密保答案");return;}
+  if(p1.length<6){secSay("新密码至少 6 位");return;}
+  if(p1!==p2){secSay("两次输入的新密码不一样");return;}
+  const btn=$("#secReset");
+  if(btn){btn.disabled=true;btn.textContent="重设中…";}
+  secSay("");
+  const r=await accountRpc("yb_sec_reset",{p_username:secName,p_a:ans,p_new:p1});
+  if(btn&&btn.isConnected){btn.disabled=false;btn.textContent="重设密码";}
+  const d=(r&&r.data)||{};
+  if(d.ok){
+    closeSec();
+    const a=$("#lgAcct");if(a)a.value=secName;
+    const p=$("#lgPwd2");if(p){p.value="";p.focus();}
+    if(window.toast)toast("密码已重设，用新密码登录就好 ✅");
+    return;
+  }
+  if(d.reason==="bad_answer"){secSay("答案不对，再想想（小提示：不区分大小写）");return;}
+  if(d.reason==="locked"){secSay("答错次数太多，请 10 分钟后再试");return;}
+  if(d.reason==="weak_password"){secSay("新密码至少 6 位");return;}
+  if(secRpcMissing(r)){secSay("自助找回暂未开通，请联系站长重置密码");return;}
+  secSay(errMsg(r&&r.error)||"重设失败，请稍后重试");
+}
+async function secDoSave(){
+  const q=(($("#secQIn")||{}).value||"").trim();
+  const a=(($("#secAIn")||{}).value||"").trim();
+  if(q.length<2){secSay("请填写一个问题");return;}
+  if(a.length<2){secSay("请填写答案");return;}
+  const btn=$("#secSave");
+  if(btn){btn.disabled=true;btn.textContent="保存中…";}
+  secSay("");
+  const r=await accountRpc("yb_sec_set",{p_q:q,p_a:a});
+  if(btn&&btn.isConnected){btn.disabled=false;btn.textContent="保存密保";}
+  const d=(r&&r.data)||{};
+  if(d.ok){closeSec();if(window.toast)toast("密保已保存，忘记密码时可以自己找回 ✅");return;}
+  if(d.reason==="not_signed_in"){secSay("请先登录，再设置密保");return;}
+  if(d.reason==="bad_question"){secSay("问题写得太短了，至少 2 个字");return;}
+  if(d.reason==="bad_answer"){secSay("答案写得太短了，至少 2 个字");return;}
+  if(secRpcMissing(r)){secSay("密保功能暂未开通，请联系站长（功能正在上线）");return;}
+  secSay(errMsg(r&&r.error)||"保存失败，请稍后重试");
+}
+function onSecClick(e){
+  const t=e.target.closest("[data-sec]");
+  if(!t)return;
+  const a=t.dataset.sec;
+  if(a==="next")return secAskNext();
+  if(a==="reset")return secDoReset();
+  if(a==="back")return renderSecAsk();
+  if(a==="save")return secDoSave();
+  if(a==="skip")return closeSec();
+  if(a==="chip"){const q=$("#secQIn");if(q)q.value=t.textContent;
+    $$(".lg-sec-chip").forEach(n=>n.classList.remove("on"));t.classList.add("on");return;}
+  if(a==="ask"){if(window.toast)toast("请在家长微信群或站内留言给站长，他会在后台帮你重置");return;}
+}
+
 window.YRB_CLOUD={
   enabled(){return !!cloud;},
   ready(){return ready;},
@@ -2139,6 +2318,12 @@ window.YRB_CLOUD={
     mode:switchLoginMode,
     remind:remindSetPwd,
     rule:regNameOK
+  },
+  /* 密保问题：设置 / 找回（「我的—账号与安全」与登录面板共用同一套面板） */
+  security:{
+    open(mode){openSec(mode||"set");},
+    close(){closeSec();},
+    qs(){return SEC_QS.slice();}
   },
   /* 退出登录（供账号管理 / 管理后台切换账号使用） */
   async signOut(){

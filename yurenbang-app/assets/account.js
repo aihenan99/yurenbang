@@ -139,8 +139,10 @@
           '<button class="ac-row" id="acSetPwd"><span class="ic">🔑</span><span class="tx">登录密码</span>' + pwdSub + '</button>' +
           '<button class="ac-row" id="acSetName"><span class="ic">🪪</span><span class="tx">登录用户名</span>' +
             '<span class="sub">' + (uname ? esc(uname) + ' ›' : '未设置 ›') + '</span></button>' +
+          '<button class="ac-row" id="acSetSec"><span class="ic">🔐</span><span class="tx">密保问题</span>' +
+            '<span class="sub">设置后可自己找回密码 ›</span></button>' +
         '</div>' +
-        '<div class="ac-note">设置后可用「用户名 + 密码」或「手机号 + 密码」直接登录，不必每次等短信验证码；忘记密码时随时可用验证码登录。</div>' +
+        '<div class="ac-note">设置后可用「用户名 + 密码」直接登录。建议顺手设一个<b>密保问题</b>：以后忘记密码，自己答对问题就能重设，不用等站长帮忙。</div>' +
       '</div>';
   }
 
@@ -160,18 +162,20 @@
         if (sub) sub.textContent = realPhone + " ›";
       });
     }
-    var a = $("#acSetPwd"), b = $("#acSetName");
+    var a = $("#acSetPwd"), b = $("#acSetName"), c3 = $("#acSetSec");
     if (a) a.addEventListener("click", function () { openPwdSheet("pwd"); });
     if (b) b.addEventListener("click", function () { openPwdSheet("name"); });
+    if (c3) c3.addEventListener("click", openSecurity);
     /* 拉到真实账号信息后刷新一次（首屏不阻塞） */
     fetchMe().then(function (m) {
       if (!m) return;
       var blk = document.getElementById("acctBlk");
       if (!blk) return;
       blk.outerHTML = blockHTML();
-      var a2 = $("#acSetPwd"), b2 = $("#acSetName");
+      var a2 = $("#acSetPwd"), b2 = $("#acSetName"), c4 = $("#acSetSec");
       if (a2) a2.addEventListener("click", function () { openPwdSheet("pwd"); });
       if (b2) b2.addEventListener("click", function () { openPwdSheet("name"); });
+      if (c4) c4.addEventListener("click", openSecurity);
     });
   }
 
@@ -276,6 +280,13 @@
   }
   function closeSheet() {
     var sh = $("#pwdSheet"); if (sh) sh.classList.remove("open");
+  }
+  /* 密保问题：面板实现在 cloud.js（与登录面板「忘记密码」共用一套），这里只做跳转。
+     cloud.js 一定先于本层加载（首屏包顺序），但云服务没就绪时给个明确提示。 */
+  function openSecurity() {
+    var C = window.YRB_CLOUD;
+    if (C && C.security && typeof C.security.open === "function") { C.security.open("set"); return; }
+    if (window.toast) toast("云服务还没就绪，请检查网络后再点一次");
   }
   var MODE = "pwd";
   function openPwdSheet(mode) {
