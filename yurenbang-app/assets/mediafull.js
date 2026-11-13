@@ -80,9 +80,26 @@ var speaking = false, curBtn = null, gen = 0, speakCtx = "";   /* detail|case|ca
    只换服务端音色而不换 URL 时，老文本会继续返回旧音色的缓存，
    表现就是「改了音色但听着还是老声音」。
    换音色/音高/语速时：两侧同时 +1。 */
-var TTS_REV = "3";
-function ttsUrl(text, slow) {
-  return "/yrbtts?t=" + encodeURIComponent(text) + "&r=" + (slow ? "slow" : "norm") + "&v=" + TTS_REV;
+var TTS_REV = "4";
+function ttsUrl(text, slow, p, rr) {
+  var u = "/yrbtts?t=" + encodeURIComponent(text) + "&r=" + (slow ? "slow" : "norm") + "&v=" + TTS_REV;
+  if (p != null) u += "&p=" + p;
+  if (rr != null) u += "&rr=" + rr;
+  return u;
+}
+/* 抑扬顿挫（2026-11-13 v4）：按段变调在客户端编排。
+   微软免费端点的 SSML 白名单时紧时松（express-as / break / emphasis /
+   多段 prosody 都实测被拒，连单段 pitch 都偶发被拒），服务端只保留
+   历史最稳的「单 prosody + rate+pitch」形态，本函数决定每段的 pitch：
+   疑问句上扬（0%）、感叹句略亮（-1%）、陈述句 -1% / -6% 交替；
+   语速全程统一（-4%，长辈模式 -15%），避免忽快忽慢。
+   prefetch 与 speak 都走这里，保证预取音频和正式播放是同一个 URL。 */
+function toneFor(i, seg, slow) {
+  var p = (i % 2) ? -6 : -1;
+  var s = String(seg || "").trim();
+  if (/[？?]\s*$/.test(s)) p = 2;                /* 疑问句：上扬（+2% 实测过端点接受） */
+  else if (/[！!]\s*$/.test(s)) p = -1;          /* 感叹句：略亮 */
+  return { p: p, rr: slow ? -15 : -4 };
 }
 
 /* 自动跟读状态（详见第 6 节）：开启后自动朗读，滑动跟随换读。
@@ -134,8 +151,9 @@ function prefetch(text, slow) {
     var ctl = window.AbortController ? new AbortController() : null;
     preCtl = ctl;
     var chunks = splitChunks(t);
+    var tn = toneFor(0, chunks[0], slow);
     var tm = ctl ? setTimeout(function () { try { ctl.abort(); } catch (e) {} }, 9000) : 0;
-    var p = fetch(ttsUrl(chunks[0], slow),
+    var p = fetch(ttsUrl(chunks[0], slow, tn.p, tn.rr),
         ctl ? { signal: ctl.signal } : undefined)
       .then(function (r) { clearTimeout(tm); if (!r.ok) throw new Error("tts " + r.status); return r.blob(); },
             function (err) { clearTimeout(tm); delete preCache[key]; throw err; });
@@ -178,7 +196,8 @@ function speak(text, btn, compact, ctx) {
          由调用方的 catch 走 fallbackFrom 降级本机朗读 */
       var ctl = window.AbortController ? new AbortController() : null;
       var tm = ctl ? setTimeout(function () { try { ctl.abort(); } catch (e) {} }, 9000) : 0;
-      fetches[idx] = fetch(ttsUrl(chunks[idx], slow),
+      var tn = toneFor(idx, chunks[idx], slow);
+      fetches[idx] = fetch(ttsUrl(chunks[idx], slow, tn.p, tn.rr),
           ctl ? { signal: ctl.signal } : undefined)
         .then(function (r) { clearTimeout(tm); if (!r.ok) throw new Error("tts " + r.status); return r.blob(); },
               function (err) { clearTimeout(tm); throw err; });

@@ -30,16 +30,22 @@ const TTS_VOICE = "zh-CN-XiaoxiaoNeural";
    换音色而不换 URL 时，老文本会继续返回旧音色的缓存——用户听到「还是男声」。
    客户端把本值作为 &v= 带在 URL 上，本地/边缘缓存键随之改变，一次全破。
    改这里的同时必须改 assets/mediafull.js 的 TTS_REV，两边同值。 */
-const TTS_REV = "3";
+const TTS_REV = "4";
 /* 音高 -4%：晓晓原始基频约 267Hz 偏年轻亲和，压低后约 254Hz，
    更接近央视新闻女播音的中低音区（庄重、不飘）。 */
 const TTS_PITCH = "-4%";
-/* 2026-11-13：表达风格。用户要求「有感情的朗读，抑扬顿挫」。
-   lyrical（抒情朗读）是晓晓所有风格里最贴合的一种：句调起伏大、有讲述感，
-   比 cheerful（太欢快）/ gentle（太平）都合适念家长求助类内容。
-   styledegree 1.5 让情感更明显；Edge 端点对不支持的属性会忽略，
-   最坏情况退回普通朗读，不会报错。 */
-const TTS_STYLE = "lyrical";
+/* 2026-11-13：抑扬顿挫（v4）。先试过 mstts:express-as style=lyrical，
+   实测 Edge 免费端点直接拒收（CLOSE 1007 "SSML is invalid"——express-as
+   是 Azure 付费语音的功能）；<break>/<emphasis>/多段 prosody 也被拒，
+   且白名单时紧时松（同一个单 prosody 模板上午通过、下午被拒）。
+   所以变调挪到客户端编排：本函数只接受客户端传来的 pitch(p)/rate(rr)
+   数值（默认 -4% / -4%），按段各要一条音频，客户端顺序连播。
+   服务端只出「单 prosody + rate+pitch」这一种历史最稳的 SSML 形态。 */
+function ssmlOf(text, slow, pitchPct, ratePct){
+  var p = (typeof pitchPct === "number" && isFinite(pitchPct)) ? Math.max(-20, Math.min(20, pitchPct)) : -4;
+  var rr = (typeof ratePct === "number" && isFinite(ratePct)) ? Math.max(-50, Math.min(30, ratePct)) : (slow ? -15 : -4);
+  return "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='zh-CN'><voice name='"+TTS_VOICE+"'><prosody rate='"+rr+"%' pitch='"+p+"%'>"+xmlEsc(text)+"</prosody></voice></speak>";
+}
 
 const U32 = 0xFFFFFFFF;
 const u32 = x => x >>> 0;
@@ -178,7 +184,7 @@ function frame(path, contentType, body) {
 }
 
 /* ---------- 单次合成 ---------- */
-function ttsSynthesize(text, slow) {
+function ttsSynthesize(text, slow, pitchPct, ratePct) {
   const gec = ttsSecMsGec();
   const url = TTS_WSS + "&Sec-MS-GEC=" + gec + "&Sec-MS-GEC-Version=" + TTS_GEC_VERSION;
   return new Promise((resolve, reject) => {
@@ -215,11 +221,7 @@ function ttsSynthesize(text, slow) {
           outputFormat: "audio-24khz-48kbitrate-mono-mp3",
         } } },
       })));
-      const rate = slow ? "-15%" : "-4%";
-      ws.send(frame("ssml", "application/ssml+xml",
-        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='zh-CN'>" +
-        "<voice name='" + TTS_VOICE + "'><mstts:express-as style='" + TTS_STYLE + "' styledegree='1.5'><prosody rate='" + rate + "' pitch='" + TTS_PITCH + "'>" + xmlEsc(text) +
-        "</prosody></mstts:express-as></voice></speak>"));
+      ws.send(frame("ssml", "application/ssml+xml", ssmlOf(text, slow, pitchPct, ratePct)));
     };
 
     ws.onmessage = (ev) => {
@@ -305,10 +307,14 @@ async function handleTts(req, res, url) {
   const q = url.searchParams;
   const text = (q.get("t") || "").slice(0, MAX_TEXT);
   const slow = q.get("r") === "slow";
+  /* p=音高（%）、rr=语速（%）：客户端逐段变调用。只收数字，夹在安全区间内 */
+  const pv = parseFloat(q.get("p") || "");
+  const rv = parseFloat(q.get("rr") || "");
   if (!text.trim()) return sendJson(res, 400, { error: "no text" });
 
   /* 缓存键带配方版本与音色：换音色/音高后旧音频自动失效，不会又播回老声音 */
-  const key = TTS_REV + "|" + TTS_VOICE + "|" + (slow ? "s|" : "n|") + text;
+  const key = TTS_REV + "|" + TTS_VOICE + "|" + (slow ? "s|" : "n|")
+    + (isNaN(pv) ? "" : "p" + pv + "|") + (isNaN(rv) ? "" : "rr" + rv + "|") + text;
   const hit = cacheGet(key);
   if (hit) {
     res.writeHead(200, {
@@ -330,7 +336,7 @@ async function handleTts(req, res, url) {
   }
 
   try {
-    const mp3 = await ttsSynthesize(text, slow);
+    const mp3 = await ttsSynthesize(text, slow, isNaN(pv) ? null : pv, isNaN(rv) ? null : rv);
     if (!mp3 || !mp3.byteLength) throw new Error("empty audio");
     cachePut(key, mp3);
     res.writeHead(200, {

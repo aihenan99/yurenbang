@@ -16,7 +16,7 @@
  */
 const UPSTREAM = "https://yurenbang.app.workbuddy.host";
 const PREFIX = "/yrbapi";
-const BUILD_TAG = "20261113155834-build";
+const BUILD_TAG = "20261113164805-build";
 
 /* ============================================================
    /sbapi —— 自建 Supabase 同源代理（2026-11-01 迁移第一步）
@@ -52,16 +52,22 @@ const TTS_VOICE = "zh-CN-XiaoxiaoNeural";
    换音色而不换 URL 时，老文本会继续返回旧音色的缓存——用户听到「还是男声」。
    客户端把本值作为 &v= 带在 URL 上，本地/边缘缓存键随之改变，一次全破。
    改这里的同时必须改 assets/mediafull.js 的 TTS_REV，两边同值。 */
-const TTS_REV = "3";
+const TTS_REV = "4";
 /* 音高 -4%：晓晓原始基频约 267Hz 偏年轻亲和，压低后约 254Hz，
    更接近央视新闻女播音的中低音区（庄重、不飘）。 */
 const TTS_PITCH = "-4%";
-/* 2026-11-13：表达风格。用户要求「有感情的朗读，抑扬顿挫」。
-   lyrical（抒情朗读）是晓晓所有风格里最贴合的一种：句调起伏大、有讲述感，
-   比 cheerful（太欢快）/ gentle（太平）都合适念家长求助类内容。
-   styledegree 1.5 让情感更明显；Edge 端点对不支持的属性会忽略，
-   最坏情况退回普通朗读，不会报错。 */
-const TTS_STYLE = "lyrical";
+/* 2026-11-13：抑扬顿挫（v4）。先试过 mstts:express-as style=lyrical，
+   实测 Edge 免费端点直接拒收（CLOSE 1007 "SSML is invalid"——express-as
+   是 Azure 付费语音的功能）；<break>/<emphasis>/多段 prosody 也被拒，
+   且白名单时紧时松（同一个单 prosody 模板上午通过、下午被拒）。
+   所以变调挪到客户端编排：本函数只接受客户端传来的 pitch(p)/rate(rr)
+   数值（默认 -4% / -4%），按段各要一条音频，客户端顺序连播。
+   服务端只出「单 prosody + rate+pitch」这一种历史最稳的 SSML 形态。 */
+function ssmlOf(text, slow, pitchPct, ratePct){
+  var p = (typeof pitchPct === "number" && isFinite(pitchPct)) ? Math.max(-20, Math.min(20, pitchPct)) : -4;
+  var rr = (typeof ratePct === "number" && isFinite(ratePct)) ? Math.max(-50, Math.min(30, ratePct)) : (slow ? -15 : -4);
+  return "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='zh-CN'><voice name='"+TTS_VOICE+"'><prosody rate='"+rr+"%' pitch='"+p+"%'>"+xmlEsc(text)+"</prosody></voice></speak>";
+}
 
 const U32 = 0xFFFFFFFF;
 const u32 = x => x >>> 0;
@@ -181,7 +187,7 @@ function ttsSecMsGec(){
   return hex+"-"+dhex;
 }
 function xmlEsc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&apos;"); }
-async function ttsSynthesize(text, slow){
+async function ttsSynthesize(text, slow, pitchPct, ratePct){
   /* Workers 出站 WebSocket：fetch + Upgrade 头 → resp.webSocket（不能用 new WebSocket 传头） */
   const gec=ttsSecMsGec();
   /* wss:// 换成 https://：Workers fetch 用 Upgrade: websocket 头建立 WS 连接 */
@@ -193,9 +199,8 @@ async function ttsSynthesize(text, slow){
   /* workerd：accept() 后连接即已打开，不会触发 open 事件，配置与 SSML 立即发送 */
   ws.send("X-Timestamp:"+new Date().toString()+"\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n"+
     JSON.stringify({context:{synthesis:{audio:{metadataoptions:{sentenceBoundaryEnabled:"false",wordBoundaryEnabled:"false"},outputFormat:"audio-24khz-48kbitrate-mono-mp3"}}}}));
-  const ssml="<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='zh-CN'><voice name='"+TTS_VOICE+"'><mstts:express-as style='"+TTS_STYLE+"' styledegree='1.5'><prosody rate='"+(slow?"-15%":"-4%")+"' pitch='"+TTS_PITCH+"'>"+xmlEsc(text)+"</prosody></mstts:express-as></voice></speak>";
+  const ssml=ssmlOf(text,slow,pitchPct,ratePct);
   ws.send("X-RequestId:"+crypto.randomUUID().replace(/-/g,"")+"\r\nContent-Type:application/ssml+xml\r\nPath:ssml\r\n\r\n"+ssml);
-  const rate=slow?"-15%":"+0%";
   const chunks=[];
   return new Promise((resolve,reject)=>{
     let settled=false;
@@ -232,11 +237,14 @@ async function ttsSynthesize(text, slow){
 async function handleTts(request, url){
   const text=(url.searchParams.get("t")||"").slice(0,400);
   const slow=url.searchParams.get("r")==="slow";
+  /* p=音高（%）、rr=语速（%）：客户端逐段变调用。只收数字，夹在安全区间内 */
+  const pv=parseFloat(url.searchParams.get("p")||"");
+  const rv=parseFloat(url.searchParams.get("rr")||"");
   if(!text) return new Response(JSON.stringify({error:"no text"}),{status:400,headers:{"content-type":"application/json"}});
   const cache=caches.default;
   try{ const hit=await cache.match(request); if(hit) return hit; }catch(e){}
   try{
-    const mp3=await ttsSynthesize(text,slow);
+    const mp3=await ttsSynthesize(text,slow,isNaN(pv)?null:pv,isNaN(rv)?null:rv);
     if(!mp3||!mp3.byteLength) throw new Error("empty audio");
     const resp=new Response(mp3,{status:200,headers:{
       "content-type":"audio/mpeg","cache-control":"public, max-age=86400",

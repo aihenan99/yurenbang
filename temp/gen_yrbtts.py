@@ -63,7 +63,7 @@ function frame(path, contentType, body) {
 }
 
 /* ---------- 单次合成 ---------- */
-function ttsSynthesize(text, slow) {
+function ttsSynthesize(text, slow, pitchPct, ratePct) {
   const gec = ttsSecMsGec();
   const url = TTS_WSS + "&Sec-MS-GEC=" + gec + "&Sec-MS-GEC-Version=" + TTS_GEC_VERSION;
   return new Promise((resolve, reject) => {
@@ -100,11 +100,7 @@ function ttsSynthesize(text, slow) {
           outputFormat: "audio-24khz-48kbitrate-mono-mp3",
         } } },
       })));
-      const rate = slow ? "-15%" : "-4%";
-      ws.send(frame("ssml", "application/ssml+xml",
-        "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xmlns:mstts='https://www.w3.org/2001/mstts' xml:lang='zh-CN'>" +
-        "<voice name='" + TTS_VOICE + "'><mstts:express-as style='" + TTS_STYLE + "' styledegree='1.5'><prosody rate='" + rate + "' pitch='" + TTS_PITCH + "'>" + xmlEsc(text) +
-        "</prosody></mstts:express-as></voice></speak>"));
+      ws.send(frame("ssml", "application/ssml+xml", ssmlOf(text, slow, pitchPct, ratePct)));
     };
 
     ws.onmessage = (ev) => {
@@ -190,10 +186,14 @@ async function handleTts(req, res, url) {
   const q = url.searchParams;
   const text = (q.get("t") || "").slice(0, MAX_TEXT);
   const slow = q.get("r") === "slow";
+  /* p=音高（%）、rr=语速（%）：客户端逐段变调用。只收数字，夹在安全区间内 */
+  const pv = parseFloat(q.get("p") || "");
+  const rv = parseFloat(q.get("rr") || "");
   if (!text.trim()) return sendJson(res, 400, { error: "no text" });
 
   /* 缓存键带配方版本与音色：换音色/音高后旧音频自动失效，不会又播回老声音 */
-  const key = TTS_REV + "|" + TTS_VOICE + "|" + (slow ? "s|" : "n|") + text;
+  const key = TTS_REV + "|" + TTS_VOICE + "|" + (slow ? "s|" : "n|")
+    + (isNaN(pv) ? "" : "p" + pv + "|") + (isNaN(rv) ? "" : "rr" + rv + "|") + text;
   const hit = cacheGet(key);
   if (hit) {
     res.writeHead(200, {
@@ -215,7 +215,7 @@ async function handleTts(req, res, url) {
   }
 
   try {
-    const mp3 = await ttsSynthesize(text, slow);
+    const mp3 = await ttsSynthesize(text, slow, isNaN(pv) ? null : pv, isNaN(rv) ? null : rv);
     if (!mp3 || !mp3.byteLength) throw new Error("empty audio");
     cachePut(key, mp3);
     res.writeHead(200, {
