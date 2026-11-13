@@ -417,7 +417,13 @@ def build_bundles(build=""):
     def css_sub(_m):
         if first_css[0]:
             first_css[0] = False
-            return '<link rel="stylesheet" href="assets/bundle.css">'
+            # 2026-11-13 首屏提速：整包 CSS（br 后约 50KB）不再阻塞首绘。
+            # 启动屏的关键样式已内联在 index.html 的 <style id="yrbCrit">，
+            # 这里用 media="print" 静默下载，app.js 一执行就切成 all（见 app.js 顶部）。
+            # 不用 onload 内联事件：CSP 的 script-src 只认 hash，内联事件会被拦。
+            return ('<link rel="stylesheet" id="yrbBundleCss" media="print" '
+                    'href="assets/bundle.css">\n'
+                    '<noscript><link rel="stylesheet" href="assets/bundle.css"></noscript>')
         return ""
     first_js = [True]
     def js_sub(_m):

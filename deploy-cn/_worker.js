@@ -16,7 +16,7 @@
  */
 const UPSTREAM = "https://yurenbang.app.workbuddy.host";
 const PREFIX = "/yrbapi";
-const BUILD_TAG = "20261113132005-build";
+const BUILD_TAG = "20261113145648-build";
 
 /* ============================================================
    /sbapi —— 自建 Supabase 同源代理（2026-11-01 迁移第一步）
@@ -326,7 +326,7 @@ function cspNameFor(path) {
 }
 const CSP_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-eval' 'sha256-WSR3JsBOi1ku91HBvFogs6slXsjcLEp2xrq2WzB/6Mg=' 'sha256-MsIHKWwAkOqHuy+fS8Dh6+h8aIJ9trABD9s34o3VFi0=' 'sha256-4Af4t/iEQUgw37MgnPKy3KbnTbaaP0NhuLE9rncYZGM=' 'sha256-PwOZ9r7SB3z+7SEQtn2TQ4eugxNK+o6fhQ6J7lzc8n4='",
+  "script-src 'self' 'unsafe-eval' 'sha256-WSR3JsBOi1ku91HBvFogs6slXsjcLEp2xrq2WzB/6Mg=' 'sha256-H7Ybky+7DOdg8PCN72THmVSqvZRSnU985ggeua6Ph18=' 'sha256-4Af4t/iEQUgw37MgnPKy3KbnTbaaP0NhuLE9rncYZGM=' 'sha256-PwOZ9r7SB3z+7SEQtn2TQ4eugxNK+o6fhQ6J7lzc8n4='",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "media-src 'self' data: blob: https:",

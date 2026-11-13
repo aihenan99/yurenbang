@@ -155,6 +155,12 @@ const POSTS = [
   /* ---------- 案例：单击打开不读 ---------- */
   const caseTitle = await p.$("#caseGrid .case-card .c-title") || await p.$("#caseGrid .case-card");
   ck("⑩ 案例广场渲染出测试卡", !!caseTitle);
+  /* 前一步的详情/全屏如果没退干净，浮层会盖住案例卡（后续断言会误判成「点了没反应」） */
+  const leftover = await p.evaluate(() => ({
+    open: [...document.querySelectorAll("#r23Detail.open, #viewer.open, #vpFull.open, .mf-fs, .sheet.open")].map(n => n.id || n.className).slice(0, 6),
+    scrollTop: (document.querySelector("#feed") || {}).scrollTop,
+  }));
+  if (leftover.open.length) console.log("  · 残留浮层：", JSON.stringify(leftover));
   if (caseTitle) {
     await caseTitle.scrollIntoViewIfNeeded().catch(() => {});
     await caseTitle.tap({ force: true }).catch(async () => { await caseTitle.click({ force: true }).catch(() => {}); });

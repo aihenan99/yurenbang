@@ -391,14 +391,19 @@ function drawCase(c) {
   return exportCanvas(canvas, y, sc);
 }
 
-/* ---------- 二维码预载（同源资源，不会污染画布） ---------- */
-  var QRImg = null, QR_OK = false;
-  (function loadQR() {
+/* ---------- 二维码（按需加载） ----------
+   2026-11-13：这张图 46KB，原来脚本一加载就去拉，跟 bundle.js/首屏数据抢带宽
+   （4G 实测占掉首屏 500ms 的下行时间），可它只有"生成分享长图"时才用得到。
+   改成打开长图时再拉，最多等 700ms；超时就退回文字版页脚（原逻辑本来就有兜底）。 */
+  var QRImg = null, QR_OK = false, QR_FAIL = false, qrAsked = false;
+  function loadQR() {
+    if (qrAsked) return;
+    qrAsked = true;
     var im = new Image();
     im.onload = function () { QRImg = im; QR_OK = true; };
-    im.onerror = function () { QR_OK = false; };
+    im.onerror = function () { QR_FAIL = true; };
     im.src = "assets/qr-share.png";
-  })();
+  }
 
   /* ---------- 浮层 ---------- */
   var overlay = null;
@@ -463,7 +468,11 @@ function drawCase(c) {
   function show(build) {
     var el = ensureOverlay();
     el.classList.add("open");
-    setTimeout(function () {
+    loadQR();                       /* 到这一步才拉二维码，别在首屏跟主程序抢带宽 */
+    var t0 = Date.now();
+    (function waitQR() {
+      if (!QR_OK && !QR_FAIL && Date.now() - t0 < 700) { setTimeout(waitQR, 50); return; }
+      setTimeout(function () {
       try {
         lastURL = build();
         lastFile = null;
@@ -479,7 +488,8 @@ function drawCase(c) {
         close();
         if (window.YRB_APP && typeof window.toast === "function") try { window.toast("生成失败，请重试"); } catch (e2) {}
       }
-    }, 60);
+      }, 60);
+    })();
   }
 
   /* ---------- 事件委托 ---------- */

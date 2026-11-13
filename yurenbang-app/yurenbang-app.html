@@ -53,6 +53,12 @@ if ("serviceWorker" in navigator) {
   });
 }
 </script>
+<!-- 首屏关键样式（2026-11-13 提速）：启动屏要用的规则内联在这里，HTML 一到就能画出
+     有样式的启动屏；bundle.css 因此不再阻塞首绘（构建时改成 media="print" 静默下载，
+     主程序一开始执行就切回 all 生效）。
+     ⚠️ 这份内联只负责「启动屏那一眼」，不要往里加业务样式；改了 app.css 的启动屏
+     部分要同步这里（tests/diag/firstpaint_test.js 会比对两者是否漂移）。 -->
+<style id="yrbCrit">*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}:root{--bg:#FAF5EF;--bg2:#FFFFFF;--ink:#322E29;--muted:#97918A;--rule:#EFE7DC;--accent:#F4694B;--accent2:#2FA393;--fs-sm:12.5px;--fs:15px}html,body{height:100%}body{min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:"PingFang SC","Microsoft YaHei",-apple-system,"Segoe UI",sans-serif;background:radial-gradient(1100px 560px at 18% -5%,#FFE9DA 0%,transparent 60%),radial-gradient(900px 520px at 95% 105%,#D9F2EC 0%,transparent 60%),#F3ECE3;color:var(--ink)}.hidden{display:none!important}svg{display:block}#phone{position:relative;width:410px;height:min(880px,100dvh);background:var(--bg);overflow:hidden;overflow:clip;font-size:var(--fs);line-height:1.55}@media(min-width:560px){#phone{height:min(880px,94vh);border-radius:46px;border:10px solid #232025}}@media(max-width:559px){#phone{width:100vw;height:100dvh;border-radius:0}}.layer{position:absolute;inset:0;display:flex;flex-direction:column}#splash{z-index:90;align-items:center;justify-content:center;background:linear-gradient(165deg,#FFF3E2 0%,#FFE0CB 42%,#FFC9BC 100%);cursor:pointer}.s-sun{position:absolute;top:8%;left:50%;width:300px;height:300px;transform:translateX(-50%);opacity:.55;animation:spin 26s linear infinite}@keyframes spin{to{transform:translateX(-50%) rotate(360deg)}}.s-word{font-family:"STCaoshu","华文草书","STXingkai","华文行楷","Xingkai SC","Kaiti SC","KaiTi","楷体",cursive;font-size:42px;font-weight:400;letter-spacing:.22em;color:var(--ink);margin-bottom:12px;opacity:0;animation:sword 1s .15s cubic-bezier(.2,1.25,.4,1) both}@keyframes sword{from{opacity:0;transform:rotate(-150deg) scale(.35)}to{opacity:1;transform:rotate(0) scale(1)}}.s-logo{position:relative;width:170px;height:170px;margin-bottom:26px;animation:pulse 2.6s 1.8s ease-in-out infinite}.s-heart-path{stroke-dasharray:340;stroke-dashoffset:340;animation:draw 1.3s .25s ease forwards}.s-heart-fill{opacity:0;animation:fadein .9s 1.25s ease forwards}.s-sprout{transform-origin:60px 40px;transform:scale(0);animation:grow .9s 1.05s cubic-bezier(.2,1.3,.4,1) forwards}.s-leaf1{transform-origin:60px 18px;animation:leaf .7s 1.5s cubic-bezier(.2,1.4,.4,1) both}.s-leaf2{transform-origin:60px 12px;animation:leaf .7s 1.68s cubic-bezier(.2,1.4,.4,1) both}@keyframes draw{to{stroke-dashoffset:0}}@keyframes fadein{to{opacity:1}}@keyframes grow{to{transform:scale(1)}}@keyframes leaf{from{transform:scale(0) rotate(-30deg)}to{transform:scale(1) rotate(0)}}@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}.s-title{font-family:"STXingkai","华文行楷","Xingkai SC","Kaiti SC","KaiTi","楷体",cursive;font-size:34px;font-weight:400;letter-spacing:.14em;animation:up .8s .55s both}.s-sub{margin-top:16px;color:#9A6B58;font-size:var(--fs-sm);letter-spacing:.06em;animation:up .8s .95s both}.s-hint{position:absolute;bottom:44px;color:#B98A76;font-size:12px;letter-spacing:.2em;animation:blink 1.8s 2s infinite}@keyframes up{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}@keyframes blink{0%,100%{opacity:.9}50%{opacity:.25}}</style>
 <link rel="stylesheet" href="assets/app.css">
 <link rel="stylesheet" href="assets/refine23.css">
 <link rel="stylesheet" href="assets/access.css">
@@ -162,28 +168,45 @@ if ("serviceWorker" in navigator) {
     <div class="s-sub">育人帮 · 让每一份求助都被温柔以待</div>
     <div class="s-hint">— 点击任意处进入 —</div>
   </div>
-  <!-- 启动屏自救：万一主程序没加载成功（弱网/坏缓存），点按后自动换新地址强制刷新，
-       而不是永远停在启动屏。60 秒内最多自救一次，反复失败则提示检查网络。 -->
+  <!-- 启动屏点击：主程序可能还没下载完（弱网下 bundle.js 要 1-2 秒）。
+       2026-11-13 修正：老逻辑是「点按后 1.2 秒还没进 App 就 location.replace 重载」——
+       在慢网络上等于「点一下就重新加载一次」，越点越慢，用户只觉得"打开很慢"。
+       现在：点按只记一个意图（__yrbEnter），主程序一就位立刻进入；只有脚本**确实加载
+       失败**（error 事件）或 10 秒后仍无主程序，才换地址自救重载一次。 -->
   <script>
   (function(){
     var splash=document.getElementById("splash");
     if(!splash)return;
-    splash.addEventListener("click",function(){
-      setTimeout(function(){
-        if(splash.classList.contains("hidden"))return;   /* 已正常进入，无需自救 */
-        try{
-          var last=+sessionStorage.getItem("yrbSplashRescue")||0;
-          if(Date.now()-last<60000){
-            var h=document.querySelector(".s-hint");
-            if(h)h.textContent="网络不太稳定，请确认网络后退出重新打开";
-            return;
-          }
-          sessionStorage.setItem("yrbSplashRescue",String(Date.now()));
-        }catch(e){}
-        var u=location.pathname+"?yrbheal="+Date.now();
-        location.replace(u);
-      },1200);
-    },{capture:true});
+    var t0=Date.now();
+    splash.addEventListener("click",function(){window.__yrbEnter=true;},{capture:true});
+    /* 脚本加载失败：资源 404 / 网络被切断时 script 元素会派发 error（捕获阶段能收到） */
+    window.addEventListener("error",function(e){
+      var t=e.target;
+      if(t&&t.tagName==="SCRIPT"&&/bundle\.js/.test(t.src||""))window.__yrbScriptFail=1;
+    },true);
+    function rescue(){
+      if(splash.classList.contains("hidden"))return;      /* 已正常进入 */
+      if(window.YRB_BUILD)return;                          /* 主程序已就位，只是还没进：等着 */
+      if(!window.__yrbScriptFail&&Date.now()-t0<10000)return; /* 还在下载：不打断 */
+      try{
+        var last=+sessionStorage.getItem("yrbSplashRescue")||0;
+        if(Date.now()-last<60000){
+          var h=document.querySelector(".s-hint");
+          if(h)h.textContent="网络不太稳定，请确认网络后退出重新打开";
+          return;
+        }
+        sessionStorage.setItem("yrbSplashRescue",String(Date.now()));
+      }catch(e){}
+      location.replace(location.pathname+"?yrbheal="+Date.now());
+    }
+    setTimeout(function(){if(window.__yrbScriptFail){var h=document.querySelector(".s-hint");if(h)h.textContent="网络不太稳定，正在重新加载…";rescue();}},1200);
+    setTimeout(rescue,10000);
+    /* 样式兜底：正常由主程序把 bundle.css 从 media="print" 切回 all；
+       万一跑到的是旧版主程序（不认这个 id），2.5 秒后自己切，绝不让人停在无样式界面。 */
+    setTimeout(function(){
+      var l=document.getElementById("yrbBundleCss");
+      if(l&&l.media!=="all")try{l.media="all"}catch(e){}
+    },2500);
   })();
   </script>
 

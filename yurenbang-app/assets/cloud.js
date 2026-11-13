@@ -1948,8 +1948,14 @@ function observeMe(){
 /* ---------- 启动 ---------- */
 async function boot(){
   ready=false;
-  const ok=await loadSDK();
-  if(!ok){initSDK();return;} /* 拉不到 SDK：保持离线演示，不阻塞任何本地功能 */
+  /* 2026-11-13 首屏提速：自建客户端（yb-sb.js，随首屏包一起到）在就不必再拉 21KB 平台 SDK。
+     原先无条件先 await loadSDK()，白等一个来回（实测 300~400ms），而且它挡在
+     所有数据请求前面 —— 帖子列表本来可以更早出发。平台 SDK 只在 yb-sb.js 缺失时兜底。 */
+  const hasSb=!!(window.YRB_SB&&typeof window.YRB_SB.createClient==="function");
+  if(!hasSb){
+    const ok=await loadSDK();
+    if(!ok){initSDK();return;} /* 拉不到 SDK：保持离线演示，不阻塞任何本地功能 */
+  }
   initSDK();
   if(!cloud)return;
   /* 微信登录回跳：必须无条件执行，且在任何界面逻辑之前 */
