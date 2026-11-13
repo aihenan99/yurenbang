@@ -91,6 +91,14 @@ function rememberedPhone(){
 }
 function forgotPhone(){ try{ localStorage.removeItem(PHONE_KEY); }catch(e){} }
 
+/* 上次登录成功的「用户名」：忘密码/忘用户名时靠它回填。
+   不能塞进 PHONE_KEY —— rememberPhone 只收 11 位纯数字，中文用户名会被丢掉（2026-11-13 修）。 */
+const USER_KEY="yrb_last_user";
+function rememberUser(u){
+  try{const s=String(u||"").trim();if(s)localStorage.setItem(USER_KEY,s.slice(0,20));}catch(e){}
+}
+function rememberedUser(){ try{ return String(localStorage.getItem(USER_KEY)||""); }catch(e){ return ""; } }
+
 function sessionPhone(){
   const u=(session&&session.user)||{},raw=u.raw||{},claims=session?jwtPayload(session.accessToken):{};
   const cands=[
@@ -509,7 +517,7 @@ function switchLoginMode(mode){
   setTimeout(()=>{
     const t=pwd?$("#lgAcct"):$("#lgPhone");
     if(t&&!t.value){
-      if(pwd){const o=loadOtp();if(o)t.value=o.phone;}
+      if(pwd){const o=loadOtp();t.value=rememberedUser()||((o&&o.phone)||"");}
       if(!t.value)t.focus();
     }
   },140);
@@ -2065,12 +2073,18 @@ async function submitPwdLoginV2(){
         try{console.warn("[注册] 档案写入失败：",code,ins.error.message);}catch(_){}
       }
       setRegMode(false);
-      if(window.toast)toast("注册成功，欢迎加入育人帮 🎉");
+      /* 记住用户名：忘了密码 / 忘了用户名时，登录面板和找回面板都能自动回填 */
+      rememberUser(acct);
       /* 注册后立刻引导设密保（这一步跳过了，以后忘记密码就只能找站长）。
-         不关登录面板，让家长顺手设完；点「以后再说」才真正关闭并刷新账号状态。
+         先探一次能力：库端 SQL 还没跑过时直接跳过，别让家长刚注册就看到「暂未开通」。
          设不设由家长决定，不阻塞任何功能。 */
-      secAfterReg=true;
-      openSec("set");
+      if(await secAvailable()){
+        secAfterReg=true;
+        openSec("set");
+        return;
+      }
+      closeLogin(true);onAuthChanged();
+      if(window.toast)toast("注册成功，欢迎加入育人帮 🎉");
       return;
     }
     const done=await withTimeout(cloud.auth.signInWithPassword({username:acct,password:pwd}),20000,"登录");
@@ -2085,6 +2099,7 @@ async function submitPwdLoginV2(){
       return;
     }
     rememberPhone(acct);
+    rememberUser(acct);
     await refreshSession();
     closeLogin(true);onAuthChanged();
     if(window.toast)toast("登录成功，欢迎回来 👋");
@@ -2156,6 +2171,27 @@ function openChangePwd(){
    没跑过那份 SQL 时：RPC 会报函数不存在，这里降级成「请联系站长重置」，不误导用户。
    ========================================================= */
 var secMode="recover", secName="", secAfterReg=false;
+/* 能力探测（会话内缓存）：库端三个函数到底在不在。
+   没跑过迁移时，面板直接说明情况，不让家长输完用户名、答完题才看到「暂未开通」。 */
+var secState=null;
+async function secAvailable(){
+  if(secState!==null)return secState;
+  try{
+    const r=await accountRpc("yb_sec_info",{p_username:"__probe__"});
+    if(secRpcMissing(r))secState=false;
+    else secState=true;
+  }catch(e){
+    return true;      /* 网络抖动不误判：交给真实请求给出准确提示 */
+  }
+  return secState;
+}
+function renderSecOff(){
+  const b=$("#lgSecBody");if(!b)return;
+  b.innerHTML=`
+    <div class="lg-sec-note">自助找回密码还在开通中，现在还查不了密保问题。</div>
+    <div class="lg-sec-tip" style="margin-top:12px">忘记密码请先在家长微信群或站内留言给站长，他在后台帮你重置；用户名就是注册时填的名字（比如「小明妈妈」）。</div>
+    <button class="lg-btn" data-sec="skip" type="button">返回登录</button>`;
+}
 const SEC_QS=["孩子的小名是什么？","我上小学的学校叫什么？","老家是哪个村 / 镇？"];
 function openSec(mode){
   ensureShell();
@@ -2168,6 +2204,13 @@ function openSec(mode){
   const t=$("#lgSecTitle"); if(t)t.textContent=secMode==="set"?"设置密保问题":"找回密码";
   if(secMode==="set")renderSecSet(); else renderSecAsk();
   p.classList.add("open");
+  /* 探测到库端未就绪 → 换成说明页（异步，不阻塞面板打开） */
+  secAvailable().then(ok=>{
+    if(!ok&&secState===false&&p.classList.contains("open")){
+      secAfterReg=false;          /* 注册后那一次也别再自动关登录面板 */
+      renderSecOff();
+    }
+  });
 }
 function closeSec(){
   const p=$("#lgSec");if(p)p.classList.remove("open");
@@ -2188,10 +2231,10 @@ function renderSecAsk(){
   $("#lgSecBody").innerHTML=`
     <div class="lg-sec-note">输入你注册时用的用户名，点「下一步」回答问题，就能自己重设密码。</div>
     <div class="lg-label">用户名</div>
-    <div class="lg-field"><input id="secName" maxlength="20" placeholder="例如：小明妈妈" value="${esc(secName)}" aria-label="用户名"></div>
+    <div class="lg-field"><input id="secName" maxlength="20" placeholder="例如：小明妈妈" value="${esc(secName||rememberedUser())}" aria-label="用户名"></div>
     <div class="lg-err" id="secErr"></div>
     <button class="lg-btn" id="secNext" data-sec="next" type="button">下一步</button>
-    <div class="lg-sec-tip">想不起用户名，或从没设过密保？<a data-sec="ask">联系站长重置</a></div>`;
+    <div class="lg-sec-tip">用户名就是你注册时填的那个名字（2-20 个字，比如「小明妈妈」）。这台手机上会记住上次登录的用户名。<br>想不起用户名，或从没设过密保？<a data-sec="ask">联系站长重置</a></div>`;
 }
 /* 第二步：答问题 + 设新密码 */
 function renderSecReset(q){

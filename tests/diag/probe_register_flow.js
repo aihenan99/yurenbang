@@ -7,7 +7,7 @@
    用法：node tests/diag/probe_register_flow.js */
 const { chromium } = require("../../temp/pw/node_modules/playwright-core");
 const CHROME = "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe";
-const BASE = "https://xn--gmqq09al6z.cn/";
+const BASE = process.env.YRB_BASE || "https://xn--gmqq09al6z.cn/";
 
 (async () => {
   const stamp = Date.now().toString(36).slice(-4);
