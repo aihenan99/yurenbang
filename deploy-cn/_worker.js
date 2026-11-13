@@ -16,7 +16,7 @@
  */
 const UPSTREAM = "https://yurenbang.app.workbuddy.host";
 const PREFIX = "/yrbapi";
-const BUILD_TAG = "20261113094507-build";
+const BUILD_TAG = "20261113125116-build";
 
 /* ============================================================
    /sbapi —— 自建 Supabase 同源代理（2026-11-01 迁移第一步）
@@ -47,6 +47,15 @@ const TTS_GEC_VERSION = "2-143.0.3650.75";
 const TTS_ORIGIN = "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold";
 const TTS_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0";
 const TTS_VOICE = "zh-CN-XiaoxiaoNeural";
+/* 2026-11-13：TTS_REV = 音频配方版本。音色/音高/语速任何一项变化都必须 +1。
+   原因：caches.default 与浏览器缓存都按 URL 存音频（cache-control 24h），
+   换音色而不换 URL 时，老文本会继续返回旧音色的缓存——用户听到「还是男声」。
+   客户端把本值作为 &v= 带在 URL 上，本地/边缘缓存键随之改变，一次全破。
+   改这里的同时必须改 assets/mediafull.js 的 TTS_REV，两边同值。 */
+const TTS_REV = "2";
+/* 音高 -4%：晓晓原始基频约 267Hz 偏年轻亲和，压低后约 254Hz，
+   更接近央视新闻女播音的中低音区（庄重、不飘）。 */
+const TTS_PITCH = "-4%";
 
 const U32 = 0xFFFFFFFF;
 const u32 = x => x >>> 0;
@@ -178,7 +187,7 @@ async function ttsSynthesize(text, slow){
   /* workerd：accept() 后连接即已打开，不会触发 open 事件，配置与 SSML 立即发送 */
   ws.send("X-Timestamp:"+new Date().toString()+"\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n"+
     JSON.stringify({context:{synthesis:{audio:{metadataoptions:{sentenceBoundaryEnabled:"false",wordBoundaryEnabled:"false"},outputFormat:"audio-24khz-48kbitrate-mono-mp3"}}}}));
-  const ssml="<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='zh-CN'><voice name='"+TTS_VOICE+"'><prosody rate='"+(slow?"-15%":"+0%")+"'>"+xmlEsc(text)+"</prosody></voice></speak>";
+  const ssml="<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='zh-CN'><voice name='"+TTS_VOICE+"'><prosody rate='"+(slow?"-15%":"+0%")+"' pitch='"+TTS_PITCH+"'>"+xmlEsc(text)+"</prosody></voice></speak>";
   ws.send("X-RequestId:"+crypto.randomUUID().replace(/-/g,"")+"\r\nContent-Type:application/ssml+xml\r\nPath:ssml\r\n\r\n"+ssml);
   const rate=slow?"-15%":"+0%";
   const chunks=[];
@@ -225,7 +234,9 @@ async function handleTts(request, url){
     if(!mp3||!mp3.byteLength) throw new Error("empty audio");
     const resp=new Response(mp3,{status:200,headers:{
       "content-type":"audio/mpeg","cache-control":"public, max-age=86400",
-      "access-control-allow-origin":url.origin,"x-yrb-tts":"1"}});
+      "access-control-allow-origin":url.origin,"x-yrb-tts":"1",
+      /* 音色指纹：以后排查「听到的声音不对」时，一眼看出这段音频是哪个配方合成的 */
+      "x-yrb-voice":TTS_VOICE,"x-yrb-tts-rev":TTS_REV}});
     try{ await cache.put(request,resp.clone()); }catch(e){}
     return resp;
   }catch(err){

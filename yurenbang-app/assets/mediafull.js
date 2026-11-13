@@ -8,7 +8,7 @@
    ========================================================= */
 (function () {
 "use strict";
-var VERSION = "7";
+var VERSION = "8";
 
 function $(s, r) { return (r || document).querySelector(s); }
 function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
@@ -68,6 +68,16 @@ function injectVideoBtns(root) {
      （pptview 层 pagesFor() 从 ppt/slides/*.xml 提取，逐页读出） */
 var speaking = false, curBtn = null, gen = 0, speakCtx = "";   /* detail|case|card */
 
+/* 语音配方版本：必须与 deploy-cn/_worker.js 的 TTS_REV 同值。
+   作用是把音色版本写进 /yrbtts 的 URL —— 音频按 URL 缓存 24 小时（浏览器 + CF 边缘），
+   只换服务端音色而不换 URL 时，老文本会继续返回旧音色的缓存，
+   表现就是「改了音色但听着还是老声音」。
+   换音色/音高/语速时：两侧同时 +1。 */
+var TTS_REV = "2";
+function ttsUrl(text, slow) {
+  return "/yrbtts?t=" + encodeURIComponent(text) + "&r=" + (slow ? "slow" : "norm") + "&v=" + TTS_REV;
+}
+
 /* 自动跟读状态（详见第 6 节）：开启后自动朗读，滑动跟随换读。
    2026-11-13 改为可选项：默认关（autoOn=false），点击 🔊 按钮才播，
    想要自动跟读再点左下胶囊打开。 */
@@ -118,7 +128,7 @@ function prefetch(text, slow) {
     preCtl = ctl;
     var chunks = splitChunks(t);
     var tm = ctl ? setTimeout(function () { try { ctl.abort(); } catch (e) {} }, 9000) : 0;
-    var p = fetch("/yrbtts?t=" + encodeURIComponent(chunks[0]) + "&r=" + (slow ? "slow" : "norm"),
+    var p = fetch(ttsUrl(chunks[0], slow),
         ctl ? { signal: ctl.signal } : undefined)
       .then(function (r) { clearTimeout(tm); if (!r.ok) throw new Error("tts " + r.status); return r.blob(); },
             function (err) { clearTimeout(tm); delete preCache[key]; throw err; });
@@ -131,7 +141,8 @@ function prefetchCancel() {
 }
 try { document.addEventListener("scroll", function () { prefetchCancel(); }, { passive: true, capture: true }); } catch (e) {}
 
-/* 云端 AI 真人语音（/yrbtts → 微软晓晓女播音音色，2026-11-13 由男声云扬换为女声；失败退回本机语音。
+/* 云端 AI 真人语音（/yrbtts → 微软晓晓女播音音色 + 音高 -4%，2026-11-13 由男声云扬换为女声；
+   URL 带 TTS_REV 版本戳，避免命中旧音色的音频缓存。失败退回本机语音（优先女声）。
    ctx：朗读来源 detail|case|card —— 卡片朗读时详情/查看器都是关闭态，
    关闭即停的观察者只对 detail/case 生效，绝不能掐断卡片朗读 */
 function speak(text, btn, compact, ctx) {
@@ -160,7 +171,7 @@ function speak(text, btn, compact, ctx) {
          由调用方的 catch 走 fallbackFrom 降级本机朗读 */
       var ctl = window.AbortController ? new AbortController() : null;
       var tm = ctl ? setTimeout(function () { try { ctl.abort(); } catch (e) {} }, 9000) : 0;
-      fetches[idx] = fetch("/yrbtts?t=" + encodeURIComponent(chunks[idx]) + "&r=" + (slow ? "slow" : "norm"),
+      fetches[idx] = fetch(ttsUrl(chunks[idx], slow),
           ctl ? { signal: ctl.signal } : undefined)
         .then(function (r) { clearTimeout(tm); if (!r.ok) throw new Error("tts " + r.status); return r.blob(); },
               function (err) { clearTimeout(tm); throw err; });
@@ -205,18 +216,37 @@ function speak(text, btn, compact, ctx) {
   next();
 }
 /* 本机兜底：分段链式 speechSynthesis */
+/* 本机朗读兜底：优先挑中文女声。
+   2026-11-13：原来只设 lang=zh-CN 不指定 voice，系统默认中文音色在不少安卓机上
+   就是男声——云端合成失败静默降级时，用户听到的仍是男声，与「换成女播音」相反。
+   这里按常见命名挑女声（微软晓晓/晓伊、苹果婷婷、谷歌惠惠等），挑不到才用默认。 */
+var FEMALE_HINTS = /xiaoxiao|xiaoyi|xiaoxuan|xiaomo|xiaochen|xiaohan|tingting|ting-ting|meijia|mei-jia|huihui|yaoyao|female|woman|女/i;
+function pickZhVoice() {
+  try {
+    if (!("speechSynthesis" in window)) return null;
+    var vs = speechSynthesis.getVoices() || [];
+    if (!vs.length) return null;                       /* 尚未加载完：本次用默认，下次调用即可命中 */
+    var zh = vs.filter(function (v) { return /^zh/i.test(v.lang || ""); });
+    for (var i = 0; i < zh.length; i++) if (FEMALE_HINTS.test(zh[i].name || "")) return zh[i];
+    return null;
+  } catch (e) { return null; }
+}
+try { if ("speechSynthesis" in window) speechSynthesis.getVoices(); } catch (e) {}
+
 function speakLocal(t, btn, g, compact) {
   if (g !== gen) return;
   if (!("speechSynthesis" in window)) { try { toast("当前浏览器不支持语音朗读"); } catch (e) {} done2(g, compact); return; }
   var chunks = splitChunks(t), i = 0;
   var rate = 1;
   try { var s = getS(); rate = s && s.elder === "1" ? 0.85 : 1; } catch (e) {}
+  var female = pickZhVoice();
   function done2(gg, cp) { if (gg !== gen) return; speaking = false; setBtn(false, cp); curBtn = null; if (speakCtx === "card") autoReading = false; }
   function next() {
     if (g !== gen) return;
     if (i >= chunks.length) { done2(g, compact); return; }
     var u = new SpeechSynthesisUtterance(chunks[i++]);
     u.lang = "zh-CN"; u.rate = rate;
+    if (female) { try { u.voice = female; } catch (e) {} }
     u.onend = next;
     u.onerror = function () { done2(g, compact); };
     try { speechSynthesis.speak(u); } catch (e) { done2(g, compact); }

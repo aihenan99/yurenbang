@@ -25,6 +25,15 @@ const TTS_GEC_VERSION = "2-143.0.3650.75";
 const TTS_ORIGIN = "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold";
 const TTS_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0";
 const TTS_VOICE = "zh-CN-XiaoxiaoNeural";
+/* 2026-11-13：TTS_REV = 音频配方版本。音色/音高/语速任何一项变化都必须 +1。
+   原因：caches.default 与浏览器缓存都按 URL 存音频（cache-control 24h），
+   换音色而不换 URL 时，老文本会继续返回旧音色的缓存——用户听到「还是男声」。
+   客户端把本值作为 &v= 带在 URL 上，本地/边缘缓存键随之改变，一次全破。
+   改这里的同时必须改 assets/mediafull.js 的 TTS_REV，两边同值。 */
+const TTS_REV = "2";
+/* 音高 -4%：晓晓原始基频约 267Hz 偏年轻亲和，压低后约 254Hz，
+   更接近央视新闻女播音的中低音区（庄重、不飘）。 */
+const TTS_PITCH = "-4%";
 
 const U32 = 0xFFFFFFFF;
 const u32 = x => x >>> 0;
@@ -203,7 +212,7 @@ function ttsSynthesize(text, slow) {
       const rate = slow ? "-15%" : "+0%";
       ws.send(frame("ssml", "application/ssml+xml",
         "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='zh-CN'>" +
-        "<voice name='" + TTS_VOICE + "'><prosody rate='" + rate + "'>" + xmlEsc(text) +
+        "<voice name='" + TTS_VOICE + "'><prosody rate='" + rate + "' pitch='" + TTS_PITCH + "'>" + xmlEsc(text) +
         "</prosody></voice></speak>"));
     };
 
@@ -292,7 +301,8 @@ async function handleTts(req, res, url) {
   const slow = q.get("r") === "slow";
   if (!text.trim()) return sendJson(res, 400, { error: "no text" });
 
-  const key = (slow ? "s|" : "n|") + text;
+  /* 缓存键带配方版本与音色：换音色/音高后旧音频自动失效，不会又播回老声音 */
+  const key = TTS_REV + "|" + TTS_VOICE + "|" + (slow ? "s|" : "n|") + text;
   const hit = cacheGet(key);
   if (hit) {
     res.writeHead(200, {
@@ -300,6 +310,8 @@ async function handleTts(req, res, url) {
       "content-length": hit.byteLength,
       "cache-control": "public, max-age=86400",
       "x-yrb-tts": "hit",
+      "x-yrb-voice": TTS_VOICE,
+      "x-yrb-tts-rev": TTS_REV,
     });
     served++;
     return res.end(Buffer.from(hit.buffer, hit.byteOffset, hit.byteLength));
@@ -320,6 +332,8 @@ async function handleTts(req, res, url) {
       "content-length": mp3.byteLength,
       "cache-control": "public, max-age=86400",
       "x-yrb-tts": "miss",
+      "x-yrb-voice": TTS_VOICE,
+      "x-yrb-tts-rev": TTS_REV,
     });
     served++;
     res.end(Buffer.from(mp3.buffer, mp3.byteOffset, mp3.byteLength));
