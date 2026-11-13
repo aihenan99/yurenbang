@@ -24,7 +24,7 @@ const TTS_WSS = "wss://speech.platform.bing.com/consumer/speech/synthesize/reada
 const TTS_GEC_VERSION = "2-143.0.3650.75";
 const TTS_ORIGIN = "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold";
 const TTS_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0";
-const TTS_VOICE = "zh-CN-YunyangNeural";
+const TTS_VOICE = "zh-CN-XiaoxiaoNeural";
 
 const U32 = 0xFFFFFFFF;
 const u32 = x => x >>> 0;

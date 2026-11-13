@@ -8,7 +8,7 @@
    ========================================================= */
 (function () {
 "use strict";
-var VERSION = "5";
+var VERSION = "6";
 
 function $(s, r) { return (r || document).querySelector(s); }
 function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
@@ -68,8 +68,10 @@ function injectVideoBtns(root) {
      （pptview 层 pagesFor() 从 ppt/slides/*.xml 提取，逐页读出） */
 var speaking = false, curBtn = null, gen = 0, speakCtx = "";   /* detail|case|card */
 
-/* 自动跟读状态（详见第 6 节）：打开 App 自动朗读，滑动跟随换读 */
-var autoOn = true, autoReading = false, autoCurId = null, autoSkip = {};
+/* 自动跟读状态（详见第 6 节）：开启后自动朗读，滑动跟随换读。
+   2026-11-13 改为可选项：默认关（autoOn=false），点击 🔊 按钮才播，
+   想要自动跟读再点左下胶囊打开。 */
+var autoOn = false, autoReading = false, autoCurId = null, autoSkip = {};
 var autoArmed = false, autoTm = 0, autoPill = null;
 
 function setBtn(on, compact) {
@@ -129,7 +131,7 @@ function prefetchCancel() {
 }
 try { document.addEventListener("scroll", function () { prefetchCancel(); }, { passive: true, capture: true }); } catch (e) {}
 
-/* 云端 AI 真人语音（/yrbtts → 微软云扬，央视播音员音色），失败退回本机语音。
+/* 云端 AI 真人语音（/yrbtts → 微软晓晓女播音音色，2026-11-13 由男声云扬换为女声；失败退回本机语音。
    ctx：朗读来源 detail|case|card —— 卡片朗读时详情/查看器都是关闭态，
    关闭即停的观察者只对 detail/case 生效，绝不能掐断卡片朗读 */
 function speak(text, btn, compact, ctx) {
@@ -404,7 +406,8 @@ try { window.addEventListener("yrb-auth", schedule); } catch (e) {}
    ④ 尊重手动：再点当前卡片的 🔊 = 手动停止，这张卡本会话不再自动重读，
       滑到别的卡才恢复；开关胶囊关闭 = 全部清空。
    ⑤ 开关：#phone 左下悬浮胶囊（z-index 42，浮层阶梯 40-59），
-      记忆在 localStorage(yrb_autospeak)，默认开。 */
+      记忆在 localStorage(yrb_autospeak)，2026-11-13 起默认关（可选项：
+      点卡片 🔊 播一条；点胶囊打开后才是滑动自动跟读）。 */
 function overlaysOpen() {
   /* 2026-11-10：#r23Viewer（图片全屏大图）也算浮层——它 z95 会盖住跟读开关胶囊，
      开着大图还继续朗读的话，用户找不到「停」的地方 */
@@ -518,8 +521,9 @@ function buildAutoPill() {
   autoPaintPill();
   autoSyncPill();
 }
-/* 初始化：开关胶囊、滚动跟随、信息流重建跟随、手势解锁 */
-try { autoOn = localStorage.getItem("yrb_autospeak") !== "0"; } catch (e) {}
+/* 初始化：开关胶囊、滚动跟随、信息流重建跟随、手势解锁。
+   默认关：只有明确存过 "1"（用户点过胶囊打开）才自动跟读 */
+try { autoOn = localStorage.getItem("yrb_autospeak") === "1"; } catch (e) {}
 buildAutoPill();
 try {
   var ph = $("#page-home");
